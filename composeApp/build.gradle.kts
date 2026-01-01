@@ -6,9 +6,13 @@ plugins {
 	alias(libs.plugins.composeMultiplatform)
 	alias(libs.plugins.composeCompiler)
 	alias(libs.plugins.composeHotReload)
+	alias(libs.plugins.ksp)
+	alias(libs.plugins.androidx.room)
+	alias(libs.plugins.kotlinx.serialization)
 }
 
 kotlin {
+	@Suppress("DEPRECATION")
 	androidTarget()
 	jvm()
 
@@ -16,26 +20,55 @@ kotlin {
 		androidMain.dependencies {
 			implementation(compose.preview)
 			implementation(libs.androidx.activity.compose)
-			implementation("com.juul.kable:kable-default-permissions:0.41.0")
+			implementation(libs.kable.permissions.utils)
+			implementation(libs.androidx.room.sqlite.wrapper)
+			// splash api
+			implementation(libs.androidx.splash)
+			// di
+			implementation(libs.koin.android)
+			implementation(libs.koin.compose)
+			implementation(libs.koin.android.startup)
 		}
 		commonMain.dependencies {
 			implementation(compose.runtime)
 			implementation(compose.foundation)
-			implementation(compose.material3)
 			implementation(compose.ui)
 			implementation(compose.components.resources)
 			implementation(compose.components.uiToolingPreview)
+			implementation(libs.compose.material3)
 			implementation(libs.androidx.lifecycle.viewmodelCompose)
 			implementation(libs.androidx.lifecycle.runtimeCompose)
-			implementation("com.juul.kable:kable-core:0.41.0")
+			// ble
+			implementation(libs.kable.core)
+			// room database
+			implementation(libs.androidx.room.runtime)
+			implementation(libs.androidx.sqlite.bundled)
+			//di
+			implementation(libs.koin.core)
+			// navigation
+			implementation(libs.jetbrains.navigation3.ui)
+			implementation(libs.jetbrains.material3.adaptiveNavigation3)
+			implementation(libs.jetbrains.lifecycle.viewmodelNavigation3)
+			// kotlinx datetime and immutables
+			implementation(libs.kotlinx.datetime)
+			implementation(libs.kotlinx.collections.immutable)
+			// crypto
+			implementation(libs.kotlin.crypto.sha2)
 		}
 		commonTest.dependencies {
 			implementation(libs.kotlin.test)
+			implementation(libs.koin.test)
 		}
 		jvmMain.dependencies {
 			implementation(compose.desktop.currentOs)
 			implementation(libs.kotlinx.coroutinesSwing)
 		}
+	}
+
+	compilerOptions {
+		freeCompilerArgs.add("-Xexpect-actual-classes")
+		optIn.add("kotlin.uuid.ExperimentalUuidApi")
+		optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
 	}
 }
 
@@ -61,12 +94,17 @@ android {
 		}
 	}
 	compileOptions {
-		sourceCompatibility = JavaVersion.VERSION_11
-		targetCompatibility = JavaVersion.VERSION_11
+		sourceCompatibility = JavaVersion.VERSION_17
+		targetCompatibility = JavaVersion.VERSION_17
 	}
 }
 
+room {
+	schemaDirectory("$projectDir/schemas")
+}
+
 dependencies {
+	add("kspAndroid", libs.androidx.room.compiler)
 	debugImplementation(compose.uiTooling)
 }
 
@@ -80,4 +118,19 @@ compose.desktop {
 			packageVersion = "1.0.0"
 		}
 	}
+}
+
+compose.resources {
+
+	publicResClass = false
+	packageOfResClass = "com.sam.bluepad.resources"
+	generateResClass = auto
+
+	// for jvm specific resources
+	customDirectory(
+		sourceSetName = "jvmMain",
+		directoryProvider = provider {
+			layout.projectDirectory.dir("src").dir("jvmMain").dir("resources")
+		}
+	)
 }
