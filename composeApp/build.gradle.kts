@@ -20,11 +20,11 @@ kotlin {
 		androidMain.dependencies {
 			implementation(compose.preview)
 			implementation(libs.androidx.activity.compose)
-			implementation(libs.kable.permissions.utils)
+			// database
 			implementation(libs.androidx.room.sqlite.wrapper)
 			// splash api
 			implementation(libs.androidx.splash)
-			// di
+			// koin-di-android
 			implementation(libs.koin.android)
 			implementation(libs.koin.compose)
 			implementation(libs.koin.android.startup)
@@ -38,13 +38,13 @@ kotlin {
 			implementation(libs.compose.material3)
 			implementation(libs.androidx.lifecycle.viewmodelCompose)
 			implementation(libs.androidx.lifecycle.runtimeCompose)
-			// ble
-			implementation(libs.kable.core)
 			// room database
 			implementation(libs.androidx.room.runtime)
 			implementation(libs.androidx.sqlite.bundled)
 			//di
 			implementation(libs.koin.core)
+			implementation(libs.koin.compose)
+			implementation(libs.koin.compose.viewmodel)
 			// navigation
 			implementation(libs.jetbrains.navigation3.ui)
 			implementation(libs.jetbrains.material3.adaptiveNavigation3)
@@ -54,6 +54,8 @@ kotlin {
 			implementation(libs.kotlinx.collections.immutable)
 			// crypto
 			implementation(libs.kotlin.crypto.sha2)
+			// logging
+			implementation(libs.kermit)
 		}
 		commonTest.dependencies {
 			implementation(libs.kotlin.test)
@@ -62,6 +64,10 @@ kotlin {
 		jvmMain.dependencies {
 			implementation(compose.desktop.currentOs)
 			implementation(libs.kotlinx.coroutinesSwing)
+			implementation(project(":jvm-core:ble-common"))
+			implementation(project(":jvm-core:simplejavable"))
+			implementation(project(":jvm-core:ble-advertise"))
+			implementation("io.ultreia:bluecove:2.1.1")
 		}
 	}
 
@@ -104,7 +110,8 @@ room {
 }
 
 dependencies {
-	add("kspAndroid", libs.androidx.room.compiler)
+	"kspAndroid"(libs.androidx.room.compiler)
+	"kspJvm"(libs.androidx.room.compiler)
 	debugImplementation(compose.uiTooling)
 }
 
@@ -131,6 +138,7 @@ compose.resources {
 		sourceSetName = "jvmMain",
 		directoryProvider = provider {
 			layout.projectDirectory.dir("src").dir("jvmMain").dir("resources")
+				.dir("desktopResources")
 		}
 	)
 }
