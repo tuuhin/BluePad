@@ -11,10 +11,10 @@ class MainActivity : ComponentActivity() {
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		// edge to edge
-		enableEdgeToEdge()
 		installSplashScreen()
-
 		super.onCreate(savedInstanceState)
+
+		enableEdgeToEdge()
 
 		setContent {
 			BluePadTheme {

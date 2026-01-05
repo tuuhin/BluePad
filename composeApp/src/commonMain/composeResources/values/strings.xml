@@ -1,0 +1,5 @@
+<resources>
+  <string name="navigation_list">List</string>
+  <string name="navigation_device">Device</string>
+  <string name="navigation_settings">Settings</string>
+</resources>

@@ -49,6 +49,7 @@ kotlin {
 			implementation(libs.jetbrains.navigation3.ui)
 			implementation(libs.jetbrains.material3.adaptiveNavigation3)
 			implementation(libs.jetbrains.lifecycle.viewmodelNavigation3)
+			implementation(libs.adaptive)
 			// kotlinx datetime and immutables
 			implementation(libs.kotlinx.datetime)
 			implementation(libs.kotlinx.collections.immutable)
@@ -56,6 +57,9 @@ kotlin {
 			implementation(libs.kotlin.crypto.sha2)
 			// logging
 			implementation(libs.kermit)
+			//data store
+			implementation(libs.androidx.datastore)
+			implementation(libs.androidx.datastore.preferences)
 		}
 		commonTest.dependencies {
 			implementation(libs.kotlin.test)
@@ -67,7 +71,7 @@ kotlin {
 			implementation(project(":jvm-core:ble-common"))
 			implementation(project(":jvm-core:simplejavable"))
 			implementation(project(":jvm-core:ble-advertise"))
-			implementation("io.ultreia:bluecove:2.1.1")
+			implementation(libs.bluecove)
 		}
 	}
 
