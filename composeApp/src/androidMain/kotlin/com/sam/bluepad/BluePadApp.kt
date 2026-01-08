@@ -1,6 +1,8 @@
 package com.sam.bluepad
 
 import android.app.Application
+import androidx.compose.runtime.Composer
+import androidx.compose.runtime.tooling.ComposeStackTraceMode
 import com.sam.bluepad.di.commonAppModule
 import com.sam.bluepad.di.createPlatformModule
 import com.sam.bluepad.di.viewModelModule
@@ -13,6 +15,13 @@ import org.koin.dsl.koinConfiguration
 
 @OptIn(KoinExperimentalAPI::class)
 class BluePadApp : Application(), KoinStartup {
+
+	override fun onCreate() {
+		super.onCreate()
+		if (BuildConfig.DEBUG)
+			Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.SourceInformation)
+		else Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.Auto)
+	}
 
 	override fun onKoinStartup(): KoinConfiguration = koinConfiguration {
 		androidContext(this@BluePadApp)

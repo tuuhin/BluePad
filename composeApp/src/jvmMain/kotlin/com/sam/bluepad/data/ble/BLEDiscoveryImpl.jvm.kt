@@ -13,7 +13,6 @@ import com.sam.bluepad.domain.ble.models.BLEPeerDevice
 import com.sam.bluepad.domain.exceptions.BLENotSupportedException
 import com.sam.bluepad.domain.exceptions.BLEScanRunningException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
-import com.sam.bluepad.domain.use_cases.AppHasher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,9 +32,7 @@ import kotlin.time.Duration
 
 private const val TAG = "BLE_SCAN_DEVICES"
 
-actual class BLEDiscoveryImpl(
-	private val hasher: AppHasher
-) : BLEDiscoveryManager {
+actual class BLEDiscoveryImpl : BLEDiscoveryManager {
 
 	private val _isStopLock = Mutex()
 
@@ -56,7 +53,7 @@ actual class BLEDiscoveryImpl(
 
 		filters {
 			match {
-//				services = listOf(BLEConstants.baseAdvertisementId)
+//				services = listOf(BLEConstants.transportServiceId)
 			}
 		}
 	}

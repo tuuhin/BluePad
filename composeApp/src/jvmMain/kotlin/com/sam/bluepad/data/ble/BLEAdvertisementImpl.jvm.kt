@@ -15,7 +15,6 @@ import com.sam.bluepad.domain.exceptions.BLEAdvertiseUnsupportedException
 import com.sam.bluepad.domain.exceptions.BLENotSupportedException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
-import com.sam.bluepad.domain.use_cases.AppHasher
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +32,6 @@ private const val TAG = "BLE_ADVERTISER"
 actual class BLEAdvertisementImpl(
 	provider: LocalDeviceInfoProvider,
 	private val randomGenerator: RandomGenerator,
-	private val hasher: AppHasher,
 ) : BLEAdvertisementManager {
 
 	private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
