@@ -1,80 +1,119 @@
 package com.sam.bluepad.data.ble
 
 import co.touchlab.kermit.Logger
+import com.sam.ble_common.BluetoothInfoProvider
 import com.sam.ble_common.Characteristic
 import com.sam.ble_common.Service
 import com.sam.blejavaadvertise.BLEAdvertiser
 import com.sam.blejavaadvertise.callbacks.GATTServerCallback
 import com.sam.blejavaadvertise.models.GATTServiceAdvertisementStatus
 import com.sam.blejavaadvertise.models.GattAdvertisementConfig
+import com.sam.bluepad.BuildKonfig
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConstants
+import com.sam.bluepad.domain.exceptions.BLEAdvertiseUnsupportedException
+import com.sam.bluepad.domain.exceptions.BLENotSupportedException
+import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
+import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
+import com.sam.bluepad.domain.use_cases.AppHasher
+import com.sam.bluepad.domain.use_cases.RandomGenerator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import org.simplejavable.Adapter
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
+import kotlin.uuid.Uuid
 
 private const val TAG = "BLE_ADVERTISER"
 
-actual class BLEAdvertisementImpl : BLEAdvertisementManager {
+actual class BLEAdvertisementImpl(
+	provider: LocalDeviceInfoProvider,
+	private val randomGenerator: RandomGenerator,
+	private val hasher: AppHasher,
+) : BLEAdvertisementManager {
+
+	private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+	private val _advertiser by lazy { BLEAdvertiser() }
 
 	private val _isRunning = MutableStateFlow(false)
 
-	private val _advertiser by lazy { BLEAdvertiser() }
+	private val _deviceData = provider.readDeviceInfo
+		.stateIn(_scope, SharingStarted.Eagerly, null)
 
-	override val isRunning: Flow<Boolean>
-		get() = _isRunning
-
-	private val _callback = object : GATTServerCallback {
+	private val _advertiseCallback = object : GATTServerCallback {
 		override fun onServiceAdded(serviceUuid: String, success: Boolean, error: Int) {
-			Logger.i(TAG) { "Service $serviceUuid added = $success" }
+			Logger.i(TAG) { "SERVICE $serviceUuid ADDED: ERROR CODE: $error SUCCESS: $success" }
 		}
 
 		override fun onServiceStatusChange(status: GATTServiceAdvertisementStatus?) {
 			Logger.d(TAG) { "ADVERTISEMENT STATUS :$status" }
-			_isRunning.value = status == GATTServiceAdvertisementStatus.STARTED
+			_isRunning.value = status == GATTServiceAdvertisementStatus.STARTED ||
+					status == GATTServiceAdvertisementStatus.STARTED_WITHOUT_ADVERTISEMENT
 		}
 
 		override fun onReadCharacteristics(serviceUuid: String?, characteristicUuid: String?)
 				: ByteArray? {
-			if (serviceUuid == null) return return null
+			if (serviceUuid == null) return null
 			if (characteristicUuid == null) return null
 
-			return when (characteristicUuid.lowercase()) {
-				BLEConstants.deviceNameCharacteristic.toHexString() -> "Sam boult".encodeToByteArray()
-				BLEConstants.deviceNonceCharacteristic.toHexString() -> "sdiufdbfiudf".encodeToByteArray()
-				else -> byteArrayOf()
+			val parsedUUID = Uuid.parse(characteristicUuid)
+			Logger.d(TAG) { "READ REQUESTED ON :$parsedUUID" }
+
+			return when (parsedUUID) {
+				BLEConstants.deviceNonceCharacteristic -> randomGenerator.generateRandomBytes()
+				BLEConstants.deviceIdCharacteristics -> _deviceData.value?.deviceId?.toByteArray()
+				BLEConstants.deviceNameCharacteristic -> _deviceData.value?.name?.encodeToByteArray()
+				else -> null
 			}
 		}
 	}
 
-	override fun startAdvertising(deviceName: String, nonce: String?) {
-		if (!Adapter.isBluetoothEnabled()) {
-			Logger.e(TAG) { "BLE IS NOT TURNED ON" }
-			return
+	override val isRunning: Flow<Boolean>
+		get() = _isRunning
+
+	override val errorFlow: Flow<Exception>
+		get() = emptyFlow()
+
+	override suspend fun startAdvertising(): Result<Unit> {
+
+		if (!BluetoothInfoProvider.isBluetoothActive())
+			return Result.failure(BluetoothNotEnabledException())
+
+		if (!BLEAdvertiser.nativeIsLeSecureConnectionAvailable())
+			return Result.failure(BLENotSupportedException())
+
+		if (!BLEAdvertiser.nativeIsPeripheralRoleSupported())
+			return Result.failure(BLEAdvertiseUnsupportedException())
+
+		_advertiser.setListener(_advertiseCallback)
+		return try {
+			_advertiser.startServer()
+			_advertiser.addService(transportService)
+
+			val data = BuildKonfig.APP_ID.encodeToByteArray()
+			val config = GattAdvertisementConfig(true, true, data)
+			_advertiser.startAdvertisement(config)
+			Result.success(Unit)
+		} catch (e: Exception) {
+			Result.failure(e)
 		}
-		if (!_advertiser.hasLEPeripheralRoleSupport()) {
-			Logger.e(TAG) { "DON'T HAVE A BLE PERIPHERAL SUPPORT" }
-			return
-		}
-
-		_advertiser.setListener(_callback)
-		_advertiser.startServer()
-		_advertiser.addService(transportService)
-
-		val data = BLEConstants.transportServiceData.toByteArray()
-
-		val config = GattAdvertisementConfig(true, true, data)
-		_advertiser.startAdvertisement(config)
 	}
 
 	override fun stopAdvertising() {
-		_advertiser.stopAdvertisement()
+		_advertiser.stopServer()
 		_isRunning.value = false
 		Logger.i(TAG) { "ADVERTISEMENT STOPPED" }
 	}
 
 	override fun cleanUp() {
-		Logger.i(TAG) { "GATT SERVER STOPPED" }
+		if (_scope.isActive) {
+			Logger.d(TAG) { "COROUTINE SCOPE CLEANED" }
+		}
+		Logger.i(TAG) { "STOPPING GATT SERVER AND CLEANING UP" }
 		_advertiser.stopServer()
 	}
 
@@ -83,6 +122,15 @@ actual class BLEAdvertisementImpl : BLEAdvertisementManager {
 			BLEConstants.transportServiceId.toHexDashString(),
 			byteArrayOf(),
 			listOf(
+				Characteristic(
+					BLEConstants.deviceIdCharacteristics.toHexDashString(),
+					emptyList(),
+					true,
+					false,
+					false,
+					false,
+					false
+				),
 				Characteristic(
 					BLEConstants.deviceNameCharacteristic.toHexDashString(),
 					emptyList(),

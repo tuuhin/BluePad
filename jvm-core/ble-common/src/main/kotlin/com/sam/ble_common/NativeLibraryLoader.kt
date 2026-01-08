@@ -1,12 +1,13 @@
 package com.sam.ble_common
 
+import co.touchlab.kermit.Logger
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.UUID
 
- object NativeLibraryLoader {
+object NativeLibraryLoader {
 
 	private const val NATIVE_FOLDER = "native"
 
@@ -55,6 +56,7 @@ import java.util.UUID
 
 		// Extract and load the library
 		val libraryPath = extractAndGetLibraryPath(resourcePath, tempDir, fileName)
+		Logger.i("LIBRARY") { "LOADING LIB :$libraryName" }
 		System.load(libraryPath.toAbsolutePath().toString())
 	}
 

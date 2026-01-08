@@ -5,19 +5,35 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
-import android.content.Context
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.domain.ble.BLEConstants
-import java.security.SecureRandom
+import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
+import com.sam.bluepad.domain.use_cases.RandomGenerator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlin.uuid.toJavaUuid
+import kotlin.uuid.toKotlinUuid
 
-private const val TAG = "ServerConnectionCallback"
+private const val TAG = "SERVER_CALLBACK"
 
 private typealias SendResponse = (device: BluetoothDevice, requestId: Int, status: Int, offset: Int, value: ByteArray?) -> Unit
 
-class ServerConnectionCallback(private val context: Context) : BluetoothGattServerCallback() {
+class ServerConnectionCallback(
+	provider: LocalDeviceInfoProvider,
+	private val randomGenerator: RandomGenerator
+) : BluetoothGattServerCallback() {
 
-	private val _random by lazy { SecureRandom() }
+	private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+	private val deviceInfo = provider.readDeviceInfo.stateIn(
+		scope = _scope,
+		started = SharingStarted.Eagerly,
+		initialValue = null
+	)
 
 	private var _sendResponse: SendResponse? = null
 	private var _onServiceAdded: (() -> Unit)? = null
@@ -48,25 +64,29 @@ class ServerConnectionCallback(private val context: Context) : BluetoothGattServ
 		characteristic: BluetoothGattCharacteristic?
 	) {
 		if (device == null || characteristic == null) return
-		Logger.i(TAG) { "READ REQUESTED FOR CHARACTERISTICS :${characteristic.uuid}" }
+		Logger.d(TAG) { "READ REQUESTED FOR CHARACTERISTICS :${characteristic.uuid}" }
+		if (characteristic.service.uuid.toKotlinUuid() != BLEConstants.transportServiceId) {
+			Logger.d(TAG) { "INVALID SERVICE REQUESTED" }
+			_sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_FAILURE, offset, null)
+			return
+		}
 
-		val charset = Charsets.UTF_8
-
-		if (characteristic.service.uuid != BLEConstants.transportServiceId) return
-
-		val deviceName = "Sam-Boult"
-		val bytes = ByteArray(16)
-		_random.nextBytes(bytes)
-
+		val deviceInfo = deviceInfo.value ?: run {
+			Logger.d(TAG) { "CANNOT READ DEVICE INFO" }
+			_sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_FAILURE, offset, null)
+			return
+		}
 		val value = when (characteristic.uuid) {
-			BLEConstants.deviceNameCharacteristic.toJavaUuid() -> deviceName.toByteArray(charset)
-			BLEConstants.deviceNonceCharacteristic.toJavaUuid() -> bytes
+			BLEConstants.deviceIdCharacteristics.toJavaUuid() -> deviceInfo.deviceId.toByteArray()
+			BLEConstants.deviceNameCharacteristic.toJavaUuid() -> deviceInfo.name.encodeToByteArray()
+			BLEConstants.deviceNonceCharacteristic.toJavaUuid() -> randomGenerator.generateRandomBytes()
 			else -> null
 		}
 		val isSuccess = if (value == null) BluetoothGatt.GATT_FAILURE
 		else BluetoothGatt.GATT_SUCCESS
+		Logger.d(TAG) { "SENDING RESPONSE FOR CHARACTERISTICS :${characteristic.uuid}" }
 		_sendResponse?.invoke(device, requestId, isSuccess, offset, value)
 	}
 
-	fun cleanUp() = Unit
+	fun cleanUp() = _scope.cancel()
 }

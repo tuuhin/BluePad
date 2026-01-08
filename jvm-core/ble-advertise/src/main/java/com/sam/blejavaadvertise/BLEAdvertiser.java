@@ -15,7 +15,8 @@ public class BLEAdvertiser {
 
     private GATTServerCallback listener;
 
-    public void startServer() {
+    public void startServer() throws NativeDestroyNotCalledException {
+        if (nativeHandler != 0) throw new NativeDestroyNotCalledException();
         this.nativeHandler = nativeCreate();
         GATTServerCallbackInternal callback = new GATTServerCallbackInternal() {
 
@@ -56,9 +57,6 @@ public class BLEAdvertiser {
         return GATTServiceAdvertisementStatus.fromInt(status);
     }
 
-    public boolean hasLEPeripheralRoleSupport() {
-        return nativeIsLeSecureConnectionAvailable() && nativeIsPeripheralRoleSupported();
-    }
 
     public void stopAdvertisement() {
         if (nativeHandler != 0) nativeStopAdvertising(nativeHandler);
@@ -82,9 +80,9 @@ public class BLEAdvertiser {
         if (nativeHandler == 0) throw new IllegalStateException("BLE server not started");
     }
 
-    private native boolean nativeIsLeSecureConnectionAvailable();
+    public static native boolean nativeIsLeSecureConnectionAvailable();
 
-    private native boolean nativeIsPeripheralRoleSupported();
+    public static native boolean nativeIsPeripheralRoleSupported();
 
     private native long nativeCreate();
 

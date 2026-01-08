@@ -1,17 +1,35 @@
 package com.sam.bluepad.di
 
 import com.sam.bluepad.data.ble.BLEAdvertisementImpl
+import com.sam.bluepad.data.ble.BLEConnectionManagerImpl
 import com.sam.bluepad.data.ble.BLEDiscoveryImpl
+import com.sam.bluepad.data.bluetooth.BluetoothStateProviderImpl
 import com.sam.bluepad.data.database.AppDBBuilder
+import com.sam.bluepad.data.datastore.DataStoreProvider
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
+import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
+import com.sam.bluepad.domain.bluetooth.BluetoothStateProvider
+import dev.icerock.moko.permissions.PermissionsController
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
+
 actual fun createPlatformModule(): Module = module {
+	// db provider
 	single { AppDBBuilder(androidContext()) }
-	single { BLEDiscoveryImpl(androidContext()) } bind BLEDiscoveryManager::class
-	single { BLEAdvertisementImpl(androidContext()) } bind BLEAdvertisementManager::class
+	// datastore provider
+	singleOf(::DataStoreProvider)
+	// ble provider
+	singleOf(::BLEDiscoveryImpl) bind BLEDiscoveryManager::class
+	singleOf(::BLEConnectionManagerImpl) bind BLEConnectionManager::class
+	singleOf(::BLEAdvertisementImpl) bind BLEAdvertisementManager::class
+
+	// permission controller
+	single { PermissionsController(androidContext()) }
+	// bluetooth state provider
+	singleOf(::BluetoothStateProviderImpl) bind BluetoothStateProvider::class
 }

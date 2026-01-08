@@ -1,3 +1,4 @@
+import com.codingfeline.buildkonfig.compiler.FieldSpec
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
@@ -9,16 +10,21 @@ plugins {
 	alias(libs.plugins.ksp)
 	alias(libs.plugins.androidx.room)
 	alias(libs.plugins.kotlinx.serialization)
+	alias(libs.plugins.build.konfig)
 }
 
 kotlin {
+	jvmToolchain {
+		this.languageVersion = JavaLanguageVersion.of(17)
+	}
+
 	@Suppress("DEPRECATION")
 	androidTarget()
 	jvm()
 
 	sourceSets {
 		androidMain.dependencies {
-			implementation(compose.preview)
+			implementation(libs.androidx.ui.tooling.preview)
 			implementation(libs.androidx.activity.compose)
 			// database
 			implementation(libs.androidx.room.sqlite.wrapper)
@@ -30,12 +36,13 @@ kotlin {
 			implementation(libs.koin.android.startup)
 		}
 		commonMain.dependencies {
-			implementation(compose.runtime)
-			implementation(compose.foundation)
-			implementation(compose.ui)
-			implementation(compose.components.resources)
-			implementation(compose.components.uiToolingPreview)
-			implementation(libs.compose.material3)
+			implementation(libs.cmp.runtime)
+			implementation(libs.cmp.foundation)
+			implementation(libs.cmp.ui)
+			implementation(libs.cmp.material3)
+			implementation(libs.cmp.adaptive)
+			implementation(libs.cmp.components.resources)
+			implementation(libs.cmp.ui.tooling.preview)
 			implementation(libs.androidx.lifecycle.viewmodelCompose)
 			implementation(libs.androidx.lifecycle.runtimeCompose)
 			// room database
@@ -49,17 +56,19 @@ kotlin {
 			implementation(libs.jetbrains.navigation3.ui)
 			implementation(libs.jetbrains.material3.adaptiveNavigation3)
 			implementation(libs.jetbrains.lifecycle.viewmodelNavigation3)
-			implementation(libs.adaptive)
 			// kotlinx datetime and immutables
 			implementation(libs.kotlinx.datetime)
 			implementation(libs.kotlinx.collections.immutable)
 			// crypto
 			implementation(libs.kotlin.crypto.sha2)
+			implementation(libs.kotlin.crypto.random)
 			// logging
 			implementation(libs.kermit)
 			//data store
 			implementation(libs.androidx.datastore)
 			implementation(libs.androidx.datastore.preferences)
+			// permissions
+			implementation(libs.moko.permissions)
 		}
 		commonTest.dependencies {
 			implementation(libs.kotlin.test)
@@ -69,9 +78,12 @@ kotlin {
 			implementation(compose.desktop.currentOs)
 			implementation(libs.kotlinx.coroutinesSwing)
 			implementation(project(":jvm-core:ble-common"))
-			implementation(project(":jvm-core:simplejavable"))
 			implementation(project(":jvm-core:ble-advertise"))
 			implementation(libs.bluecove)
+
+			// kable ble scanning
+			implementation(libs.kable.core)
+			implementation(libs.kable.exceptions)
 		}
 	}
 
@@ -107,16 +119,25 @@ android {
 		sourceCompatibility = JavaVersion.VERSION_17
 		targetCompatibility = JavaVersion.VERSION_17
 	}
+	buildFeatures {
+		buildConfig = true
+	}
 }
 
 room {
 	schemaDirectory("$projectDir/schemas")
 }
 
+composeCompiler {
+	metricsDestination = layout.buildDirectory.dir("compose_compiler")
+	reportsDestination = layout.buildDirectory.dir("compose_compiler")
+	stabilityConfigurationFiles.add(rootProject.layout.projectDirectory.file("stability_config.conf"))
+}
+
 dependencies {
 	"kspAndroid"(libs.androidx.room.compiler)
 	"kspJvm"(libs.androidx.room.compiler)
-	debugImplementation(compose.uiTooling)
+	debugImplementation(libs.cmp.ui.tooling)
 }
 
 compose.desktop {
@@ -124,7 +145,9 @@ compose.desktop {
 		mainClass = "com.sam.bluepad.MainKt"
 
 		nativeDistributions {
-			targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+			// no osx or linux target for now
+			val targets = arrayOf(TargetFormat.Msi)
+			targetFormats(*targets)
 			packageName = "com.sam.bluepad"
 			packageVersion = "1.0.0"
 		}
@@ -145,4 +168,13 @@ compose.resources {
 				.dir("desktopResources")
 		}
 	)
+}
+
+buildkonfig {
+	packageName = "com.sam.bluepad"
+
+	defaultConfigs {
+		buildConfigField(FieldSpec.Type.STRING, "APP_ID", "e1e55e42-bb6c-4410-94e4-a2cc2e628c05")
+		buildConfigField(FieldSpec.Type.BOOLEAN, "IS_DEBUG", "true")
+	}
 }

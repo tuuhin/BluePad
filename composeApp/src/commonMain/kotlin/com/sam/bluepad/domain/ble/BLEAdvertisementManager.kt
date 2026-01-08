@@ -6,7 +6,9 @@ interface BLEAdvertisementManager {
 
 	val isRunning: Flow<Boolean>
 
-	fun startAdvertising(deviceName: String, nonce: String? = null)
+	val errorFlow: Flow<Exception>
+
+	suspend fun startAdvertising(): Result<Unit>
 
 	fun stopAdvertising()
 

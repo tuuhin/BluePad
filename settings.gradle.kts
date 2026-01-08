@@ -33,6 +33,5 @@ plugins {
 }
 
 include(":composeApp")
-include(":jvm-core:simplejavable")
 include(":jvm-core:ble-advertise")
 include(":jvm-core:ble-common")
