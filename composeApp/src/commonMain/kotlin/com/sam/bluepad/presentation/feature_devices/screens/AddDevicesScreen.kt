@@ -138,7 +138,10 @@ fun AddDevicesScreen(
 						searchedPeers = peers,
 						isListRefreshing = isListRefreshing,
 						onListRefresh = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
-						onConnect = { onNavigateToConnect(it.deviceAddress) },
+						onConnect = { device ->
+							onNavigateToConnect(device.deviceAddress)
+							if (isScanRunning) onEvent(AddDeviceScreenEvent.OnStopDeviceScan)
+						},
 						modifier = Modifier.fillMaxSize(),
 					)
 				},

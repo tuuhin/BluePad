@@ -36,11 +36,20 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.sam.bluepad.presentation.feature_devices.events.AdvertisementScreenEvent
+import com.sam.bluepad.resources.Res
+import com.sam.bluepad.resources.device_advertisement_action_start
+import com.sam.bluepad.resources.device_advertisement_action_stop
+import com.sam.bluepad.resources.device_advertisement_dialog_points
+import com.sam.bluepad.resources.device_advertisement_dialog_text
+import com.sam.bluepad.resources.device_advertisement_dialog_title
+import com.sam.bluepad.resources.dialog_action_cancel
 import com.sam.bluepad.theme.Dimensions
 import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionState
 import dev.icerock.moko.permissions.PermissionsController
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringArrayResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 @Composable
@@ -70,18 +79,18 @@ fun DeviceAdvertisementDialog(
 
 	) {
 		Column(
-			modifier = Modifier.padding(all = Dimensions.DIALOG_INTERNAL_PADDING),
+			modifier = Modifier.padding(all = Dimensions.DIALOG_CONTENT_PADDING),
 			horizontalAlignment = Alignment.Start
 		) {
 			Text(
-				text = "Advertise this device",
-				style = MaterialTheme.typography.headlineSmall,
+				text = stringResource(Res.string.device_advertisement_dialog_title),
+				style = MaterialTheme.typography.headlineSmallEmphasized,
 				color = titleContentColor
 			)
 
 			Spacer(modifier = Modifier.height(16.dp))
 			Text(
-				text = "This makes your device visible so another nearby device can add it.",
+				text = stringResource(Res.string.device_advertisement_dialog_text),
 				style = MaterialTheme.typography.bodyMedium,
 				color = textContentColor,
 			)
@@ -90,8 +99,10 @@ fun DeviceAdvertisementDialog(
 				verticalArrangement = Arrangement.spacedBy(10.dp),
 				modifier = Modifier.padding(vertical = 20.dp)
 			) {
-				BulletItem("Visible only for a short time")
-				BulletItem("Requires your approval")
+				val points = stringArrayResource(Res.array.device_advertisement_dialog_points)
+				points.forEach {
+					BulletItem(it)
+				}
 			}
 
 			AnimatedVisibility(
@@ -123,7 +134,7 @@ fun DeviceAdvertisementDialog(
 					},
 					enabled = !isAdvertising
 				) {
-					Text("Cancel")
+					Text(text = stringResource(Res.string.dialog_action_cancel))
 				}
 				Spacer(modifier = Modifier.width(8.dp))
 				Button(
@@ -152,8 +163,8 @@ fun DeviceAdvertisementDialog(
 						contentColor = if (isAdvertising) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimary
 					)
 				) {
-					if (isAdvertising) Text("Stop Advertising")
-					else Text("Start advertising")
+					if (isAdvertising) Text(text = stringResource(Res.string.device_advertisement_action_stop))
+					else Text(text = stringResource(Res.string.device_advertisement_action_start))
 				}
 			}
 		}

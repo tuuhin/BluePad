@@ -25,6 +25,7 @@ fun EntryProviderScope<NavKey>.devicesRouteEntry(
 	ManageDevicesScreen(
 		devices = savedDevices,
 		isLoading = isLoading,
+		onEvent = viewModel::onEvent,
 		onNavigateToAdvertise = { backStack.add(RootNavGraph.AdvertiseDeviceRoute) },
 		onNavigateToAddDevice = { backStack.add(RootNavGraph.SearchDeviceRoute) }
 	)

@@ -5,8 +5,12 @@
   <string name="dialog_action_close">Close</string>
   <string name="dialog_action_cancel">Cancel</string>
   <string name="dialog_action_connect">Connect</string>
+  <string name="dialog_action_disconnect">Disconnect</string>
+  <string name="dialog_action_add_device">Add Device</string>
   <string name="action_start_scan">Start</string>
   <string name="action_stop_scan">Stop</string>
+  <string name="action_revoke_device">Revoke</string>
+  <string name="action_sync_device">Sync</string>
   <string name="state_loading">Loading</string>
   <string name="add_devices_screen_title">Add Device</string>
   <string name="add_devices_screen_subtitle">Scan for devices in your perimeter</string>
@@ -26,4 +30,21 @@
   <string name="scan_result_device_name_title">Device Name</string>
   <string name="scan_result_device_signal_strength_title">Strength</string>
   <string name="scan_result_device_address_tittle">Address</string>
+  <!--  Device Advertisement Dialog-->
+  <string name="device_advertisement_dialog_title">Advertise this device</string>
+  <string name="device_advertisement_dialog_text">This makes your device visible so another nearby device can add it.</string>
+  <string-array name="device_advertisement_dialog_points">
+    <item>Visible only for a short time</item>
+    <item>Requires your approval</item>
+  </string-array>
+  <string name="device_advertisement_action_start">Start Advertisement</string>
+  <string name="device_advertisement_action_stop">Stop Advertisement</string>
+  <!--  External device connection state-->
+  <string name="external_device_conn_state_connecting">Connecting</string>
+  <string name="external_device_conn_state_connected">Connected</string>
+  <string name="external_device_conn_state_disconnecting">Disconnected</string>
+  <string name="external_device_conn_state_disconnected">Disconnected</string>
+  <string name="external_device_conn_dialog_title">Connect to Device</string>
+  <string name="external_device_conn_dialog_text">Trying to connect to the external device</string>
+  <string name="external_device_conn_device_data_found">Collecting device data successfully</string>
 </resources>

@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.utils.Resource
+import com.sam.bluepad.presentation.feature_devices.events.ManageDevicesScreenEvent
 import com.sam.bluepad.presentation.utils.AppViewModel
 import com.sam.bluepad.presentation.utils.UIEvents
 import kotlinx.collections.immutable.persistentListOf
@@ -40,6 +41,13 @@ class ManageDeviceViewmodel(
 	private val _uiEvents = MutableSharedFlow<UIEvents>()
 	override val uiEvent: SharedFlow<UIEvents>
 		get() = _uiEvents
+
+	fun onEvent(event: ManageDevicesScreenEvent) {
+		when (event) {
+			is ManageDevicesScreenEvent.OnRevokeDevice -> {}
+			is ManageDevicesScreenEvent.OnSyncDevice -> {}
+		}
+	}
 
 	private fun loadDevicesList() = externalDevicesRepository.getExternalDevices()
 		.onEach { res ->
