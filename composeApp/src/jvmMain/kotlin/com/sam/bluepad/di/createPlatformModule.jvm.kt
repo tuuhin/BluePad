@@ -11,6 +11,7 @@ import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
 import com.sam.bluepad.domain.bluetooth.BluetoothStateProvider
+import com.sam.bluepad.domain.utils.PlatformInfoProvider
 import dev.icerock.moko.permissions.PermissionsController
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
@@ -32,4 +33,5 @@ actual fun createPlatformModule(): Module = module {
 	single { JVMPermissionController() } bind PermissionsController::class
 	// bluetooth state provider
 	singleOf(::BluetoothStateProviderImpl) bind BluetoothStateProvider::class
+	singleOf(::PlatformInfoProvider)
 }

@@ -25,6 +25,7 @@ import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.exceptions.BluetoothPermissionException
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.use_cases.RandomGenerator
+import com.sam.bluepad.domain.utils.PlatformInfoProvider
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,11 +40,12 @@ actual class BLEAdvertisementImpl(
 	private val context: Context,
 	private val infoProvider: LocalDeviceInfoProvider,
 	private val randomGenerator: RandomGenerator,
+	private val platformInfoProvider: PlatformInfoProvider,
 ) : BLEAdvertisementManager {
 
 	private val _bluetoothManager by lazy { context.getSystemService<BluetoothManager>() }
 	private val _connectionCallback by lazy {
-		ServerConnectionCallback(infoProvider, randomGenerator)
+		ServerConnectionCallback(infoProvider, randomGenerator, platformInfoProvider)
 	}
 
 	private val _isRunning = MutableStateFlow(false)
@@ -115,8 +117,8 @@ actual class BLEAdvertisementImpl(
 		// advertisement settings
 		val parameters = AdvertisingSetParameters.Builder()
 			.setLegacyMode(false)
-			.setConnectable(false)
-			.setScannable(true)
+			.setConnectable(true)
+			.setScannable(false)
 			.setInterval(AdvertisingSetParameters.INTERVAL_MEDIUM)
 			.setTxPowerLevel(AdvertisingSetParameters.TX_POWER_MEDIUM)
 			.setPrimaryPhy(BluetoothDevice.PHY_LE_1M)
@@ -125,10 +127,9 @@ actual class BLEAdvertisementImpl(
 
 		// what to advertise
 		val advertiseData = AdvertiseData.Builder()
-			.setIncludeDeviceName(false)
+			.setIncludeDeviceName(true)
 			.setIncludeTxPowerLevel(false)
 			.addServiceUuid(ParcelUuid(BLEConstants.transportServiceId.toJavaUuid()))
-
 			.build()
 
 		val scanResponse = AdvertiseData.Builder()
@@ -204,6 +205,13 @@ actual class BLEAdvertisementImpl(
 					BluetoothGattCharacteristic.PROPERTY_READ,
 					BluetoothGattCharacteristic.PERMISSION_READ
 				)
+			)
+			addCharacteristic(
+				BluetoothGattCharacteristic(
+					BLEConstants.deviceOSCharacteristics.toJavaUuid(),
+					BluetoothGattCharacteristic.PROPERTY_READ,
+					BluetoothGattCharacteristic.PERMISSION_READ
+				),
 			)
 		}
 	}

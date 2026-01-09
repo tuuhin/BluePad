@@ -15,4 +15,5 @@ interface BLEDiscoveryManager {
 
 	suspend fun stopScanning()
 
+	fun onClearScanResults()
 }

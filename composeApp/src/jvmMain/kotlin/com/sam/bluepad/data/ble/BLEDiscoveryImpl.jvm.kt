@@ -53,7 +53,7 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
 
 		filters {
 			match {
-//				services = listOf(BLEConstants.transportServiceId)
+				services = listOf(BLEConstants.transportServiceId)
 			}
 		}
 	}
@@ -110,6 +110,11 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
 		}
 	}
 
+	override fun onClearScanResults() {
+		_peers.update { emptyList() }
+		Logger.d(TAG) { "PEER LIST CLEARED" }
+	}
+
 	private fun handleAdvertisement(advertisement: Advertisement) {
 		// only capture connective advertisements
 		if (advertisement.uuids.isEmpty()) return
@@ -132,16 +137,15 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
 					else peer
 				}
 			}
-			Logger.d(TAG) { "DEVICE RSSI UPDATED :${address}" }
 		} else {
 			advertisement.peripheralName
 			val updatedDevice = BLEPeerDevice(
 				bleDeviceName = advertisement.peripheralName,
-				deviceAddress = advertisement.identifier.toString(),
+				deviceAddress = address,
 				rssi = advertisement.rssi
 			)
 			_peers.update { oldPeers -> (oldPeers + updatedDevice).distinctBy { it.deviceAddress } }
-			Logger.i(TAG) { "NEW DEVICE ADDED :${address}" }
+			Logger.i(TAG) { "NEW DEVICE ADDED IDENTIFIER:${address}" }
 		}
 	}
 

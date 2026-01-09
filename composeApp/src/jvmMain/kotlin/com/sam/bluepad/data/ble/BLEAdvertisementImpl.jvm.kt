@@ -16,6 +16,7 @@ import com.sam.bluepad.domain.exceptions.BLENotSupportedException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.use_cases.RandomGenerator
+import com.sam.bluepad.domain.utils.PlatformInfoProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,6 +33,7 @@ private const val TAG = "BLE_ADVERTISER"
 actual class BLEAdvertisementImpl(
 	provider: LocalDeviceInfoProvider,
 	private val randomGenerator: RandomGenerator,
+	private val platformInfoProvider: PlatformInfoProvider,
 ) : BLEAdvertisementManager {
 
 	private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -65,6 +67,8 @@ actual class BLEAdvertisementImpl(
 				BLEConstants.deviceNonceCharacteristic -> randomGenerator.generateRandomBytes()
 				BLEConstants.deviceIdCharacteristics -> _deviceData.value?.deviceId?.toByteArray()
 				BLEConstants.deviceNameCharacteristic -> _deviceData.value?.name?.encodeToByteArray()
+				BLEConstants.deviceOSCharacteristics -> platformInfoProvider.platformName()
+					.encodeToByteArray()
 				else -> null
 			}
 		}
@@ -139,6 +143,14 @@ actual class BLEAdvertisementImpl(
 				),
 				Characteristic(
 					BLEConstants.deviceNonceCharacteristic.toHexDashString(),
+					emptyList(),
+					true,
+					false,
+					false,
+					false, false
+				),
+				Characteristic(
+					BLEConstants.deviceOSCharacteristics.toHexDashString(),
 					emptyList(),
 					true,
 					false,

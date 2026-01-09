@@ -136,6 +136,11 @@ actual class BLEDiscoveryImpl(
 		stopScanCallback()
 	}
 
+	override fun onClearScanResults() {
+		_peers.update { emptyList() }
+		Logger.d(TAG) { "PEER LIST CLEARED" }
+	}
+
 	private fun stopScanCallback() {
 		// scan is not running so nothing to stop
 		if (!_isScanning.value) return
@@ -163,7 +168,8 @@ actual class BLEDiscoveryImpl(
 			.setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
 			.setLegacy(false)
 			.build()
-// TODO: Not working on my other phone do correct it later
+
+		// TODO: Not working on my other phone do correct it later
 		_btAdapter?.bluetoothLeScanner?.startScan(scanFilters, scanSettings, _bLeScanCallback)
 		Logger.d(TAG) { "SCAN STARTED " }
 	}

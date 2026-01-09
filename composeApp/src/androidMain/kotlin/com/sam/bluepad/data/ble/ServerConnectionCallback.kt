@@ -1,5 +1,6 @@
 package com.sam.bluepad.data.ble
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
@@ -9,6 +10,7 @@ import co.touchlab.kermit.Logger
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.use_cases.RandomGenerator
+import com.sam.bluepad.domain.utils.PlatformInfoProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,9 +24,11 @@ private const val TAG = "SERVER_CALLBACK"
 
 private typealias SendResponse = (device: BluetoothDevice, requestId: Int, status: Int, offset: Int, value: ByteArray?) -> Unit
 
+@SuppressLint("MissingPermission")
 class ServerConnectionCallback(
 	provider: LocalDeviceInfoProvider,
-	private val randomGenerator: RandomGenerator
+	private val randomGenerator: RandomGenerator,
+	private val platformInfoProvider: PlatformInfoProvider,
 ) : BluetoothGattServerCallback() {
 
 	private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -44,6 +48,11 @@ class ServerConnectionCallback(
 
 	fun setOnServiceAdded(onServiceAdded: () -> Unit = {}) {
 		_onServiceAdded = onServiceAdded
+	}
+
+	override fun onConnectionStateChange(device: BluetoothDevice?, status: Int, newState: Int) {
+		if (device == null) return
+		Logger.d(TAG) { "DEVICE IDENTIFIER:${device.address} BOND STATE: ${device.bondState} CONNECTION STATE CHANGED" }
 	}
 
 	override fun onServiceAdded(status: Int, service: BluetoothGattService?) {
@@ -80,6 +89,8 @@ class ServerConnectionCallback(
 			BLEConstants.deviceIdCharacteristics.toJavaUuid() -> deviceInfo.deviceId.toByteArray()
 			BLEConstants.deviceNameCharacteristic.toJavaUuid() -> deviceInfo.name.encodeToByteArray()
 			BLEConstants.deviceNonceCharacteristic.toJavaUuid() -> randomGenerator.generateRandomBytes()
+			BLEConstants.deviceOSCharacteristics.toJavaUuid() -> platformInfoProvider.platformName()
+				.encodeToByteArray()
 			else -> null
 		}
 		val isSuccess = if (value == null) BluetoothGatt.GATT_FAILURE
