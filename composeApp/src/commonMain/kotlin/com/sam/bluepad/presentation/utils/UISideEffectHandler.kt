@@ -47,7 +47,7 @@ fun UiEventsHandler(
 						}
 
 						is UIEvents.ShowToast -> NativeShowToast.show(
-							"Native toast Native toast Native toast Native toast Native toast",
+							event.message,
 							NativeToastType.SHORT
 						)
 

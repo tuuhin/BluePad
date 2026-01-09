@@ -14,10 +14,9 @@ import com.sam.bluepad.domain.ble.models.BLEConnectionState
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.exceptions.BLEConnectionFailedException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
-import com.sam.bluepad.domain.models.PeerDeviceOS
+import com.sam.bluepad.domain.models.DevicePlatformOS
 import com.sam.bluepad.domain.utils.Resource
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
@@ -51,8 +50,6 @@ actual class BLEConnectionManagerImpl : BLEConnectionManager {
 			// now start
 			try {
 				val peripheral = createAndConnect(address).also { _peripheral = it }
-				// reading the state of the peripheral
-				peripheral.observePeripheralState(peripheral.scope)
 				// read the service and characteristics
 				peripheral.readServiceCharacteristics(
 					disconnectAfterRead = false,
@@ -62,7 +59,7 @@ actual class BLEConnectionManagerImpl : BLEConnectionManager {
 						var name: String? = null
 						var deviceId: Uuid? = null
 						var nonce: String? = null
-						var deviceOs: PeerDeviceOS? = null
+						var deviceOs: DevicePlatformOS? = null
 
 						if (mapResult.contains(BLEConstants.deviceNameCharacteristic)) {
 							val data = mapResult[BLEConstants.deviceNameCharacteristic]
@@ -88,15 +85,17 @@ actual class BLEConnectionManagerImpl : BLEConnectionManager {
 						if (mapResult.contains(BLEConstants.deviceOSCharacteristics)) {
 							val data = mapResult[BLEConstants.deviceOSCharacteristics]
 							if (data != null) {
+								val osValue = data.decodeToString().uppercase()
 								deviceOs = try {
-									PeerDeviceOS.valueOf(data.decodeToString().uppercase())
+									DevicePlatformOS.valueOf(osValue)
 								} catch (_: Exception) {
-									PeerDeviceOS.UNKNOWN
+									DevicePlatformOS.UNKNOWN
 								}
 							}
 						}
 						if (name != null && deviceId != null) {
 							val peerData = BLEPeerData(deviceId, name, nonce, deviceOs)
+							Logger.d(TAG) { "PEER DATA :$peerData" }
 							trySend(Resource.Success(peerData))
 						}
 					},
@@ -178,19 +177,13 @@ actual class BLEConnectionManagerImpl : BLEConnectionManager {
 				Logger.d(TAG) { "SERVICE DISCOVERED SERVICE" }
 			}
 		}
+		// reading the state of the peripheral
+		peripheral.observePeripheralState(peripheral.scope)
 		Logger.d(TAG) { "PERIPHERAL CONFIGURED" }
-		// probably one of these two states at the initial part
-		when (peripheral.state.value) {
-			State.Connecting.Bluetooth, State.Connecting.Services -> _isDeviceConnected.update { BLEConnectionState.CONNECTING }
-			State.Disconnecting -> _isDeviceConnected.update { BLEConnectionState.DISCONNECTING }
-			else -> {}
-		}
 		try {
 			peripheral.connect()
 			Logger.d(TAG) { "PERIPHERAL ESTABLISHED" }
 			return peripheral
-		} catch (_: TimeoutCancellationException) {
-			throw BLEConnectionFailedException("OS BLE stack stuck")
 		} catch (_: IllegalStateException) {
 			throw BluetoothNotEnabledException()
 		} catch (e: NotConnectedException) {

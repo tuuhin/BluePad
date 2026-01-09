@@ -19,7 +19,7 @@ import com.sam.bluepad.domain.exceptions.BluetoothInvalidAddressException
 import com.sam.bluepad.domain.exceptions.BluetoothInvalidDeviceException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.exceptions.BluetoothPermissionException
-import com.sam.bluepad.domain.models.PeerDeviceOS
+import com.sam.bluepad.domain.models.DevicePlatformOS
 import com.sam.bluepad.domain.utils.Resource
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -51,9 +51,13 @@ actual class BLEConnectionManagerImpl(private val context: Context) : BLEConnect
 		return callbackFlow {
 
 			var deviceName: String? = null
-			var deviceNonce: String? = null
 			var deviceId: Uuid? = null
-			var deviceOs: PeerDeviceOS? = null
+
+			var deviceNonce: String? = null
+			var deviceOs: DevicePlatformOS? = null
+
+			var isDeviceNonceRead = false
+			var isDeviceOsRead = false
 
 			trySend(Resource.Loading)
 
@@ -62,7 +66,9 @@ actual class BLEConnectionManagerImpl(private val context: Context) : BLEConnect
 				onConnectionStateChange = { _, state ->
 					val updated = _connectionState.updateAndGet { state }
 					if (updated == BLEConnectionState.DISCONNECTED) {
+						// disconnect and close the connection
 						disconnectAndClose()
+						close()
 					}
 				},
 				onGAttFailed = { message ->
@@ -74,11 +80,9 @@ actual class BLEConnectionManagerImpl(private val context: Context) : BLEConnect
 					val stringValue = value.decodeToString()
 					Logger.d(TAG) { "READ UUID :$uuid" }
 					when (uuid) {
-						BLEConstants.deviceNameCharacteristic -> {
-							deviceName = stringValue
-						}
-
+						BLEConstants.deviceNameCharacteristic -> deviceName = stringValue
 						BLEConstants.deviceNonceCharacteristic -> {
+							isDeviceNonceRead = true
 							deviceNonce = stringValue
 						}
 
@@ -93,20 +97,22 @@ actual class BLEConnectionManagerImpl(private val context: Context) : BLEConnect
 
 						BLEConstants.deviceOSCharacteristics -> {
 							deviceOs = try {
-								PeerDeviceOS.valueOf(stringValue.uppercase())
+								DevicePlatformOS.valueOf(stringValue.uppercase())
 							} catch (_: Exception) {
-								PeerDeviceOS.UNKNOWN
+								DevicePlatformOS.UNKNOWN
 							}
+							isDeviceOsRead = true
 						}
 					}
 					// everything is read happy to close the connection
-					if (deviceName != null && deviceId != null) {
+					if (deviceName != null && deviceId != null && isDeviceNonceRead && isDeviceOsRead) {
 						val peerData = BLEPeerData(
 							deviceName = deviceName,
 							deviceId = deviceId,
 							nonce = deviceNonce,
 							deviceOs = deviceOs
 						)
+						Logger.d(TAG) { "PEER DATA :$peerData" }
 						trySend(Resource.Success(peerData))
 						gatt.disconnect()
 						// close the channel

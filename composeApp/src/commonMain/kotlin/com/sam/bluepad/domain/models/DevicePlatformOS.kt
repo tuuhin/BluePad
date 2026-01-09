@@ -1,6 +1,6 @@
 package com.sam.bluepad.domain.models
 
-enum class PeerDeviceOS {
+enum class DevicePlatformOS {
 	ANDROID,
 	WINDOWS,
 	UNKNOWN,
