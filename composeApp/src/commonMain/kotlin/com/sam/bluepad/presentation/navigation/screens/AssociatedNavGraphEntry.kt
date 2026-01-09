@@ -1,4 +1,4 @@
-package com.sam.bluepad.presentation.navigation.entries
+package com.sam.bluepad.presentation.navigation.screens
 
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.EntryProviderScope

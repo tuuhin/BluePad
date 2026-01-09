@@ -69,6 +69,8 @@ kotlin {
 			implementation(libs.androidx.datastore.preferences)
 			// permissions
 			implementation(libs.moko.permissions)
+			// toast
+			implementation(libs.compose.toast)
 		}
 		commonTest.dependencies {
 			implementation(libs.kotlin.test)

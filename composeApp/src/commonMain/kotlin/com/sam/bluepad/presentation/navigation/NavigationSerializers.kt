@@ -18,6 +18,14 @@ object NavigationSerializers {
 				RootNavGraph.AssociatedNavGraphRoute::class,
 				RootNavGraph.AssociatedNavGraphRoute.serializer()
 			)
+			subclass(
+				RootNavGraph.AdvertiseDeviceRoute::class,
+				RootNavGraph.AdvertiseDeviceRoute.serializer()
+			)
+			subclass(
+				RootNavGraph.SearchDeviceRoute::class,
+				RootNavGraph.SearchDeviceRoute.serializer()
+			)
 		}
 	}
 

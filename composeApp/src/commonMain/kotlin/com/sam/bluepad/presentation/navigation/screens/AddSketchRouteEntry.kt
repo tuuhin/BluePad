@@ -1,4 +1,4 @@
-package com.sam.bluepad.presentation.navigation.entries
+package com.sam.bluepad.presentation.navigation.screens
 
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton

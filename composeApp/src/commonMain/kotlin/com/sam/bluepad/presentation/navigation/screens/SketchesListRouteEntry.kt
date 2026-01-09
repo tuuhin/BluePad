@@ -1,4 +1,4 @@
-package com.sam.bluepad.presentation.navigation.entries
+package com.sam.bluepad.presentation.navigation.screens
 
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavBackStack

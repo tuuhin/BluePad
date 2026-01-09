@@ -2,4 +2,28 @@
   <string name="navigation_list">List</string>
   <string name="navigation_device">Device</string>
   <string name="navigation_settings">Settings</string>
+  <string name="dialog_action_close">Close</string>
+  <string name="dialog_action_cancel">Cancel</string>
+  <string name="dialog_action_connect">Connect</string>
+  <string name="action_start_scan">Start</string>
+  <string name="action_stop_scan">Stop</string>
+  <string name="state_loading">Loading</string>
+  <string name="add_devices_screen_title">Add Device</string>
+  <string name="add_devices_screen_subtitle">Scan for devices in your perimeter</string>
+  <string name="action_back">Back Arrow</string>
+  <string name="scan_results_no_device_title">No devices found</string>
+  <string name="scan_results_no_device_desc">No device found after scan, if you have's started any scan</string>
+  <string name="scan_results_save_device_warning">Sometime scan results can have duplicate values, use the latest device or refresh result</string>
+  <string name="scan_device_signal_strength_excellent">Excellent</string>
+  <!--  Signal Strength-->
+  <string name="scan_device_signal_strength_good">Good</string>
+  <string name="scan_device_signal_strength_avg">Average</string>
+  <string name="scan_device_signal_strength_poor">Poor</string>
+  <string name="scan_device_signal_strength_very_poor">Very Poor</string>
+  <string name="scan_device_signal_strength_unreliable">Unreliable</string>
+  <!--  Device Card title -->
+  <string name="scan_result_device_name_not_found">N/A</string>
+  <string name="scan_result_device_name_title">Device Name</string>
+  <string name="scan_result_device_signal_strength_title">Strength</string>
+  <string name="scan_result_device_address_tittle">Address</string>
 </resources>

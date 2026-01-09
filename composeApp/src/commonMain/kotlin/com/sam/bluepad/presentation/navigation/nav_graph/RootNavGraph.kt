@@ -11,4 +11,13 @@ sealed interface RootNavGraph : NavKey {
 
 	@Serializable
 	data object AssociatedNavGraphRoute : RootNavGraph
+
+	@Serializable
+	data object AdvertiseDeviceRoute : RootNavGraph
+
+	@Serializable
+	data object SearchDeviceRoute : RootNavGraph
+
+	@Serializable
+	data class ConnectDeviceRoute(val address: String) : RootNavGraph
 }

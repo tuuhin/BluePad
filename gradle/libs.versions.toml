@@ -34,6 +34,7 @@ mokoPermissionsCompose = "0.18.1-desktop-5"
 build-konfig = "0.17.1"
 kableCore = "0.41.0"
 kableExceptions = "0.34.0"
+compose_toast = "2.1.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -92,6 +93,8 @@ moko-permissions = { module = "io.github.flipsyde59:moko.permissions", version.r
 #kable
 kable-core = { module = "com.juul.kable:kable-core", version.ref = "kableCore" }
 kable-exceptions = { module = "com.juul.kable:kable-exceptions", version.ref = "kableExceptions" }
+# toast
+compose_toast = { module = "io.github.the-best-is-best:compose_toast", version.ref = "compose_toast" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
