@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.sam.bluepad.domain.models.DevicePlatformOS
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -28,4 +29,7 @@ data class DeviceInfoEntity(
 
 	@ColumnInfo(name = "is_revoked")
 	val isRevoked: Boolean = false,
+
+	@ColumnInfo(name = "device_os", defaultValue = "UNKNOWN")
+	val deviceOs: DevicePlatformOS = DevicePlatformOS.UNKNOWN,
 )

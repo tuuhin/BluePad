@@ -20,6 +20,7 @@ val commonAppModule = module(true) {
 		val dbBuilder = get<AppDBBuilder>()
 		BluePadDB.prepareRoomDb(dbBuilder.getDbBuilder())
 	}
+	single { get<BluePadDB>().devicesDao() }
 	//utils
 	singleOf(::RandomNameGenerator)
 	singleOf(::RandomGeneratorImpl) bind RandomGenerator::class

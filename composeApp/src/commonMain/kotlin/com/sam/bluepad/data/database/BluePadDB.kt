@@ -1,5 +1,6 @@
 package com.sam.bluepad.data.database
 
+import androidx.room.AutoMigration
 import androidx.room.ConstructedBy
 import androidx.room.Database
 import androidx.room.RoomDatabase
@@ -7,6 +8,7 @@ import androidx.room.TypeConverters
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.sam.bluepad.data.database.convertors.InstantTypeConvertor
 import com.sam.bluepad.data.database.convertors.UUIDTypeConvertors
+import com.sam.bluepad.data.database.dao.DevicesInfoDao
 import com.sam.bluepad.data.database.entities.DeviceInfoEntity
 import com.sam.bluepad.data.database.entities.SketchContentEntity
 import com.sam.bluepad.data.database.entities.SketchMetadataEntity
@@ -20,7 +22,10 @@ import kotlinx.coroutines.Dispatchers
 		SketchContentEntity::class,
 		SketchUpdateLogEntity::class,
 	],
-	version = 1
+	version = 2,
+	autoMigrations = [
+		AutoMigration(from = 1, to = 2),
+	]
 )
 @TypeConverters(
 	value = [
@@ -30,6 +35,8 @@ import kotlinx.coroutines.Dispatchers
 )
 @ConstructedBy(AppDBConstructor::class)
 abstract class BluePadDB : RoomDatabase() {
+
+	abstract fun devicesDao(): DevicesInfoDao
 
 	companion object {
 
