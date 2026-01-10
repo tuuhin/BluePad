@@ -6,6 +6,7 @@ import com.sam.bluepad.presentation.feature_devices.viewmodel.BLEAdvertisementVi
 import com.sam.bluepad.presentation.feature_devices.viewmodel.BLEConnectDeviceViewmodel
 import com.sam.bluepad.presentation.feature_devices.viewmodel.BLEScanDevicesViewModel
 import com.sam.bluepad.presentation.feature_devices.viewmodel.ManageDeviceViewmodel
+import com.sam.bluepad.presentation.feature_settings.SettingsViewmodel
 import com.sam.bluepad.presentation.feature_sketches.viewmodel.AddSketchViewModel
 import com.sam.bluepad.presentation.feature_sketches.viewmodel.SketchesViewmodel
 import org.koin.core.module.dsl.viewModel
@@ -25,4 +26,5 @@ val viewModelModule = module {
 		)
 	}
 	viewModelOf(::SketchesViewmodel)
+	viewModelOf(::SettingsViewmodel)
 }

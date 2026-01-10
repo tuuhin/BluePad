@@ -64,6 +64,10 @@
   <!--  Settings-->
   <string name="settings_screen_title">Settings</string>
   <string name="settings_screen_subtitle">Manage preferences, owner identity, and device access</string>
+  <string name="action_rename">Rename</string>
+  <string name="settings_device_name_title">Device Name</string>
+  <string name="settings_device_rename_dialog_title">Update Device Name</string>
+  <string name="settings_device_rename_dialog_text">Update current device name</string>
   <!--  Others-->
   <string name="bluetooth_not_enabled_text">Bluetooth is not enabled</string>
   <string name="menu_action_copy">Copy</string>

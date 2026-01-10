@@ -1,7 +1,10 @@
 package com.sam.bluepad.presentation.feature_settings
 
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
@@ -11,16 +14,25 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.dp
+import com.sam.bluepad.presentation.composables.ContentLoadingWrapper
+import com.sam.bluepad.presentation.feature_settings.composable.UpdateDeviceNameListItem
+import com.sam.bluepad.presentation.feature_settings.event.SettingsScreenEvent
+import com.sam.bluepad.presentation.feature_settings.event.SettingsScreenState
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.settings_screen_subtitle
 import com.sam.bluepad.resources.settings_screen_title
+import com.sam.bluepad.theme.Dimensions
 import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+	state: SettingsScreenState,
+	onEvent: (SettingsScreenEvent) -> Unit,
 	modifier: Modifier = Modifier,
+	isLoading: Boolean = false,
 	navigation: @Composable () -> Unit = {}
 ) {
 	val topBarScrollBehaviour = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -31,16 +43,38 @@ fun SettingsScreen(
 			MediumFlexibleTopAppBar(
 				title = { Text(text = stringResource(Res.string.settings_screen_title)) },
 				subtitle = { Text(text = stringResource(Res.string.settings_screen_subtitle)) },
-				navigationIcon = navigation, scrollBehavior = topBarScrollBehaviour
+				navigationIcon = navigation,
+				scrollBehavior = topBarScrollBehaviour
 			)
 		},
 		snackbarHost = { SnackbarHost(snackBarHostState) },
 		modifier = modifier.nestedScroll(topBarScrollBehaviour.nestedScrollConnection)
 	) { padding ->
-		Column(
-			modifier = Modifier.padding(padding)
-		) {
-
-		}
+		ContentLoadingWrapper(
+			content = state,
+			isLoading = isLoading,
+			modifier = Modifier.padding(padding),
+			onSuccess = {
+				LazyVerticalGrid(
+					columns = GridCells.Adaptive(300.dp),
+					contentPadding = PaddingValues(
+						vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING,
+						horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING
+					),
+					modifier = Modifier.fillMaxSize(),
+				) {
+					item {
+						UpdateDeviceNameListItem(
+							currentName = state.deviceName,
+							onUpdateName = { newName ->
+								onEvent(SettingsScreenEvent.OnUpdateDeviceName(newName))
+							},
+							modifier = Modifier.animateItem(),
+						)
+					}
+				}
+			},
+			onFailed = {},
+		)
 	}
 }
