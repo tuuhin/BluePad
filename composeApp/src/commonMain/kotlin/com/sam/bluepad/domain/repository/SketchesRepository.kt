@@ -17,4 +17,5 @@ interface SketchesRepository {
 
 	fun updateSketch(sketchModel: SketchModel, deviceId: Uuid): FlowResourceSketches
 	fun createSketch(create: CreateSketchModel, deviceId: Uuid): FlowResourceSketches
+	fun revokeSketch(sketchModel: SketchModel, deviceId: Uuid): Flow<Resource<Boolean, Exception>>
 }

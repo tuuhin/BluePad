@@ -37,7 +37,7 @@ fun SavedExternalDevicesList(
 
 	LazyVerticalGrid(
 		state = listState,
-		columns = GridCells.Adaptive(minSize = 300.dp),
+		columns = GridCells.Adaptive(minSize = 220.dp),
 		horizontalArrangement = Arrangement.spacedBy(8.dp),
 		verticalArrangement = Arrangement.spacedBy(8.dp),
 		contentPadding = contentPadding,

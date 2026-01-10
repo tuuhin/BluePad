@@ -18,6 +18,8 @@
   <string name="add_devices_screen_title">Add Device</string>
   <string name="add_devices_screen_subtitle">Scan for devices in your perimeter</string>
   <string name="action_back">Back Arrow</string>
+  <string name="devices_screen_title">Devices</string>
+  <string name="devices_screen_subtitle">Manage and sync sketches across your devices</string>
   <string name="scan_results_no_device_title">No devices found</string>
   <string name="scan_results_no_device_desc">No device found after scan, if you have's started any scan</string>
   <string name="scan_results_save_device_warning">Sometime scan results can have duplicate values, use the latest device or refresh result</string>
@@ -52,10 +54,19 @@
   <string name="external_device_conn_device_data_found">Collecting device data successfully</string>
   <!--  sketches content screen-->
   <string name="sketches_screen_title">Sketches</string>
+  <string name="sketches_screen_subtitle">View, edit, and manage your quick sketches.</string>
   <string name="add_content_screen_title_text">Title</string>
   <string name="add_content_screen_note_text">Your Sketch</string>
   <string name="sketches_list_empty">No sketches were added, start by creating one</string>
   <string name="action_create_sketch">Create Sketch</string>
+  <string name="delete_sketch_dialog_title">Delete this Sketch</string>
+  <string name="delete_sketch_dialog_text">Are you sure you want to delete this sketch</string>
+  <!--  Settings-->
+  <string name="settings_screen_title">Settings</string>
+  <string name="settings_screen_subtitle">Manage preferences, owner identity, and device access</string>
   <!--  Others-->
   <string name="bluetooth_not_enabled_text">Bluetooth is not enabled</string>
+  <string name="menu_action_copy">Copy</string>
+  <string name="menu_action_delete">Delete</string>
+  <string name="menu_action_share">Share</string>
 </resources>

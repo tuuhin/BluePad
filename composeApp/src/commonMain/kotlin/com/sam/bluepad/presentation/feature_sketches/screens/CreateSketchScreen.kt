@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
@@ -13,12 +14,15 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.window.core.layout.WindowSizeClass
 import com.sam.bluepad.presentation.composables.ContentLoadingWrapper
 import com.sam.bluepad.presentation.feature_sketches.composables.CreateScreenContent
 import com.sam.bluepad.presentation.feature_sketches.composables.CreateScreenTopAppBar
+import com.sam.bluepad.presentation.feature_sketches.composables.DeleteSketchDialog
 import com.sam.bluepad.presentation.feature_sketches.events.CreateSketchScreenEvent
 import com.sam.bluepad.presentation.feature_sketches.events.CreateSketchState
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
+import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_save
 import com.sam.bluepad.resources.action_update
@@ -41,12 +45,20 @@ fun CreateSketchScreen(
 
 	val topBarScrollBehaviour = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 	val snackBarHostState = LocalSnackBarState.current
+	val windowSize = LocalWindowSizeInfo.current
+
+
+	DeleteSketchDialog(
+		showDialog = state.showDeleteDialog,
+		onCancel = { onEvent(CreateSketchScreenEvent.OnToggleDeleteDialog) },
+		onConfirm = { onEvent(CreateSketchScreenEvent.OnConfirmDeleteSketch) },
+	)
 
 	Scaffold(
 		topBar = {
 			CreateScreenTopAppBar(
 				navigation = navigation,
-				onDelete = { onEvent(CreateSketchScreenEvent.OnDeleteSketch) },
+				onDelete = { onEvent(CreateSketchScreenEvent.OnToggleDeleteDialog) },
 				showDeleteAction = !state.isNewContent,
 				showActions = true,
 				topBarScrollBehaviour = topBarScrollBehaviour,
@@ -73,6 +85,8 @@ fun CreateSketchScreen(
 						contentDescription = "Save Action"
 					)
 				},
+				shape = MaterialTheme.shapes.extraLarge,
+				expanded = windowSize.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
 			)
 		},
 		snackbarHost = { SnackbarHost(snackBarHostState) },

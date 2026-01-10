@@ -9,18 +9,21 @@ import androidx.compose.foundation.lazy.staggeredgrid.itemsIndexed
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.dp
 import com.sam.bluepad.domain.models.SketchModel
 import kotlinx.collections.immutable.ImmutableList
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun SketchesListContent(
 	sketches: ImmutableList<SketchModel>,
 	onSelectSketch: (SketchModel) -> Unit,
-	onDeleteSketch: (SketchModel) -> Unit,
 	modifier: Modifier = Modifier,
+	onDeleteSketch: (SketchModel) -> Unit = {},
+	onCopySketch: (SketchModel) -> Unit = {},
 	listState: LazyStaggeredGridState = rememberLazyStaggeredGridState(),
 	contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
@@ -52,6 +55,8 @@ fun SketchesListContent(
 			SketchCard(
 				sketch = sketch,
 				onClick = { onSelectSketch(sketch) },
+				onCopy = { onCopySketch(sketch) },
+				onDelete = { onDeleteSketch(sketch) },
 				modifier = Modifier.animateItem()
 			)
 		}

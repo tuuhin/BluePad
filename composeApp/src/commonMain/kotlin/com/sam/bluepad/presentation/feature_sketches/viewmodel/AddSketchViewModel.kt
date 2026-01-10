@@ -58,7 +58,10 @@ class AddSketchViewModel(
 		when (event) {
 			CreateSketchScreenEvent.OnSaveSketch -> onSaveSketch()
 			CreateSketchScreenEvent.OnUpdateSketch -> onUpdateSketch()
-			CreateSketchScreenEvent.OnDeleteSketch -> onDeleteSketch()
+			CreateSketchScreenEvent.OnConfirmDeleteSketch -> onDeleteSketch()
+			CreateSketchScreenEvent.OnToggleDeleteDialog -> _screenState.update { state ->
+				state.copy(showDeleteDialog = !state.showDeleteDialog)
+			}
 		}
 	}
 
@@ -158,8 +161,28 @@ class AddSketchViewModel(
 			.launchIn(this)
 	}
 
-	private fun onDeleteSketch() {
+	private fun onDeleteSketch() = viewModelScope.launch {
+		val localDeviceId = readLocalDeviceId() ?: return@launch
+		val cachedModel = _loadedSketch.value ?: return@launch
 
+		// show inform about delete
+		_uiEvents.emit(UIEvents.ShowToast("Deleting Item"))
+		_screenState.update { state -> state.copy(showDeleteDialog = false) }
+
+		//start delete
+		repository.revokeSketch(cachedModel, localDeviceId)
+			.onEach { res ->
+				when (res) {
+					is Resource.Error -> {
+						val message = res.message ?: res.error.message ?: "Some error"
+						_uiEvents.emit(UIEvents.ShowSnackBar(message))
+					}
+
+					is Resource.Success -> _uiEvents.emit(UIEvents.PopScreen)
+					else -> {}
+				}
+			}
+			.launchIn(this)
 	}
 
 	private suspend fun readLocalDeviceId(): Uuid? {

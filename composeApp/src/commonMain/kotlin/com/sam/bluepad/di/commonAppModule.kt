@@ -26,6 +26,7 @@ val commonAppModule = module(true) {
 	single { get<BluePadDB>().devicesDao() }
 	single { get<BluePadDB>().sketchesDao() }
 	single { get<BluePadDB>().sketchMetadataDao() }
+	single { get<BluePadDB>().sketchContentDao() }
 
 	//utils
 	singleOf(::RandomNameGenerator)

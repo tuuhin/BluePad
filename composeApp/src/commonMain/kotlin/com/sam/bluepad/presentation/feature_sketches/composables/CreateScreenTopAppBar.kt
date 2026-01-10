@@ -5,15 +5,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
@@ -44,7 +41,8 @@ fun CreateScreenTopAppBar(
 			AnimatedVisibility(
 				visible = showActions,
 				enter = slideInHorizontally(MaterialTheme.motionScheme.slowEffectsSpec()) + fadeIn(),
-				exit = slideOutHorizontally(MaterialTheme.motionScheme.slowEffectsSpec()) + fadeOut()
+				exit = slideOutHorizontally(MaterialTheme.motionScheme.slowEffectsSpec()) + fadeOut(),
+				modifier = Modifier.offset(x = (-20).dp)
 			) {
 				Button(
 					onClick = onDelete,
@@ -54,16 +52,10 @@ fun CreateScreenTopAppBar(
 					),
 					enabled = showDeleteAction,
 					contentPadding = ButtonDefaults.SmallContentPadding,
-					modifier = Modifier.padding(end = 2.dp)
 				) {
 					Icon(
 						painter = painterResource(Res.drawable.ic_delete),
 						contentDescription = stringResource(Res.string.action_delete)
-					)
-					Spacer(modifier = Modifier.width(4.dp))
-					Text(
-						text = stringResource(Res.string.action_delete),
-						style = MaterialTheme.typography.titleMediumEmphasized
 					)
 				}
 			}

@@ -33,7 +33,7 @@ interface SketchesDao {
 	suspend fun insertSketchMetadata(metadata: SketchMetadataEntity)
 
 	@Transaction
-	suspend fun insertSketchEntity(
+	suspend fun insertSketchMetaDataAndContent(
 		metadata: SketchMetadataEntity,
 		content: SketchContentEntity,
 		logs: SketchAuditLogEntity,

@@ -12,6 +12,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
+import com.sam.bluepad.resources.Res
+import com.sam.bluepad.resources.settings_screen_subtitle
+import com.sam.bluepad.resources.settings_screen_title
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,7 +29,8 @@ fun SettingsScreen(
 	Scaffold(
 		topBar = {
 			MediumFlexibleTopAppBar(
-				title = { Text(text = "Settings") },
+				title = { Text(text = stringResource(Res.string.settings_screen_title)) },
+				subtitle = { Text(text = stringResource(Res.string.settings_screen_subtitle)) },
 				navigationIcon = navigation, scrollBehavior = topBarScrollBehaviour
 			)
 		},

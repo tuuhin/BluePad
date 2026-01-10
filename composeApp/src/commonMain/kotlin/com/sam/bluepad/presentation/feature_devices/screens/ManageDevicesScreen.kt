@@ -5,6 +5,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -21,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.presentation.composables.ListContentLoadingWrapper
@@ -30,10 +32,13 @@ import com.sam.bluepad.presentation.feature_devices.events.ManageDevicesScreenEv
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
 import com.sam.bluepad.resources.Res
+import com.sam.bluepad.resources.devices_screen_subtitle
+import com.sam.bluepad.resources.devices_screen_title
 import com.sam.bluepad.resources.ic_add
 import com.sam.bluepad.theme.Dimensions
 import kotlinx.collections.immutable.ImmutableList
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,12 +62,15 @@ fun ManageDevicesScreen(
 	Scaffold(
 		topBar = {
 			MediumFlexibleTopAppBar(
-				title = { Text(text = "Devices") },
-				subtitle = { Text(text = "Manage your devices") },
+				title = { Text(text = stringResource(Res.string.devices_screen_title)) },
+				subtitle = { Text(text = stringResource(Res.string.devices_screen_subtitle)) },
 				navigationIcon = navigation,
 				scrollBehavior = topBarScrollBehaviour,
 				actions = {
-					TextButton(onClick = onNavigateToAdvertise) {
+					TextButton(
+						onClick = onNavigateToAdvertise,
+						modifier = Modifier.offset((-10).dp)
+					) {
 						Text("Advertise")
 					}
 				}

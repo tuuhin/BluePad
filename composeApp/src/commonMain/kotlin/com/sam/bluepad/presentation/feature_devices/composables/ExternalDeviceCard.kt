@@ -5,9 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -63,25 +61,26 @@ fun ExternalDeviceCard(
 			modifier = Modifier.fillMaxWidth().padding(all = Dimensions.CARD_INTERNAL_PADDING),
 			verticalArrangement = Arrangement.spacedBy(4.dp)
 		) {
-			DeviceOSTypeContainer(deviceOs = device.deviceOs)
-			Spacer(modifier = Modifier.height(8.dp))
 			Row(
 				verticalAlignment = Alignment.CenterVertically,
-				horizontalArrangement = Arrangement.SpaceBetween,
+				horizontalArrangement = Arrangement.spacedBy(18.dp),
 				modifier = Modifier.fillMaxWidth()
 			) {
-				Text(
-					text = stringResource(Res.string.scan_result_device_name_title),
-					style = MaterialTheme.typography.titleMediumEmphasized,
-					fontWeight = FontWeight.SemiBold,
-					color = MaterialTheme.colorScheme.onSurface
-				)
-				Text(
-					text = device.displayName ?: "N/A",
-					style = MaterialTheme.typography.titleLargeEmphasized,
-					color = MaterialTheme.colorScheme.primary,
-					fontWeight = FontWeight.SemiBold,
-				)
+				Column(modifier = Modifier.weight(1f)) {
+					Text(
+						text = stringResource(Res.string.scan_result_device_name_title),
+						style = MaterialTheme.typography.titleMediumEmphasized,
+						fontWeight = FontWeight.SemiBold,
+						color = MaterialTheme.colorScheme.onSurface
+					)
+					Text(
+						text = device.displayName ?: "N/A",
+						style = MaterialTheme.typography.titleLargeEmphasized,
+						color = MaterialTheme.colorScheme.primary,
+						fontWeight = FontWeight.SemiBold,
+					)
+				}
+				DeviceOSTypeContainer(deviceOs = device.deviceOs)
 			}
 			HorizontalDivider()
 			Row(

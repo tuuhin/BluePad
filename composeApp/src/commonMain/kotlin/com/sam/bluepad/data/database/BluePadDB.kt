@@ -9,6 +9,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.sam.bluepad.data.database.convertors.InstantTypeConvertor
 import com.sam.bluepad.data.database.convertors.UUIDTypeConvertors
 import com.sam.bluepad.data.database.dao.DevicesInfoDao
+import com.sam.bluepad.data.database.dao.SketchContentDao
 import com.sam.bluepad.data.database.dao.SketchMetadataDao
 import com.sam.bluepad.data.database.dao.SketchesDao
 import com.sam.bluepad.data.database.entities.DeviceInfoEntity
@@ -40,10 +41,9 @@ import kotlinx.coroutines.Dispatchers
 abstract class BluePadDB : RoomDatabase() {
 
 	abstract fun devicesDao(): DevicesInfoDao
-
 	abstract fun sketchesDao(): SketchesDao
-
 	abstract fun sketchMetadataDao(): SketchMetadataDao
+	abstract fun sketchContentDao(): SketchContentDao
 
 	companion object {
 

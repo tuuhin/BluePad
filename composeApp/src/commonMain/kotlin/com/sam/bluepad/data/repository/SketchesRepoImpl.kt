@@ -1,5 +1,6 @@
 package com.sam.bluepad.data.repository
 
+import com.sam.bluepad.data.database.dao.SketchContentDao
 import com.sam.bluepad.data.database.dao.SketchMetadataDao
 import com.sam.bluepad.data.database.dao.SketchesDao
 import com.sam.bluepad.data.database.entities.SketchAuditLogEntity
@@ -12,6 +13,7 @@ import com.sam.bluepad.domain.exceptions.InvalidSketchIdException
 import com.sam.bluepad.domain.models.CreateSketchModel
 import com.sam.bluepad.domain.models.SketchChangeType
 import com.sam.bluepad.domain.models.SketchModel
+import com.sam.bluepad.domain.repository.FlowResourceSketches
 import com.sam.bluepad.domain.repository.SketchesRepository
 import com.sam.bluepad.domain.use_cases.HashGenerator
 import com.sam.bluepad.domain.utils.Resource
@@ -21,11 +23,13 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.datetime.TimeZone
+import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 class SketchesRepoImpl(
 	private val sketchesDao: SketchesDao,
 	private val sketchMetadataDao: SketchMetadataDao,
+	private val sketchContentDao: SketchContentDao,
 	private val hasher: HashGenerator,
 ) : SketchesRepository {
 
@@ -66,8 +70,7 @@ class SketchesRepoImpl(
 		}
 	}
 
-	override fun createSketch(create: CreateSketchModel, deviceId: Uuid)
-			: Flow<Resource<SketchModel, Exception>> {
+	override fun createSketch(create: CreateSketchModel, deviceId: Uuid): FlowResourceSketches {
 		return handleDBOperation {
 
 			val metaData = create.toMetaDataEntity(timeZone, deviceId = deviceId)
@@ -85,7 +88,7 @@ class SketchesRepoImpl(
 			)
 
 			// finally save the data
-			val uuid = sketchesDao.insertSketchEntity(metaData, content, log)
+			val uuid = sketchesDao.insertSketchMetaDataAndContent(metaData, content, log)
 			val sketchContent = sketchesDao.getSketchFromId(uuid) ?: run {
 				return@handleDBOperation Resource.Error(InvalidSketchIdException())
 			}
@@ -94,18 +97,19 @@ class SketchesRepoImpl(
 		}
 	}
 
-	override fun updateSketch(
-		sketchModel: SketchModel,
-		deviceId: Uuid
-	): Flow<Resource<SketchModel, Exception>> {
+	override fun updateSketch(sketchModel: SketchModel, deviceId: Uuid): FlowResourceSketches {
 		return handleDBOperation {
 			val result = sketchMetadataDao.getMetaDataId(sketchModel.id) ?: run {
 				return@handleDBOperation Resource.Error(InvalidSketchIdException())
 			}
 
 			val metaData = sketchModel.toMetaDataEntity(deviceId, timeZone)
+				.copy(modifiedAt = Clock.System.now())
 			val contentHash = hasher.generateHash(sketchModel.content)
+
+
 			val content = sketchModel.toContent(contentHash, deviceId, timeZone)
+				.copy(modifiedAt = Clock.System.now())
 
 			val log = SketchAuditLogEntity(
 				id = Uuid.random(),
@@ -117,12 +121,45 @@ class SketchesRepoImpl(
 				deviceId = deviceId
 			)
 
-			val uuid = sketchesDao.insertSketchEntity(metaData, content, log)
+			val uuid = sketchesDao.insertSketchMetaDataAndContent(metaData, content, log)
 			val sketchContent = sketchesDao.getSketchFromId(uuid) ?: run {
 				return@handleDBOperation Resource.Error(InvalidSketchIdException())
 			}
 			val sketchModel = sketchContent.toModel(timeZone)
 			Resource.Success(sketchModel)
+		}
+	}
+
+	override fun revokeSketch(
+		sketchModel: SketchModel,
+		deviceId: Uuid
+	): Flow<Resource<Boolean, Exception>> {
+		return handleDBOperation {
+			val result = sketchMetadataDao.getMetaDataId(sketchModel.id) ?: run {
+				return@handleDBOperation Resource.Error(InvalidSketchIdException())
+			}
+
+			val sketchContent = sketchContentDao.getMetaDataId(sketchModel.id) ?: run {
+				return@handleDBOperation Resource.Error(InvalidSketchIdException())
+			}
+
+			val metaData = sketchModel.toMetaDataEntity(deviceId, timeZone)
+				.copy(isDeleted = true, modifiedAt = Clock.System.now())
+
+			val updatedContent = sketchContent
+				.copy(modifiedAt = Clock.System.now(), modifiedByDeviceId = deviceId)
+
+			val log = SketchAuditLogEntity(
+				id = Uuid.random(),
+				sketchId = result.id,
+				changeType = SketchChangeType.DELETE,
+				prevVersion = result.version,
+				newVersion = result.version + 1,
+				modifiedAt = metaData.modifiedAt,
+				deviceId = deviceId
+			)
+			sketchesDao.insertSketchMetaDataAndContent(metaData, updatedContent, log)
+			Resource.Success(true)
 		}
 	}
 }

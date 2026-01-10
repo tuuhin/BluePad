@@ -19,6 +19,7 @@ fun EntryProviderScope<NavKey>.sketchesListRouteEntry(
 	val viewModel = koinViewModel<SketchesViewmodel>()
 	val sketches by viewModel.sketches.collectAsStateWithLifecycle()
 	val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+	val isSketchSelected by viewModel.isSketchSelected.collectAsStateWithLifecycle()
 
 	UiEventsHandler(
 		eventsFlow = viewModel::uiEvent,
@@ -29,6 +30,8 @@ fun EntryProviderScope<NavKey>.sketchesListRouteEntry(
 		sketches = sketches,
 		isLoading = isLoading,
 		onEvent = viewModel::onEvent,
+		showDeleteDialog = isSketchSelected,
+		onNavigateToNewSketch = { backStack.add(RootNavGraph.AddOrUpdateRoute()) },
 		onNavigateToSketch = { sketch ->
 			backStack.add(RootNavGraph.AddOrUpdateRoute(sketch.id))
 		},

@@ -6,4 +6,5 @@ data class CreateSketchState(
 	val contentTitleState: TextFieldState = TextFieldState(),
 	val contentTextState: TextFieldState = TextFieldState(),
 	val isNewContent: Boolean = false,
+	val showDeleteDialog: Boolean = false,
 )
