@@ -31,7 +31,6 @@ fun EntryProviderScope<NavKey>.associatedNavGraphEntry(
 	NavigationNavGraphWrapper(
 		onSelectRoute = { nestedBackStack.add(it) },
 		selectedRoute = nestedBackStack.filterIsInstance<AssociatedNavGraph>().lastOrNull(),
-		onNavigateToAddRoute = { backStack.add(RootNavGraph.AddOrUpdateRoute()) },
 	) {
 		NavDisplay(
 			backStack = nestedBackStack,

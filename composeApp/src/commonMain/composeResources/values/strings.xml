@@ -10,6 +10,9 @@
   <string name="action_start_scan">Start</string>
   <string name="action_stop_scan">Stop</string>
   <string name="action_revoke_device">Revoke</string>
+  <string name="action_delete">Delete</string>
+  <string name="action_save">Save</string>
+  <string name="action_update">Update</string>
   <string name="action_sync_device">Sync</string>
   <string name="state_loading">Loading</string>
   <string name="add_devices_screen_title">Add Device</string>
@@ -47,4 +50,12 @@
   <string name="external_device_conn_dialog_title">Connect to Device</string>
   <string name="external_device_conn_dialog_text">Trying to connect to the external device</string>
   <string name="external_device_conn_device_data_found">Collecting device data successfully</string>
+  <!--  sketches content screen-->
+  <string name="sketches_screen_title">Sketches</string>
+  <string name="add_content_screen_title_text">Title</string>
+  <string name="add_content_screen_note_text">Your Sketch</string>
+  <string name="sketches_list_empty">No sketches were added, start by creating one</string>
+  <string name="action_create_sketch">Create Sketch</string>
+  <!--  Others-->
+  <string name="bluetooth_not_enabled_text">Bluetooth is not enabled</string>
 </resources>

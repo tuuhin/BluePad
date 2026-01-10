@@ -2,12 +2,13 @@ package com.sam.bluepad.presentation.navigation.nav_graph
 
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
+import kotlin.uuid.Uuid
 
 @Serializable
 sealed interface RootNavGraph : NavKey {
 
 	@Serializable
-	data class AddOrUpdateRoute(val sketchId: Long? = null) : RootNavGraph
+	data class AddOrUpdateRoute(val sketchId: Uuid? = null) : RootNavGraph
 
 	@Serializable
 	data object AssociatedNavGraphRoute : RootNavGraph
