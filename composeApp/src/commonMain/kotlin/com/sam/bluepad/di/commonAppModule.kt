@@ -4,8 +4,11 @@ import com.sam.bluepad.data.database.AppDBBuilder
 import com.sam.bluepad.data.database.BluePadDB
 import com.sam.bluepad.data.datastore.LocalDeviceInfoProviderImpl
 import com.sam.bluepad.data.repository.ExternalDevicesRepoImpl
+import com.sam.bluepad.data.repository.SketchesRepoImpl
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
+import com.sam.bluepad.domain.repository.SketchesRepository
+import com.sam.bluepad.domain.use_cases.HashGenerator
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import com.sam.bluepad.domain.use_cases.RandomGeneratorImpl
 import com.sam.bluepad.domain.use_cases.RandomNameGenerator
@@ -21,12 +24,17 @@ val commonAppModule = module(true) {
 		BluePadDB.prepareRoomDb(dbBuilder.getDbBuilder())
 	}
 	single { get<BluePadDB>().devicesDao() }
+	single { get<BluePadDB>().sketchesDao() }
+	single { get<BluePadDB>().sketchMetadataDao() }
+
 	//utils
 	singleOf(::RandomNameGenerator)
 	singleOf(::RandomGeneratorImpl) bind RandomGenerator::class
+	singleOf(::HashGenerator)
 
 	// device id provider
 	singleOf(::LocalDeviceInfoProviderImpl) bind LocalDeviceInfoProvider::class
 	// repository
 	factoryOf(::ExternalDevicesRepoImpl) bind ExternalDevicesRepository::class
+	factoryOf(::SketchesRepoImpl) bind SketchesRepository::class
 }

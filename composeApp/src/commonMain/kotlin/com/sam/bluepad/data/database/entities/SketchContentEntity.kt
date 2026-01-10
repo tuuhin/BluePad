@@ -18,12 +18,6 @@ import kotlin.uuid.Uuid
 			childColumns = ["_id"],
 			onDelete = ForeignKey.CASCADE
 		),
-		ForeignKey(
-			entity = DeviceInfoEntity::class,
-			parentColumns = ["device_id"],
-			childColumns = ["last_modified_by_device"],
-			onDelete = ForeignKey.NO_ACTION
-		)
 	],
 	indices = [
 		Index("last_modified_by_device"),

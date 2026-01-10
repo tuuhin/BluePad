@@ -20,19 +20,10 @@ import kotlin.uuid.Uuid
 			onDelete = ForeignKey.CASCADE,
 			onUpdate = ForeignKey.CASCADE
 		),
-		ForeignKey(
-			entity = DeviceInfoEntity::class,
-			parentColumns = ["device_id"],
-			childColumns = ["changed_by_device"],
-			onDelete = ForeignKey.SET_NULL
-		)
 	],
-	indices = [
-		Index("sketch_id"),
-		Index("changed_by_device"),
-	],
+	indices = [Index("sketch_id")],
 )
-data class SketchUpdateLogEntity(
+data class SketchAuditLogEntity(
 	@ColumnInfo(name = "_id")
 	@PrimaryKey(autoGenerate = false) val id: Uuid,
 
