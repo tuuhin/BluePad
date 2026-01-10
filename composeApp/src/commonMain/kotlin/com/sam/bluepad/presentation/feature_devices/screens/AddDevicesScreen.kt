@@ -38,7 +38,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sam.bluepad.domain.ble.models.BLEPeerDevice
 import com.sam.bluepad.presentation.composables.ListContentLoadingWrapper
-import com.sam.bluepad.presentation.composables.checkBluetoothScanPermission
 import com.sam.bluepad.presentation.feature_devices.composables.BLEScanStartStopButton
 import com.sam.bluepad.presentation.feature_devices.composables.MultipleDeviceWarning
 import com.sam.bluepad.presentation.feature_devices.composables.ScanDeviceList
@@ -72,7 +71,6 @@ fun AddDevicesScreen(
 	val snackBarHostState = LocalSnackBarState.current
 
 	val topBarScrollBehaviour = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-	val hasBLEPermissions = checkBluetoothScanPermission()
 
 	LifecycleResumeEffect(lifecycleOwner = lifecycleOwner, key1 = Unit) {
 		onPauseOrDispose {
@@ -102,7 +100,6 @@ fun AddDevicesScreen(
 					Spacer(modifier = Modifier.width(4.dp))
 					BLEScanStartStopButton(
 						isScanning = isScanRunning,
-						enabled = hasBLEPermissions,
 						onStopScan = { onEvent(AddDeviceScreenEvent.OnStopDeviceScan) },
 						onStartScan = { onEvent(AddDeviceScreenEvent.OnStartDeviceScan) },
 						modifier = Modifier.padding(end = 4.dp)
