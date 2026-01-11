@@ -8,6 +8,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +29,9 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
@@ -79,6 +83,12 @@ fun AddDevicesScreen(
 		}
 	}
 
+	val isRefreshButtonEnabled by remember(isListRefreshing, isScanRunning, searchedPeers) {
+		derivedStateOf {
+			searchedPeers.isNotEmpty() && !isListRefreshing && !isScanRunning
+		}
+	}
+
 	Scaffold(
 		topBar = {
 			MediumFlexibleTopAppBar(
@@ -89,7 +99,7 @@ fun AddDevicesScreen(
 				actions = {
 					OutlinedButton(
 						onClick = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
-						enabled = !isListRefreshing && !isScanRunning,
+						enabled = isRefreshButtonEnabled,
 						contentPadding = ButtonDefaults.SmallContentPadding,
 					) {
 						Icon(
@@ -102,8 +112,8 @@ fun AddDevicesScreen(
 						isScanning = isScanRunning,
 						onStopScan = { onEvent(AddDeviceScreenEvent.OnStopDeviceScan) },
 						onStartScan = { onEvent(AddDeviceScreenEvent.OnStartDeviceScan) },
-						modifier = Modifier.padding(end = 4.dp)
 					)
+					Spacer(modifier = Modifier.width(8.dp))
 				}
 			)
 		},
@@ -122,39 +132,40 @@ fun AddDevicesScreen(
 			) {
 				LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
 			}
-			MultipleDeviceWarning(
-				showWarning = isScanRunning,
-				modifier = Modifier
-					.fillMaxWidth(.8f)
-					.align(Alignment.CenterHorizontally)
-			)
-			ListContentLoadingWrapper(
-				content = searchedPeers,
-				onItems = { peers ->
-					ScanDeviceList(
-						searchedPeers = peers,
-						isListRefreshing = isListRefreshing,
-						onListRefresh = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
-						onConnect = { device ->
-							onNavigateToConnect(device.deviceAddress)
-							if (isScanRunning) onEvent(AddDeviceScreenEvent.OnStopDeviceScan)
-						},
-						modifier = Modifier.fillMaxSize(),
-					)
-				},
-				onEmpty = {
-					NoDevicesFoundContainer(modifier = Modifier.fillMaxSize())
-				},
+			Box(
 				modifier = Modifier.weight(1f)
 					.animateContentSize(MaterialTheme.motionScheme.fastEffectsSpec())
 					.padding(
 						horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
 						vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING
 					)
-			)
+			) {
+				MultipleDeviceWarning(
+					showWarning = isScanRunning,
+					modifier = Modifier.fillMaxWidth(.75f)
+						.align(Alignment.BottomCenter)
+				)
+				ListContentLoadingWrapper(
+					content = searchedPeers,
+					onItems = { peers ->
+						ScanDeviceList(
+							searchedPeers = peers,
+							isListRefreshing = isListRefreshing,
+							onListRefresh = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
+							onConnect = { device ->
+								onNavigateToConnect(device.deviceAddress)
+								if (isScanRunning) onEvent(AddDeviceScreenEvent.OnStopDeviceScan)
+							},
+							modifier = Modifier.fillMaxSize(),
+						)
+					},
+					onEmpty = {
+						NoDevicesFoundContainer(modifier = Modifier.fillMaxSize())
+					},
+				)
+			}
 		}
 	}
-
 }
 
 @Composable

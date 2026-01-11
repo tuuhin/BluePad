@@ -1,6 +1,8 @@
 package com.sam.bluepad.presentation.feature_sketches.viewmodel
 
 import androidx.lifecycle.viewModelScope
+import com.sam.bluepad.domain.interactions.CopySketchInteraction
+import com.sam.bluepad.domain.interactions.ShareSketchInteraction
 import com.sam.bluepad.domain.models.SketchModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.SketchesRepository
@@ -31,6 +33,8 @@ import kotlin.uuid.Uuid
 class SketchesViewmodel(
 	private val repository: SketchesRepository,
 	private val localDeviceProvider: LocalDeviceInfoProvider,
+	private val shareInteraction: ShareSketchInteraction,
+	private val copyInteraction: CopySketchInteraction,
 ) : AppViewModel() {
 
 	private val _selectedSketch = MutableStateFlow<SketchModel?>(null)
@@ -63,6 +67,8 @@ class SketchesViewmodel(
 			is SketchScreenEvent.OnSelectSketchToDelete -> _selectedSketch.update { event.sketch }
 			SketchScreenEvent.OnUnselectSketchToDelete -> _selectedSketch.update { null }
 			SketchScreenEvent.OnDeleteSketchConfirm -> onDeleteSketch()
+			is SketchScreenEvent.OnCopySketch -> onCopySketch(event.sketch)
+			is SketchScreenEvent.OnShareSketch -> onShareSketch(event.sketch)
 		}
 	}
 
@@ -113,5 +119,28 @@ class SketchesViewmodel(
 		}
 		if (localDeviceId == null) _uiEvents.emit(UIEvents.ShowSnackBar("Cannot read device id"))
 		return localDeviceId
+	}
+
+	private fun onCopySketch(sketch: SketchModel) = viewModelScope.launch {
+		val result = copyInteraction.copyToClipboard(sketch)
+		result.fold(
+			onSuccess = { showMessage ->
+				if (!showMessage) return@fold
+				_uiEvents.emit(UIEvents.ShowToast("Content copied"))
+			},
+			onFailure = { err ->
+				val message = err.message ?: "Copy sketch failed"
+				_uiEvents.emit(UIEvents.ShowSnackBar(message))
+			},
+		)
+	}
+
+	private fun onShareSketch(sketch: SketchModel) = viewModelScope.launch {
+		val result = shareInteraction.shareSketch(sketch)
+		if (result.isFailure) {
+			val error = result.exceptionOrNull()
+			val errorMessage = error?.message ?: "Failed to share sketch"
+			_uiEvents.emit(UIEvents.ShowSnackBar(errorMessage))
+		}
 	}
 }

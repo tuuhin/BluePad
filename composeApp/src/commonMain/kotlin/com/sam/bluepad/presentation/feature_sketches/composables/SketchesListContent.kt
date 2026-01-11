@@ -24,6 +24,7 @@ fun SketchesListContent(
 	modifier: Modifier = Modifier,
 	onDeleteSketch: (SketchModel) -> Unit = {},
 	onCopySketch: (SketchModel) -> Unit = {},
+	onShareSketch: (SketchModel) -> Unit = {},
 	listState: LazyStaggeredGridState = rememberLazyStaggeredGridState(),
 	contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
@@ -57,6 +58,7 @@ fun SketchesListContent(
 				onClick = { onSelectSketch(sketch) },
 				onCopy = { onCopySketch(sketch) },
 				onDelete = { onDeleteSketch(sketch) },
+				onShare = { onShareSketch(sketch) },
 				modifier = Modifier.animateItem()
 			)
 		}

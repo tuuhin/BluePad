@@ -15,9 +15,11 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.ic_warning
 import com.sam.bluepad.resources.scan_results_save_device_warning
-import com.sam.bluepad.theme.Dimensions
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -42,8 +43,8 @@ fun MultipleDeviceWarning(
 	AnimatedVisibility(
 		visible = showWarning,
 		modifier = modifier,
-		enter = scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec()) + slideInVertically(),
-		exit = fadeOut(MaterialTheme.motionScheme.defaultSpatialSpec()) + slideOutVertically(),
+		enter = scaleIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + slideInVertically { it -> it },
+		exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + slideOutVertically { it -> it },
 	) {
 		Card(
 			colors = CardDefaults.cardColors(
@@ -53,16 +54,16 @@ fun MultipleDeviceWarning(
 			shape = shape,
 		) {
 			Row(
-				modifier = Modifier.padding(all = Dimensions.CARD_INTERNAL_PADDING),
+				modifier = Modifier.padding(all = 12.dp),
 				verticalAlignment = Alignment.CenterVertically,
 				horizontalArrangement = Arrangement.spacedBy(8.dp)
 			) {
 				Box(
 					modifier = Modifier
-						.sizeIn(minWidth = 36.dp, minHeight = 36.dp)
+						.sizeIn(minWidth = 40.dp, minHeight = 40.dp)
 						.background(
 							color = contentColor,
-							shape = MaterialTheme.shapes.extraLarge
+							shape = MaterialShapes.Clover8Leaf.toShape()
 						),
 					contentAlignment = Alignment.Center,
 				) {

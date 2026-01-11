@@ -110,6 +110,8 @@ fun SketchesListScreen(
 					onDeleteSketch = { sketch ->
 						onEvent(SketchScreenEvent.OnSelectSketchToDelete(sketch))
 					},
+					onCopySketch = { sketch -> onEvent(SketchScreenEvent.OnCopySketch(sketch)) },
+					onShareSketch = { sketch -> onEvent(SketchScreenEvent.OnShareSketch(sketch)) },
 					modifier = Modifier.fillMaxSize(),
 					contentPadding = PaddingValues(
 						horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
