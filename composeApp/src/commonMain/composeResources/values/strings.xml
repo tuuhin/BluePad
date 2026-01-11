@@ -17,6 +17,7 @@
   <string name="state_loading">Loading</string>
   <string name="add_devices_screen_title">Add Device</string>
   <string name="add_devices_screen_subtitle">Scan for devices in your perimeter</string>
+  <string name="action_ble_advertise">Advertise</string>
   <string name="action_back">Back Arrow</string>
   <string name="devices_screen_title">Devices</string>
   <string name="devices_screen_subtitle">Manage and sync sketches across your devices</string>
@@ -68,9 +69,15 @@
   <string name="settings_device_name_title">Device Name</string>
   <string name="settings_device_rename_dialog_title">Update Device Name</string>
   <string name="settings_device_rename_dialog_text">Update current device name</string>
+  <string name="settings_screen_re_enroll_device_title">Re-Enroll Device</string>
+  <string name="settings_screen_re_enroll_device_text">Remove revoke tag from all revoked device</string>
+  <string name="action_re_enroll_device">Re-Enroll</string>
   <!--  Others-->
   <string name="bluetooth_not_enabled_text">Bluetooth is not enabled</string>
   <string name="menu_action_copy">Copy</string>
   <string name="menu_action_delete">Delete</string>
   <string name="menu_action_share">Share</string>
+  <!--  Sync -->
+  <string name="sync_device_dialog_title">Searching device</string>
+  <string name="sync_device_dialog_text">Finding your associated device, keep it close to your device</string>
 </resources>

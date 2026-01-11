@@ -2,6 +2,8 @@ package com.sam.bluepad.presentation.feature_settings
 
 import androidx.lifecycle.viewModelScope
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
+import com.sam.bluepad.domain.repository.ExternalDevicesRepository
+import com.sam.bluepad.domain.utils.Resource
 import com.sam.bluepad.presentation.feature_settings.event.SettingsScreenEvent
 import com.sam.bluepad.presentation.feature_settings.event.SettingsScreenState
 import com.sam.bluepad.presentation.utils.AppViewModel
@@ -19,7 +21,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class SettingsViewmodel(
-	private val deviceInfoProvider: LocalDeviceInfoProvider
+	private val deviceInfoProvider: LocalDeviceInfoProvider,
+	private val repository: ExternalDevicesRepository,
 ) : AppViewModel() {
 
 	private val _settingsState = MutableStateFlow(SettingsScreenState())
@@ -37,8 +40,23 @@ class SettingsViewmodel(
 	fun onEvent(event: SettingsScreenEvent) {
 		when (event) {
 			is SettingsScreenEvent.OnUpdateDeviceName -> onUpdateDeviceName(event.name)
+			SettingsScreenEvent.OnReEnrollRevokeDevices -> onUnRevokeAllDevice()
 		}
 	}
+
+	private fun onUnRevokeAllDevice() = repository.unRevokeAllDevices()
+		.onEach { res ->
+			when (res) {
+				is Resource.Error -> {
+					val message = res.message ?: res.error.message ?: "Some error"
+					_uiEvent.emit(UIEvents.ShowSnackBar(message))
+				}
+
+				is Resource.Success -> _uiEvent.emit(UIEvents.ShowToast("All device un-revoked"))
+				else -> {}
+			}
+		}.launchIn(viewModelScope)
+
 
 	private fun onUpdateDeviceName(name: String) = viewModelScope.launch {
 		deviceInfoProvider.updateDeviceName(name)

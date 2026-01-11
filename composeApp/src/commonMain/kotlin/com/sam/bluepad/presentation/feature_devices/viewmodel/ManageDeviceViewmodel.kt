@@ -20,9 +20,10 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class ManageDeviceViewmodel(
-	private val externalDevicesRepository: ExternalDevicesRepository,
+	private val repository: ExternalDevicesRepository,
 ) : AppViewModel() {
 
 	private val _devices = MutableStateFlow(emptyList<ExternalDeviceModel>())
@@ -44,12 +45,12 @@ class ManageDeviceViewmodel(
 
 	fun onEvent(event: ManageDevicesScreenEvent) {
 		when (event) {
-			is ManageDevicesScreenEvent.OnRevokeDevice -> {}
-			is ManageDevicesScreenEvent.OnSyncDevice -> {}
+			is ManageDevicesScreenEvent.OnRevokeDevice -> onRevokeDevice(event.device)
+			is ManageDevicesScreenEvent.OnSyncDevice -> onSyncDevice(event.device)
 		}
 	}
 
-	private fun loadDevicesList() = externalDevicesRepository.getExternalDevices()
+	private fun loadDevicesList() = repository.getAllDevices()
 		.onEach { res ->
 			when (res) {
 				is Resource.Error -> {
@@ -67,5 +68,27 @@ class ManageDeviceViewmodel(
 			}
 		}
 		.launchIn(viewModelScope)
+
+	private fun onRevokeDevice(device: ExternalDeviceModel) =
+		repository.toggleDeviceRevocation(device)
+			.onEach { res ->
+				when (res) {
+					is Resource.Error -> {
+						val message = res.message ?: res.error.message ?: "Some error"
+						_uiEvents.emit(UIEvents.ShowSnackBar(message))
+					}
+
+					is Resource.Success -> {
+						val message = "${device.displayName} has been revoked"
+						_uiEvents.emit(UIEvents.ShowToast(message))
+					}
+
+					else -> {}
+				}
+			}.launchIn(viewModelScope)
+
+	private fun onSyncDevice(device: ExternalDeviceModel) = viewModelScope.launch {
+		_uiEvents.emit(UIEvents.ShowSnackBar("Feature unavailable sorry"))
+	}
 
 }

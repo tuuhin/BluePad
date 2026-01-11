@@ -12,13 +12,22 @@ import kotlin.uuid.Uuid
 interface DevicesInfoDao {
 
 	@Upsert
-	suspend fun addDevice(entity: DeviceInfoEntity): Long
+	suspend fun insertOrUpdateDevice(entity: DeviceInfoEntity): Long
 
 	@Query("SELECT * FROM device_info_table WHERE is_revoked=:isRevoked")
-	fun readDevices(isRevoked: Boolean): Flow<List<DeviceInfoEntity>>
+	fun readAllDevices(isRevoked: Boolean): Flow<List<DeviceInfoEntity>>
 
 	@Query("SELECT * from device_info_table WHERE device_id=:uuid")
 	suspend fun readDeviceById(uuid: Uuid): DeviceInfoEntity?
+
+	@Query("UPDATE device_info_table SET is_revoked=false WHERE is_revoked=true")
+	suspend fun reEnrollAllDevice(): Int
+
+	@Query("UPDATE device_info_table SET is_revoked=false WHERE device_id=:uuid")
+	suspend fun reEnrollDeviceByID(uuid: Uuid): Int
+
+	@Query("UPDATE device_info_table SET is_revoked=:newRevokeStatus WHERE device_id=:deviceId")
+	suspend fun setRevokeStatusOnDeviceByID(newRevokeStatus: Boolean, deviceId: Uuid)
 
 	@Delete
 	suspend fun deleteDevice(entity: DeviceInfoEntity)

@@ -32,6 +32,7 @@ import com.sam.bluepad.presentation.feature_devices.events.ManageDevicesScreenEv
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
 import com.sam.bluepad.resources.Res
+import com.sam.bluepad.resources.action_ble_advertise
 import com.sam.bluepad.resources.devices_screen_subtitle
 import com.sam.bluepad.resources.devices_screen_title
 import com.sam.bluepad.resources.ic_add
@@ -71,7 +72,7 @@ fun ManageDevicesScreen(
 						onClick = onNavigateToAdvertise,
 						modifier = Modifier.offset((-10).dp)
 					) {
-						Text("Advertise")
+						Text(stringResource(Res.string.action_ble_advertise))
 					}
 				}
 			)
