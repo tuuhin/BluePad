@@ -37,7 +37,7 @@ fun AppRootNavHost(modifier: Modifier = Modifier) {
 			rememberViewModelStoreNavEntryDecorator(),
 		),
 		entryProvider = entryProvider {
-			associatedNavGraphEntry(backStack, startDestination = AssociatedNavGraph.DeviceRoute)
+			associatedNavGraphEntry(backStack, startDestination = AssociatedNavGraph.ListRoute)
 			createOrUpdateSketchesEntry(backStack)
 
 			// devices route
