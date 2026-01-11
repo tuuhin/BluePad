@@ -16,7 +16,7 @@ import com.sam.bluepad.di.viewModelModule
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.app_name
-import com.sam.bluepad.resources.scratchpad
+import com.sam.bluepad.resources.ic_notepad
 import com.sam.bluepad.theme.BluePadTheme
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -54,7 +54,7 @@ fun main() = application {
 	Window(
 		state = windowState,
 		onCloseRequest = ::exitApplication,
-		icon = painterResource(Res.drawable.scratchpad),
+		icon = painterResource(Res.drawable.ic_notepad),
 		title = stringResource(Res.string.app_name)
 	) {
 		BluePadTheme {
