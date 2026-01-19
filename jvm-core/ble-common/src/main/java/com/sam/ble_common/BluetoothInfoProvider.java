@@ -23,6 +23,10 @@ public class BluetoothInfoProvider {
 
     private native static boolean nativeIsBluetoothActive();
 
+    private static native boolean nativeIsLeSecureConnectionAvailable();
+
+    private static native boolean nativeIsPeripheralRoleSupported();
+
     interface BluetoothListenerInternal {
 
         void onStatusChange(boolean isActive);
@@ -31,6 +35,15 @@ public class BluetoothInfoProvider {
     public static boolean isBluetoothActive() {
         return nativeIsBluetoothActive();
     }
+
+    public static boolean isLEConnectionAllowed() {
+        return nativeIsLeSecureConnectionAvailable();
+    }
+
+    public static boolean isPeripheralRoleSupported() {
+        return nativeIsPeripheralRoleSupported();
+    }
+
 
     static {
         try {

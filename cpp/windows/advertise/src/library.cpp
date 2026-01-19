@@ -32,26 +32,18 @@ struct NativeContext {
     JavaVM *vm_ref = nullptr;
 };
 
-extern "C" {
-// helper to check if low energy connection accepted
-JNIEXPORT jboolean
-JNICALL
-Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeIsLeSecureConnectionAvailable(JNIEnv *, jobject) {
-    const auto adapter = BluetoothAdapter::GetDefaultAsync().get();
-    return adapter.AreLowEnergySecureConnectionsSupported();
+void throw_runtime_exception(JNIEnv *env, const char *msg) {
+    jclass cls = env->FindClass("java/lang/RuntimeException");
+    if (cls != nullptr) env->ThrowNew(cls, msg);
+    env->DeleteLocalRef(cls);
 }
 
-// helper to check if peripheral role is supported
-JNIEXPORT jboolean
-JNICALL
-Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeIsPeripheralRoleSupported(JNIEnv *, jobject) {
-    const auto adapter = BluetoothAdapter::GetDefaultAsync().get();
-    return adapter.IsPeripheralRoleSupported();
-}
+extern "C" {
 
 JNIEXPORT jlong
 JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeCreate(JNIEnv *env, jobject) {
     init_apartment();
+    // ReSharper disable once CppDFAMemoryLeak
     auto *ctx = new NativeContext();
     env->GetJavaVM(&ctx->vm_ref);
     WIN_LOG("CONTEXT ADDED");
@@ -71,8 +63,7 @@ try {
 if (ctx->service_provider) {
 WIN_LOG("STOPPING SERVICE PROVIDERS IN DESTROY");
 auto current_status = ctx->service_provider.AdvertisementStatus();
-WIN_LOG(L"ADVERTISEMENT STATUS (Status :" << std::to_wstring(static_cast<int32_t>(current_status))
-                                          << L")");
+WIN_LOG(L"ADVERTISEMENT STATUS :" << std::to_wstring(static_cast<int32_t>(current_status)));
 if (current_status == GattServiceProviderAdvertisementStatus::Started || current_status ==
 GattServiceProviderAdvertisementStatus::StartedWithoutAllAdvertisementData) {
 ctx->service_provider.
@@ -81,9 +72,7 @@ StopAdvertising();
 
 WIN_LOG("ADVERTISING STOPPED SUCCESSFULLY");
 auto updated_status = ctx->service_provider.AdvertisementStatus();
-WIN_LOG(
-        L"ADVERTISEMENT STATUS (Status :" << std::to_wstring(static_cast<int32_t>(updated_status))
-                                          << L")");
+WIN_LOG(L"ADVERTISEMENT STATUS:" << std::to_wstring(static_cast<int32_t>(updated_status)));
 }
 }
 } catch (
@@ -120,9 +109,10 @@ WIN_LOG("NATIVE CONTEXT DESTROYED");
 }
 
 JNIEXPORT void JNICALL
-Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeRegisterCallback(JNIEnv
+Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeRegisterCallback(
+        JNIEnv
 *env, jobject,
-jlong h, jobject
+const jlong h, jobject
 cb) {
 auto *ctx = reinterpret_cast<NativeContext *>(h);
 if (!ctx) {
@@ -136,8 +126,9 @@ WIN_LOG("CALLBACK SET");
 
 JNIEXPORT jint
 JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeGetAdvertisingStatus(
-        JNIEnv * , jobject, jlong
-h) {
+        JNIEnv * , jobject,
+const jlong h
+) {
 const auto *ctx = reinterpret_cast<NativeContext *>(h);
 
 if (!ctx) {
@@ -154,9 +145,10 @@ AdvertisementStatus()
 }
 
 JNIEXPORT void JNICALL
-Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeStopAdvertising(JNIEnv
+Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeStopAdvertising(
+        JNIEnv
 *, jobject,
-jlong h
+const jlong h
 ) {
 const auto *ctx = reinterpret_cast<NativeContext *>(h);
 if (!ctx) {
@@ -200,23 +192,23 @@ JNIEXPORT void JNICALL
 Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeStartAdvertising(
         JNIEnv
 *env, jobject,
-jlong h, jobject
+const jlong h, jobject
 config) {
-auto *ctx = reinterpret_cast<NativeContext *>(h);
+const auto *ctx = reinterpret_cast<NativeContext *>(h);
 if (!ctx) {
 WIN_LOG("INVALID CONTEXT PROVIDED");
 return;
 }
-GattServiceProviderAdvertisingParameters params;
+const GattServiceProviderAdvertisingParameters params;
 
 jclass configClass = env->GetObjectClass(config);
 jfieldID discoverableId = env->GetFieldID(configClass, "discoverable", "Z");
 jfieldID connectableId = env->GetFieldID(configClass, "connectable", "Z");
 jfieldID serviceDataId = env->GetFieldID(configClass, "serviceData", "[B");
 
-jboolean discoverable = env->GetBooleanField(config, discoverableId);
-jboolean connectable = env->GetBooleanField(config, connectableId);
-jbyteArray serviceDataArray = (jbyteArray) env->GetObjectField(config, serviceDataId);
+const jboolean discoverable = env->GetBooleanField(config, discoverableId);
+const jboolean connectable = env->GetBooleanField(config, connectableId);
+auto serviceDataArray = reinterpret_cast<jbyteArray>(env->GetObjectField(config, serviceDataId));
 
 params.
 IsConnectable(connectable);
@@ -224,15 +216,15 @@ params.
 IsDiscoverable(discoverable);
 
 if (serviceDataArray != nullptr) {
-jsize len = env->GetArrayLength(serviceDataArray);
+const jsize len = env->GetArrayLength(serviceDataArray);
 jbyte *buffer = env->GetByteArrayElements(serviceDataArray, nullptr);
 
-DataWriter writer;
+const DataWriter writer;
 writer.
 WriteBytes(winrt::array_view<uint8_t const>(reinterpret_cast<uint8_t *>(buffer),
         reinterpret_cast<uint8_t *>(buffer) + len)
 );
-IBuffer _iBuffer = writer.DetachBuffer();
+const IBuffer _iBuffer = writer.DetachBuffer();
 params.
 ServiceData(_iBuffer);
 
@@ -244,7 +236,7 @@ ReleaseByteArrayElements(serviceDataArray, buffer, JNI_ABORT
 ctx->service_provider.
 StartAdvertising(params);
 auto current_status = ctx->service_provider.AdvertisementStatus();
-auto str = std::to_wstring(static_cast<int32_t>(current_status));
+const auto str = std::to_wstring(static_cast<int32_t>(current_status));
 WIN_LOG(L"ADVERTISEMENT STARTED:  STATUS (Status :" << str << L")");
 }
 
@@ -276,19 +268,12 @@ ReleaseStringUTFChars(jSvcUuid, svcUuidStr
 );
 
 jclass cbCls = env->GetObjectClass(ctx->callback);
-jmethodID onServiceAdded = env->GetMethodID(cbCls, "onServiceAdded",
-        "(Ljava/lang/String;ZI)V");
-
+jmethodID onServiceAdded = env->GetMethodID(cbCls, "onServiceAdded", "(Ljava/lang/String;I)V");
 
 auto result = GattServiceProvider::CreateAsync(guid(serviceUuidW)).get();
 env->
 CallVoidMethod(ctx
-->callback, onServiceAdded, jSvcUuid, result.
-
-Error()
-
-== BluetoothError::Success,
-static_cast
+->callback, onServiceAdded, jSvcUuid, static_cast
 <int32_t>(result
 .
 
@@ -300,14 +285,18 @@ if (result.
 
 Error()
 
-!= BluetoothError::Success) return;
+!= BluetoothError::Success) {
+throw_runtime_exception(env,
+"Unable to create a service");
+return;
+}
 
 ctx->
 service_provider = result.ServiceProvider();
 WIN_LOG("SERVICE CREATED AND SERVICE PROVIDER ADDED");
 auto current_status = ctx->service_provider.AdvertisementStatus();
-auto str = std::to_wstring(static_cast<int32_t>(current_status));
-WIN_LOG(L"ADVERTISEMENT STARTED:  STATUS (Status :" << str << L")");
+WIN_LOG(L"ADVERTISEMENT STARTED:  STATUS :"
+        << std::to_wstring(static_cast<int32_t>(current_status)));
 
 // Iterate characteristics
 jclass listCls = env->FindClass("java/util/List");
@@ -323,11 +312,15 @@ i++) {
 jobject jChar = env->CallObjectMethod(jCharList, getMid, i);
 
 jclass charCls = env->GetObjectClass(jChar);
-jmethodID midCharUuid = env->GetMethodID(charCls, "uuid", "()Ljava/lang/String;");
-jmethodID midCanRead = env->GetMethodID(charCls, "canRead", "()Z");
+jmethodID characteristic_uuid = env->GetMethodID(charCls, "uuid", "()Ljava/lang/String;");
+jmethodID characteristics_property_read = env->GetMethodID(charCls, "canRead", "()Z");
+jmethodID characteristics_property_write = env->GetMethodID(charCls, "canWriteRequest", "()Z");
+jmethodID characteristics_property_write_no_response = env->GetMethodID(charCls, "canWriteCommand", "()Z");
 
-auto jCharUuid = (jstring) env->CallObjectMethod(jChar, midCharUuid);
-bool canRead = env->CallBooleanMethod(jChar, midCanRead);
+auto jCharUuid = (jstring) env->CallObjectMethod(jChar, characteristic_uuid);
+bool can_read = env->CallBooleanMethod(jChar, characteristics_property_read);
+bool can_write = env->CallBooleanMethod(jChar, characteristics_property_write);
+bool can_write_without_response = env->CallBooleanMethod(jChar, characteristics_property_write_no_response);
 
 const char *charUuidStr = env->GetStringUTFChars(jCharUuid, nullptr);
 std::wstring charUuidW = to_hstring(charUuidStr).c_str();
@@ -336,11 +329,30 @@ ReleaseStringUTFChars(jCharUuid, charUuidStr
 );
 
 GattLocalCharacteristicParameters params;
-if (canRead)params.
-CharacteristicProperties(GattCharacteristicProperties::Read);
+auto characteristic_properties = GattCharacteristicProperties::None;
 
+if (can_read) {
+characteristic_properties |=
+GattCharacteristicProperties::Read;
 params.
 ReadProtectionLevel(GattProtectionLevel::Plain);
+}
+if (can_write) {
+characteristic_properties |=
+GattCharacteristicProperties::Write;
+params.
+WriteProtectionLevel(GattProtectionLevel::EncryptionRequired);
+}
+
+if (can_write_without_response) {
+characteristic_properties |=
+GattCharacteristicProperties::WriteWithoutResponse;
+params.
+WriteProtectionLevel(GattProtectionLevel::EncryptionRequired);
+}
+
+params.
+CharacteristicProperties(characteristic_properties);
 
 auto charResult = ctx->service_provider.Service().CreateCharacteristicAsync(guid(charUuidW), params).get();
 
@@ -351,94 +363,204 @@ insert(pair(charUuidW, characteristic)
 
 // log statement
 hstring char_uuid_string = to_hstring(characteristic.Uuid());
-auto message = "ADDING SERVICE ADDED" + to_string(char_uuid_string);
-WIN_LOG(message.c_str());
+WIN_LOG(L"CHARACTERISTICS ADDED" << to_hstring(char_uuid_string));
 
-// ---------- ReadRequested Handler ----------
+// ---------- READ REQUWST HANDLER ----------
 characteristic.ReadRequested(
 [ctx, charUuidW, serviceUuidW](
 GattLocalCharacteristic const &characteristic,
         GattReadRequestedEventArgs
 const &args) {
-auto deferral = args.GetDeferral();
-auto request = args.GetRequestAsync().get();
+const auto deferral = args.GetDeferral();
+const auto request = args.GetRequestAsync().get();
+const auto deviceId = args.Session().DeviceId().Id();
 
-JNIEnv *env = nullptr;
-bool didAttach = false;
+WIN_LOG(L"READ REQUESTED" << to_hstring(characteristic.Uuid()));
+
+JNIEnv *jni_env = nullptr;
+bool thread_ready = false;
 
 if (ctx->vm_ref->GetEnv(reinterpret_cast
-<void **>(&env), JNI_VERSION_1_6
+<void **>(&jni_env), JNI_VERSION_1_6
 ) != JNI_OK) {
 ctx->vm_ref->AttachCurrentThread(reinterpret_cast
-<void **>(&env), nullptr
+<void **>(&jni_env), nullptr
 );
-didAttach = true;
+thread_ready = true;
 }
 
-jclass cbCls = env->GetObjectClass(ctx->callback);
-jmethodID midRead = env->GetMethodID(cbCls, "onReadCharacteristics",
-        "(Ljava/lang/String;Ljava/lang/String;)[B");
+jclass callback_class = jni_env->GetObjectClass(ctx->callback);
+jmethodID read_characteristics_method = jni_env->GetMethodID(
+        callback_class, "onReadCharacteristics",
+        "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)[B");
 
-jstring jSvcUuidStr = env->NewStringUTF(winrt::to_string(serviceUuidW).c_str());
-jstring jCharUuidStr = env->NewStringUTF(winrt::to_string(charUuidW).c_str());
 
-jbyteArray result = (jbyteArray) env->CallObjectMethod(ctx->callback, midRead, jSvcUuidStr,
-        jCharUuidStr);
+jstring external_device_address = jni_env->NewStringUTF(to_string(deviceId).c_str());
+jstring service_uuid_str = jni_env->NewStringUTF(winrt::to_string(serviceUuidW).c_str());
+jstring characteristics_uuid_str = jni_env->NewStringUTF(winrt::to_string(charUuidW).c_str());
 
-env->
-DeleteLocalRef(jSvcUuidStr);
-env->
-DeleteLocalRef(jCharUuidStr);
+const auto read_response = reinterpret_cast<jbyteArray>(
+        jni_env->CallObjectMethod(
+                ctx->callback, read_characteristics_method,
+                external_device_address,
+                service_uuid_str,
+                characteristics_uuid_str
+        ));
 
-hstring char_uuid_string = to_hstring(characteristic.Uuid());
-auto message = "READ REQUESTED" + to_string(char_uuid_string);
-WIN_LOG(message.c_str());
+jni_env->
+DeleteLocalRef(service_uuid_str);
+jni_env->
+DeleteLocalRef(characteristics_uuid_str);
+jni_env->
+DeleteLocalRef(external_device_address);
+jni_env->
+DeleteLocalRef(callback_class);
 
-if (result == nullptr) {
-DataWriter w;
+
+if (read_response == nullptr) {
 request.
-RespondWithValue(w
-.
 
-DetachBuffer()
+RespondWithProtocolError (GattProtocolError::AttributeNotFound());
 
-);
-auto send_message = "CHARACTERISTIC " + to_string(char_uuid_string) + "DATA SEND NONE";
-WIN_LOG(send_message.c_str());
+WIN_LOG(L"CHARACTERISTIC " << to_hstring(characteristic.Uuid()) << "ATTRIBUTE NOT FOUND");
 } else {
-jsize len = env->GetArrayLength(result);
-jbyte *data = env->GetByteArrayElements(result, nullptr);
+const jsize len = jni_env->GetArrayLength(read_response);
+jbyte *data = jni_env->GetByteArrayElements(read_response, nullptr);
 
-DataWriter w;
-w.
+const DataWriter writer;
+writer.
 WriteBytes(array_view<const uint8_t>(reinterpret_cast<uint8_t *>(data),
         reinterpret_cast<uint8_t *>(data) + len)
 );
 
-env->
-ReleaseByteArrayElements(result, data, JNI_ABORT
+jni_env->
+ReleaseByteArrayElements(read_response, data, JNI_ABORT
 );
 request.
-RespondWithValue(w
+RespondWithValue(writer
 .
 
 DetachBuffer()
 
 );
 
-std::string send_string_data(reinterpret_cast<char *>(data), len);
-auto send_message = "CHARACTERISTIC " + to_string(char_uuid_string) + send_string_data;
-WIN_LOG(send_message.c_str());
+WIN_LOG(
+        L"READ CHARACTERISTIC "
+                << to_hstring(characteristic.Uuid())
+                << "DATA SEND SIZE "
+                << to_hstring(static_cast<uint8_t>(len)));
 }
 deferral.
 
 Complete();
 
-if (didAttach)ctx->vm_ref->
+if (thread_ready)ctx->vm_ref->
 
 DetachCurrentThread();
 
 });
+
+
+// --------------------- CHARACTERISTICS WRITE LISTENER ------------------------------------
+
+characteristic.WriteRequested(
+[ctx, charUuidW, serviceUuidW](
+GattLocalCharacteristic const &characteristic,
+        GattWriteRequestedEventArgs
+const &args) {
+const auto deferral = args.GetDeferral();
+const auto request = args.GetRequestAsync().get();
+const auto deviceId = args.Session().DeviceId().Id();
+const auto buffer = request.Value();
+
+WIN_LOG(
+        L"WRITE REQUESTED" << to_hstring(characteristic.Uuid())
+                           << L"BUFFER SIZE "
+                           << to_hstring(buffer.Length()));
+
+JNIEnv *jni_env = nullptr;
+bool thread_ready = false;
+
+if (ctx->vm_ref->GetEnv(reinterpret_cast
+<void **>(&jni_env), JNI_VERSION_1_6
+) != JNI_OK) {
+ctx->vm_ref->AttachCurrentThread(reinterpret_cast
+<void **>(&jni_env), nullptr
+);
+thread_ready = true;
+}
+
+jclass callback_class = jni_env->GetObjectClass(ctx->callback);
+jmethodID on_write_characteristics_method = jni_env->GetMethodID(
+        callback_class, "onWriteCharacteristicRequest",
+        "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[B)V");
+
+
+jstring external_device_address = jni_env->NewStringUTF(to_string(deviceId).c_str());
+jstring service_uuid_str = jni_env->NewStringUTF(winrt::to_string(serviceUuidW).c_str());
+jstring characteristics_uuid_str = jni_env->NewStringUTF(winrt::to_string(charUuidW).c_str());
+
+jbyteArray write_request_value = jni_env->NewByteArray(static_cast<jsize>(buffer.Length()));
+jni_env->
+SetByteArrayRegion(write_request_value,
+0, static_cast
+<jsize>(buffer
+.
+
+Length()
+
+),
+reinterpret_cast
+<const jbyte *>(buffer
+.
+
+data()
+
+));
+
+jni_env->
+CallObjectMethod(
+        ctx
+->callback,
+on_write_characteristics_method,
+external_device_address,
+service_uuid_str,
+characteristics_uuid_str, write_request_value
+);
+
+jni_env->
+DeleteLocalRef(service_uuid_str);
+jni_env->
+DeleteLocalRef(characteristics_uuid_str);
+jni_env->
+DeleteLocalRef(external_device_address);
+jni_env->
+DeleteLocalRef(write_request_value);
+jni_env->
+DeleteLocalRef(callback_class);
+
+if (request.
+
+Option()
+
+== GattWriteOption::WriteWithResponse) {
+WIN_LOG(L"SENDING A WRITE RESPONSE");
+request.
+
+Respond();
+
+}
+
+deferral.
+
+Complete();
+
+if (thread_ready)ctx->vm_ref->
+
+DetachCurrentThread();
+
+});
+
 
 env->
 DeleteLocalRef(jChar);
@@ -446,29 +568,31 @@ env->
 DeleteLocalRef(jCharUuid);
 }
 
+
+// --------------------- ADVERTISEMENT_STATUS_LISTENER ------------------------------------
 ctx->service_provider.AdvertisementStatusChanged(
 [ctx](GattServiceProvider const &,
 GattServiceProviderAdvertisementStatusChangedEventArgs const &args
 ) {
-JNIEnv *env = nullptr;
-bool didAttach = false;
+JNIEnv *jni_env = nullptr;
+bool is_thread_ready = false;
 
 if (ctx->vm_ref->GetEnv(reinterpret_cast
-<void **>(&env), JNI_VERSION_1_6
+<void **>(&jni_env), JNI_VERSION_1_6
 ) != JNI_OK) {
 ctx->vm_ref->AttachCurrentThread(reinterpret_cast
-<void **>(&env), nullptr
+<void **>(&jni_env), nullptr
 );
-didAttach = true;
+is_thread_ready = true;
 }
 
-jclass cbCls = env->GetObjectClass(ctx->callback);
-jmethodID midStatus = env->GetMethodID(cbCls, "onServiceStatusChange", "(I)V");
+jclass callback_class = jni_env->GetObjectClass(ctx->callback);
+jmethodID device_status_change_method = jni_env->GetMethodID(
+        callback_class, "onServiceStatusChange", "(I)V");
 
-env->
+jni_env->
 CallVoidMethod(ctx
-->callback, midStatus,
-static_cast
+->callback, device_status_change_method, static_cast
 <int>(args
 .
 
@@ -476,7 +600,7 @@ Status()
 
 ));
 
-if (didAttach) ctx->vm_ref->
+if (is_thread_ready)ctx->vm_ref->
 
 DetachCurrentThread();
 

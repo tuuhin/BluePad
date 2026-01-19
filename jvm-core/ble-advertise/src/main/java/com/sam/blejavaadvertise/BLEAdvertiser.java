@@ -4,6 +4,7 @@ import com.sam.ble_common.NativeLibraryLoader;
 import com.sam.ble_common.Service;
 import com.sam.ble_common.ShutdownThread;
 import com.sam.blejavaadvertise.callbacks.GATTServerCallback;
+import com.sam.blejavaadvertise.models.GATTBluetoothError;
 import com.sam.blejavaadvertise.models.GATTServiceAdvertisementStatus;
 import com.sam.blejavaadvertise.models.GattAdvertisementConfig;
 
@@ -21,21 +22,27 @@ public class BLEAdvertiser {
         GATTServerCallbackInternal callback = new GATTServerCallbackInternal() {
 
             @Override
-            public byte[] onReadCharacteristics(String serviceUuid, String characteristicUuid) {
-                if (listener != null)
-                    return listener.onReadCharacteristics(serviceUuid, characteristicUuid);
-                else return new byte[0];
+            public byte[] onReadCharacteristics(String deviceAddress, String serviceUuid, String characteristicUuid) {
+                if (listener == null) return new byte[0];
+                return listener.onReadCharacteristics(serviceUuid, serviceUuid, characteristicUuid);
+            }
+
+            @Override
+            public void onWriteCharacteristicRequest(String deviceAddress, String serviceUuid, String characteristicUuid, byte[] value) {
+                if (listener == null) return;
+                listener.onWriteCharacteristicRequest(deviceAddress, serviceUuid, characteristicUuid, value);
             }
 
             @Override
             public void onServiceStatusChange(int status) {
-                if (listener != null)
-                    listener.onServiceStatusChange(GATTServiceAdvertisementStatus.fromInt(status));
+                if (listener == null) return;
+                listener.onServiceStatusChange(GATTServiceAdvertisementStatus.fromInt(status));
             }
 
             @Override
-            public void onServiceAdded(String serviceUuid, boolean success, int error) {
-                if (listener != null) listener.onServiceAdded(serviceUuid, success, error);
+            public void onServiceAdded(String serviceUuid, int error) {
+                if (listener == null) return;
+                listener.onServiceAdded(serviceUuid, error == 0, GATTBluetoothError.fromInt(error));
             }
         };
         nativeRegisterCallback(nativeHandler, callback);
@@ -80,10 +87,6 @@ public class BLEAdvertiser {
         if (nativeHandler == 0) throw new IllegalStateException("BLE server not started");
     }
 
-    public static native boolean nativeIsLeSecureConnectionAvailable();
-
-    public static native boolean nativeIsPeripheralRoleSupported();
-
     private native long nativeCreate();
 
     private native void nativeRegisterCallback(long h, GATTServerCallbackInternal callback);
@@ -100,11 +103,13 @@ public class BLEAdvertiser {
 
     interface GATTServerCallbackInternal {
 
-        void onServiceAdded(String serviceUuid, boolean success, int error);
+        void onServiceAdded(String serviceUuid, int error);
 
         void onServiceStatusChange(int status);
 
-        byte[] onReadCharacteristics(String serviceUuid, String characteristicUuid);
+        byte[] onReadCharacteristics(String deviceAddress, String serviceUuid, String characteristicUuid);
+
+        void onWriteCharacteristicRequest(String deviceAddress, String serviceUuid, String characteristicUuid, byte[] value);
     }
 
     static {

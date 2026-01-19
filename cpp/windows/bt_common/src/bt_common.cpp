@@ -29,6 +29,21 @@ jint JNI_OnLoad(JavaVM *vm, void *) {
     return JNI_VERSION_1_6;
 }
 
+// helper to check if low energy connection accepted
+JNIEXPORT jboolean
+JNICALL Java_com_sam_ble_1common_BluetoothInfoProvider_nativeIsLeSecureConnectionAvailable(
+        JNIEnv *, jobject) {
+    const auto adapter = BluetoothAdapter::GetDefaultAsync().get();
+    return adapter.AreLowEnergySecureConnectionsSupported();
+}
+
+// helper to check if peripheral role is supported
+JNIEXPORT jboolean
+JNICALL Java_com_sam_ble_1common_BluetoothInfoProvider_nativeIsPeripheralRoleSupported(
+        JNIEnv *, jobject) {
+    const auto adapter = BluetoothAdapter::GetDefaultAsync().get();
+    return adapter.IsPeripheralRoleSupported();
+}
 
 JNIEXPORT jboolean
 JNICALL
@@ -37,7 +52,7 @@ Java_com_sam_ble_1common_BluetoothInfoProvider_nativeIsBluetoothActive(JNIEnv *e
     try {
         jclass exClass = env->FindClass("java/lang/RuntimeException");
         if (!selected_bt_radio) {
-            auto accessStatus = Radio::RequestAccessAsync().get();
+            const auto accessStatus = Radio::RequestAccessAsync().get();
             if (accessStatus != RadioAccessStatus::Allowed) {
                 WIN_LOG(L"Access denied. Check Windows Privacy Settings");
                 env->ThrowNew(exClass, "ACCESS DENIED");
@@ -126,7 +141,8 @@ return;
 WIN_LOG("BLUETOOTH RADIO ATTACHED");
 }
 // 3. Setup JNI Callback
-if (g_callbackRef) env->
+if (g_callbackRef)
+env->
 DeleteGlobalRef(g_callbackRef);
 g_callbackRef = env->NewGlobalRef(callback);
 
