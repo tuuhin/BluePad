@@ -6,7 +6,6 @@ import com.juul.kable.Advertisement
 import com.juul.kable.Scanner
 import com.juul.kable.logs.Logging
 import com.sam.ble_common.BluetoothInfoProvider
-import com.sam.blejavaadvertise.BLEAdvertiser
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
 import com.sam.bluepad.domain.ble.models.BLEPeerDevice
@@ -65,7 +64,7 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
 		if (!BluetoothInfoProvider.isBluetoothActive())
 			return Result.failure(BluetoothNotEnabledException())
 
-		if (!BLEAdvertiser.nativeIsLeSecureConnectionAvailable())
+		if (!BluetoothInfoProvider.isLEConnectionAllowed())
 			return Result.failure(BLENotSupportedException())
 
 		if (_isScanning.value) return Result.failure(BLEScanRunningException())

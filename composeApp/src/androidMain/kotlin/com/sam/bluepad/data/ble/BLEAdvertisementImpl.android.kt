@@ -2,9 +2,7 @@ package com.sam.bluepad.data.ble
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattServer
-import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertisingSet
@@ -18,6 +16,7 @@ import com.sam.bluepad.BuildKonfig
 import com.sam.bluepad.data.utils.hasAdvertisePermission
 import com.sam.bluepad.data.utils.hasConnectPermission
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
+import com.sam.bluepad.domain.ble.BLEAdvertisementType
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.exceptions.BLEAdvertisePermissionException
 import com.sam.bluepad.domain.exceptions.BLEAdvertiseUnsupportedException
@@ -85,7 +84,7 @@ actual class BLEAdvertisementImpl(
 
 	private var _bleServer: BluetoothGattServer? = null
 
-	override suspend fun startAdvertising(): Result<Unit> {
+	override suspend fun startAdvertising(type: BLEAdvertisementType): Result<Unit> {
 
 		val isExtendedSupported = _bluetoothManager?.adapter
 			?.isLeExtendedAdvertisingSupported ?: false
@@ -113,7 +112,23 @@ actual class BLEAdvertisementImpl(
 			_bleServer?.sendResponse(device, requestId, status, offset, value)
 			Logger.d(TAG) { "READ RESPONSE SEND :$status" }
 		}
-		_bleServer?.addService(transportService)
+		when (type) {
+			BLEAdvertisementType.DISCOVERY -> {
+				_bleServer?.addService(BLEServiceToGatt.deviceDiscoveryService)
+				Logger.d(TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
+			}
+
+			BLEAdvertisementType.PROXIMITY_AND_SYNC -> {
+				_bleServer?.addService(BLEServiceToGatt.deviceSyncService)
+				Logger.d(TAG) { "BLE ADVERTISEMENT FOR SYNC " }
+			}
+		}
+
+		val advertisementServiceId = when (type) {
+			BLEAdvertisementType.DISCOVERY -> ParcelUuid(BLEConstants.transportServiceId.toJavaUuid())
+			BLEAdvertisementType.PROXIMITY_AND_SYNC -> ParcelUuid(BLEConstants.syncServiceId.toJavaUuid())
+		}
+
 		// advertisement settings
 		val parameters = AdvertisingSetParameters.Builder()
 			.setLegacyMode(false)
@@ -129,17 +144,14 @@ actual class BLEAdvertisementImpl(
 		val advertiseData = AdvertiseData.Builder()
 			.setIncludeDeviceName(true)
 			.setIncludeTxPowerLevel(false)
-			.addServiceUuid(ParcelUuid(BLEConstants.transportServiceId.toJavaUuid()))
+			.addServiceUuid(advertisementServiceId)
 			.build()
 
 		val scanResponse = AdvertiseData.Builder()
 			.setIncludeTxPowerLevel(false)
 			.setIncludeDeviceName(true)
-			.addServiceUuid(ParcelUuid(BLEConstants.transportServiceId.toJavaUuid()))
-			.addServiceData(
-				ParcelUuid(BLEConstants.transportServiceId.toJavaUuid()),
-				BuildKonfig.APP_ID.encodeToByteArray()
-			)
+			.addServiceUuid(advertisementServiceId)
+			.addServiceData(advertisementServiceId, BuildKonfig.APP_ID.encodeToByteArray())
 			.build()
 
 		Logger.d(TAG) { "STARTING ADVERTISEMENT" }
@@ -178,41 +190,5 @@ actual class BLEAdvertisementImpl(
 		}
 		Logger.e(TAG, exception) { "GATT SERVER FAILED TO START ERROR CODE: $errorCode" }
 		_errorsChannel.trySend(exception)
-	}
-
-	companion object {
-		private val transportService = BluetoothGattService(
-			BLEConstants.transportServiceId.toJavaUuid(),
-			BluetoothGattService.SERVICE_TYPE_PRIMARY
-		).apply {
-			addCharacteristic(
-				BluetoothGattCharacteristic(
-					BLEConstants.deviceIdCharacteristics.toJavaUuid(),
-					BluetoothGattCharacteristic.PROPERTY_READ,
-					BluetoothGattCharacteristic.PERMISSION_READ
-				)
-			)
-			addCharacteristic(
-				BluetoothGattCharacteristic(
-					BLEConstants.deviceNameCharacteristic.toJavaUuid(),
-					BluetoothGattCharacteristic.PROPERTY_READ,
-					BluetoothGattCharacteristic.PERMISSION_READ
-				)
-			)
-			addCharacteristic(
-				BluetoothGattCharacteristic(
-					BLEConstants.deviceNonceCharacteristic.toJavaUuid(),
-					BluetoothGattCharacteristic.PROPERTY_READ,
-					BluetoothGattCharacteristic.PERMISSION_READ
-				)
-			)
-			addCharacteristic(
-				BluetoothGattCharacteristic(
-					BLEConstants.deviceOSCharacteristics.toJavaUuid(),
-					BluetoothGattCharacteristic.PROPERTY_READ,
-					BluetoothGattCharacteristic.PERMISSION_READ
-				),
-			)
-		}
 	}
 }

@@ -81,7 +81,7 @@ actual class BLEConnectionManagerImpl(private val context: Context) : BLEConnect
 					Logger.d(TAG) { "READ UUID :$uuid" }
 					when (uuid) {
 						BLEConstants.deviceNameCharacteristic -> deviceName = stringValue
-						BLEConstants.deviceNonceCharacteristic -> {
+						BLEConstants.connectionNonceCharacteristic -> {
 							isDeviceNonceRead = true
 							deviceNonce = stringValue
 						}

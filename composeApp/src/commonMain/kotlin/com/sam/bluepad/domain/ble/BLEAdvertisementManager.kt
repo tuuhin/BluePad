@@ -8,7 +8,7 @@ interface BLEAdvertisementManager {
 
 	val errorFlow: Flow<Exception>
 
-	suspend fun startAdvertising(): Result<Unit>
+	suspend fun startAdvertising(type: BLEAdvertisementType = BLEAdvertisementType.DISCOVERY): Result<Unit>
 
 	fun stopAdvertising()
 

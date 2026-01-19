@@ -75,8 +75,8 @@ actual class BLEConnectionManagerImpl : BLEConnectionManager {
 								deviceId = uuid
 							}
 						}
-						if (mapResult.contains(BLEConstants.deviceNonceCharacteristic)) {
-							val data = mapResult[BLEConstants.deviceNonceCharacteristic]
+						if (mapResult.contains(BLEConstants.connectionNonceCharacteristic)) {
+							val data = mapResult[BLEConstants.connectionNonceCharacteristic]
 							if (data != null) {
 								val stringValue = data.decodeToString()
 								nonce = stringValue
