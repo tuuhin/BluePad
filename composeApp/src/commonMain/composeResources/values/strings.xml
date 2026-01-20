@@ -80,4 +80,10 @@
   <!--  Sync -->
   <string name="sync_device_dialog_title">Searching device</string>
   <string name="sync_device_dialog_text">Finding your associated device, keep it close to your device</string>
+  <string name="action_receive">Receive</string>
+  <string name="action_continue">Continue</string>
+  <string name="receive_sync_devices_list_screen_title">Ready to receive</string>
+  <string name="receive_sync_devices_list_screen_subtitle">Looking for nearby devices that want to sync</string>
+  <string name="option_receiver_active">Receiver is Active</string>
+  <string name="option_receiver_inactive">Receiver Off</string>
 </resources>
