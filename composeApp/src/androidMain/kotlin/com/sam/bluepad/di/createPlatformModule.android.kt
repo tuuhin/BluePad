@@ -3,18 +3,19 @@ package com.sam.bluepad.di
 import com.sam.bluepad.data.ble.BLEAdvertisementImpl
 import com.sam.bluepad.data.ble.BLEConnectionManagerImpl
 import com.sam.bluepad.data.ble.BLEDiscoveryImpl
+import com.sam.bluepad.data.ble.ServerConnectionCallback
 import com.sam.bluepad.data.bluetooth.BluetoothStateProviderImpl
 import com.sam.bluepad.data.database.AppDBBuilder
 import com.sam.bluepad.data.datastore.DataStoreProvider
 import com.sam.bluepad.data.interactions.CopySketchInteractionImpl
 import com.sam.bluepad.data.interactions.ShareSketchInteractionImpl
+import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
 import com.sam.bluepad.domain.bluetooth.BluetoothStateProvider
 import com.sam.bluepad.domain.interactions.CopySketchInteraction
 import com.sam.bluepad.domain.interactions.ShareSketchInteraction
-import com.sam.bluepad.domain.utils.PlatformInfoProvider
 import dev.icerock.moko.permissions.PermissionsController
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
@@ -32,6 +33,7 @@ actual fun createPlatformModule(): Module = module {
 	singleOf(::BLEDiscoveryImpl) bind BLEDiscoveryManager::class
 	singleOf(::BLEConnectionManagerImpl) bind BLEConnectionManager::class
 	singleOf(::BLEAdvertisementImpl) bind BLEAdvertisementManager::class
+	singleOf(::ServerConnectionCallback)
 
 	// permission controller
 	single { PermissionsController(androidContext()) }

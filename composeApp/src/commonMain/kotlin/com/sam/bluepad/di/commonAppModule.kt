@@ -12,11 +12,14 @@ import com.sam.bluepad.domain.use_cases.HashGenerator
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import com.sam.bluepad.domain.use_cases.RandomGeneratorImpl
 import com.sam.bluepad.domain.use_cases.RandomNameGenerator
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.protobuf.ProtoBuf
 import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
+@OptIn(ExperimentalSerializationApi::class)
 val commonAppModule = module(true) {
 	// db module
 	single {
@@ -32,6 +35,7 @@ val commonAppModule = module(true) {
 	singleOf(::RandomNameGenerator)
 	singleOf(::RandomGeneratorImpl) bind RandomGenerator::class
 	singleOf(::HashGenerator)
+	single { ProtoBuf { } } bind ProtoBuf::class
 
 	// device id provider
 	singleOf(::LocalDeviceInfoProviderImpl) bind LocalDeviceInfoProvider::class

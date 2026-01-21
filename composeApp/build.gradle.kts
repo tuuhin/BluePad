@@ -71,6 +71,9 @@ kotlin {
 			implementation(libs.moko.permissions)
 			// toast
 			implementation(libs.compose.toast)
+			// protobuf
+			implementation(libs.kotlinx.serialization.core)
+			implementation(libs.kotlinx.serialization.protobuf)
 		}
 		commonTest.dependencies {
 			implementation(libs.kotlin.test)
@@ -92,6 +95,7 @@ kotlin {
 	compilerOptions {
 		freeCompilerArgs.add("-Xexpect-actual-classes")
 		optIn.add("kotlin.uuid.ExperimentalUuidApi")
+		optIn.add("kotlinx.serialization.ExperimentalSerializationApi")
 		optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
 	}
 }
