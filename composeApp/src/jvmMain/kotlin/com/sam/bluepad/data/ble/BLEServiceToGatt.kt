@@ -7,21 +7,13 @@ import com.sam.bluepad.domain.ble.BLEConstants
 object BLEServiceToGatt {
 
 	val deviceDiscoveryService: Service =
-		Service.builder(BLEConstants.transportServiceId.toHexDashString())
+		Service.builder(BLEConstants.discoveryServiceId.toHexDashString())
 			.addCharacteristics(
 				listOf(
-					Characteristic.builder(BLEConstants.deviceIdCharacteristics.toHexDashString())
+					Characteristic.builder(BLEConstants.deviceInfoCharacteristics.toHexDashString())
+						.canWriteRequest(true)
 						.canRead(true)
 						.build(),
-					Characteristic.builder(BLEConstants.deviceNameCharacteristic.toHexDashString())
-						.canRead(true)
-						.build(),
-					Characteristic.builder(BLEConstants.connectionNonceCharacteristic.toHexDashString())
-						.canRead(true)
-						.build(),
-					Characteristic.builder(BLEConstants.deviceOSCharacteristics.toHexDashString())
-						.canRead(true)
-						.build()
 				)
 			).build()
 

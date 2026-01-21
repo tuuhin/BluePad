@@ -6,6 +6,7 @@ import com.juul.kable.Advertisement
 import com.juul.kable.Scanner
 import com.juul.kable.logs.Logging
 import com.sam.ble_common.BluetoothInfoProvider
+import com.sam.bluepad.domain.ble.BLEConnectionType
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
 import com.sam.bluepad.domain.ble.models.BLEPeerDevice
@@ -52,14 +53,15 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
 
 		filters {
 			match {
-				services = listOf(BLEConstants.transportServiceId)
+				services += listOf(BLEConstants.discoveryServiceId)
 			}
 		}
 	}
 
 	private var scanJob: Job? = null
 
-	override suspend fun startScan(timeout: Duration): Result<Unit> {
+	override suspend fun startScan(connection: BLEConnectionType, timeout: Duration)
+			: Result<Unit> {
 
 		if (!BluetoothInfoProvider.isBluetoothActive())
 			return Result.failure(BluetoothNotEnabledException())
@@ -77,7 +79,9 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
 							_scanner.advertisements
 								.onStart { onStartAdvertisements() }
 								.onCompletion { onStopAdvertisements() }
-								.collect(::handleAdvertisement)
+								.collect {
+									handleAdvertisement(it, connection)
+								}
 						}
 					} catch (_: TimeoutCancellationException) {
 						Logger.d(TAG) { "SCAN TIMEOUT" }
@@ -114,7 +118,7 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
 		Logger.d(TAG) { "PEER LIST CLEARED" }
 	}
 
-	private fun handleAdvertisement(advertisement: Advertisement) {
+	private fun handleAdvertisement(advertisement: Advertisement, connection: BLEConnectionType) {
 		// only capture connective advertisements
 		if (advertisement.uuids.isEmpty()) return
 
@@ -124,8 +128,15 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
 //		val appNameBytes = BuildKonfig.APP_ID.encodeToByteArray()
 //		if (!serviceData.contentEquals(appNameBytes)) return
 
-		val result = advertisement.uuids.contains(BLEConstants.transportServiceId)
-		if (!result) return
+		val uuidToLookFor = when (connection) {
+			BLEConnectionType.DEVICE_DISCOVERY -> BLEConstants.discoveryServiceId
+			BLEConnectionType.PROXIMITY_AND_SYNC -> BLEConstants.syncServiceId
+		}
+
+		Logger.d(TAG) { "SOME DATA!!" }
+
+		val containsUUID = advertisement.uuids.contains(uuidToLookFor)
+		if (!containsUUID) return
 
 		val address = advertisement.identifier.toString()
 		val peerAddress = _peers.value.map { it.deviceAddress }

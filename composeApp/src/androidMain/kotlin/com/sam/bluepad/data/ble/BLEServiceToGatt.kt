@@ -8,28 +8,19 @@ import com.sam.bluepad.domain.ble.BLEServiceType
 object BLEServiceToGatt {
 
 	val deviceDiscoveryService = bleServiceOf(
-		uuid = BLEConstants.transportServiceId,
+		uuid = BLEConstants.discoveryServiceId,
 		serviceType = BLEServiceType.PRIMARY,
 		characteristics = listOf(
 			bleCharacteristicsOf(
-				BLEConstants.deviceIdCharacteristics,
-				listOf(BLEPropertyType.PROPERTY_READ),
-				listOf(BLEPermission.PERMISSION_READ)
-			),
-			bleCharacteristicsOf(
-				BLEConstants.deviceNameCharacteristic,
-				listOf(BLEPropertyType.PROPERTY_READ),
-				listOf(BLEPermission.PERMISSION_READ)
-			),
-			bleCharacteristicsOf(
-				BLEConstants.connectionNonceCharacteristic,
-				listOf(BLEPropertyType.PROPERTY_READ),
-				listOf(BLEPermission.PERMISSION_READ)
-			),
-			bleCharacteristicsOf(
-				BLEConstants.deviceOSCharacteristics,
-				listOf(BLEPropertyType.PROPERTY_READ),
-				listOf(BLEPermission.PERMISSION_READ)
+				uuid = BLEConstants.deviceInfoCharacteristics,
+				properties = listOf(
+					BLEPropertyType.PROPERTY_READ,
+					BLEPropertyType.PROPERTY_WRITE
+				),
+				permissions = listOf(
+					BLEPermission.PERMISSION_READ,
+					BLEPermission.PERMISSION_WRITE_ENCRYPTED
+				)
 			),
 		)
 	)

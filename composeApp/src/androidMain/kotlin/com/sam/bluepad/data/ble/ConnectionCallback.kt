@@ -66,7 +66,7 @@ class ConnectionCallback(
 			return
 		}
 		val service = gatt?.services
-			?.find { it.uuid.toKotlinUuid() == BLEConstants.transportServiceId } ?: run {
+			?.find { it.uuid.toKotlinUuid() == BLEConstants.discoveryServiceId } ?: run {
 			gatt?.disconnect()
 			gatt?.close()
 			Logger.w(TAG) { "INVALID CHARACTERISTICS FOUND CLOSING CONNECTION " }
@@ -97,4 +97,18 @@ class ConnectionCallback(
 		// check if anything left on the queue
 		_readQueue.poll()?.let { gatt.readCharacteristic(it) }
 	}
+
+	override fun onCharacteristicWrite(
+		gatt: BluetoothGatt?,
+		characteristic: BluetoothGattCharacteristic?,
+		status: Int
+	) {
+		if (status != BluetoothGatt.GATT_SUCCESS) {
+			Logger.w(TAG) { "WRITE CHARACTERISTICS FAILED" }
+			return
+		}
+		Logger.d(TAG) { "WRITE CHARACTERISTICS FOR :${characteristic?.uuid} SUCCESS" }
+	}
+
+	fun cleanUp() = _readQueue.clear()
 }

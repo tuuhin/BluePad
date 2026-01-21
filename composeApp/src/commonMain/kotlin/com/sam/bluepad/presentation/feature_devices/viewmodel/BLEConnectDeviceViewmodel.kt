@@ -31,7 +31,7 @@ class BLEConnectDeviceViewmodel(
 
 	private val _peerData = MutableStateFlow<BLEPeerData?>(null)
 
-	val connectionState = connector.isDeviceConnected
+	val connectionState = connector.connectionState
 		.onStart { onConnectToDevice(address) }
 		.stateIn(
 			scope = viewModelScope,
@@ -61,7 +61,7 @@ class BLEConnectDeviceViewmodel(
 	}
 
 	private fun onConnectToDevice(address: String) {
-		_connectJob = connector.connectToDeviceAndRetrieveData(address).onEach { res ->
+		_connectJob = connector.connectAndReceiveData(address).onEach { res ->
 			when (res) {
 				is Resource.Success -> _peerData.update { res.data }
 				is Resource.Error -> {
@@ -102,7 +102,7 @@ class BLEConnectDeviceViewmodel(
 	}
 
 	private fun onDisconnectDevice() {
-		connector.disconnectAndClose()
+		connector.disconnect()
 		_connectJob?.cancel()
 		_connectJob = null
 	}
@@ -112,6 +112,6 @@ class BLEConnectDeviceViewmodel(
 		_connectJob?.cancel()
 		_connectJob = null
 		// disconnect andy connection if present
-		connector.disconnectAndClose()
+		connector.disconnect()
 	}
 }

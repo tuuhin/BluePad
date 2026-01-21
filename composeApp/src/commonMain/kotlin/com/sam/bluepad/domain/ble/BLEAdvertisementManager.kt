@@ -1,5 +1,6 @@
 package com.sam.bluepad.domain.ble
 
+import com.sam.bluepad.domain.ble.models.BLEPeerData
 import kotlinx.coroutines.flow.Flow
 
 interface BLEAdvertisementManager {
@@ -8,7 +9,9 @@ interface BLEAdvertisementManager {
 
 	val errorFlow: Flow<Exception>
 
-	suspend fun startAdvertising(type: BLEAdvertisementType = BLEAdvertisementType.DISCOVERY): Result<Unit>
+	val peerSaveDevices: Flow<List<BLEPeerData>>
+
+	suspend fun startAdvertising(type: BLEConnectionType = BLEConnectionType.DEVICE_DISCOVERY): Result<Unit>
 
 	fun stopAdvertising()
 

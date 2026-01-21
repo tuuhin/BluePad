@@ -6,36 +6,32 @@ import com.sam.blejavaadvertise.BLEAdvertiser
 import com.sam.blejavaadvertise.models.GattAdvertisementConfig
 import com.sam.bluepad.BuildKonfig
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
-import com.sam.bluepad.domain.ble.BLEAdvertisementType
+import com.sam.bluepad.domain.ble.BLEConnectionType
+import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.exceptions.BLEAdvertiseUnsupportedException
 import com.sam.bluepad.domain.exceptions.BLENotSupportedException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
-import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
-import com.sam.bluepad.domain.use_cases.RandomGenerator
-import com.sam.bluepad.domain.utils.PlatformInfoProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
 private const val TAG = "BLE_ADVERTISER"
 
 actual class BLEAdvertisementImpl(
-	provider: LocalDeviceInfoProvider,
-	randomGenerator: RandomGenerator,
-	platformInfoProvider: PlatformInfoProvider,
+	private val callback: BLEAdvertisementCallback
 ) : BLEAdvertisementManager {
 
 	private val _advertiser by lazy { BLEAdvertiser() }
-	private val _advertiseCallback by lazy {
-		BLEAdvertisementCallback(provider, randomGenerator, platformInfoProvider)
-	}
 
 	override val isRunning: Flow<Boolean>
-		get() = _advertiseCallback.isRunning
+		get() = callback.isRunning
 
 	override val errorFlow: Flow<Exception>
 		get() = emptyFlow()
 
-	override suspend fun startAdvertising(type: BLEAdvertisementType): Result<Unit> {
+	override val peerSaveDevices: Flow<List<BLEPeerData>>
+		get() = callback.externalPeers
+
+	override suspend fun startAdvertising(type: BLEConnectionType): Result<Unit> {
 
 		if (!BluetoothInfoProvider.isBluetoothActive())
 			return Result.failure(BluetoothNotEnabledException())
@@ -46,16 +42,16 @@ actual class BLEAdvertisementImpl(
 		if (!BluetoothInfoProvider.isPeripheralRoleSupported())
 			return Result.failure(BLEAdvertiseUnsupportedException())
 
-		_advertiser.setListener(_advertiseCallback)
+		_advertiser.setListener(callback)
 		return try {
 			_advertiser.startServer()
 			when (type) {
-				BLEAdvertisementType.DISCOVERY -> {
+				BLEConnectionType.DEVICE_DISCOVERY -> {
 					_advertiser.addService(BLEServiceToGatt.deviceDiscoveryService)
 					Logger.d(TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
 				}
 
-				BLEAdvertisementType.PROXIMITY_AND_SYNC -> {
+				BLEConnectionType.PROXIMITY_AND_SYNC -> {
 					_advertiser.addService(BLEServiceToGatt.deviceSyncService)
 					Logger.d(TAG) { "BLE ADVERTISEMENT FOR SYNC " }
 				}
@@ -72,12 +68,12 @@ actual class BLEAdvertisementImpl(
 
 	override fun stopAdvertising() {
 		_advertiser.stopServer()
-		_advertiseCallback.setRunning(false)
+		callback.setRunning(false)
 		Logger.i(TAG) { "ADVERTISEMENT STOPPED" }
 	}
 
 	override fun cleanUp() {
-		_advertiseCallback.cleanUp()
+		callback.cleanUp()
 		Logger.i(TAG) { "STOPPING GATT SERVER AND CLEANING UP" }
 		_advertiser.stopServer()
 	}

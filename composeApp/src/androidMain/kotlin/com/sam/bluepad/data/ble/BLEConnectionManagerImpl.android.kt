@@ -5,10 +5,14 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
+import android.os.Build
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.data.utils.hasBLEScanPermission
 import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.BLEConstants
@@ -19,21 +23,32 @@ import com.sam.bluepad.domain.exceptions.BluetoothInvalidAddressException
 import com.sam.bluepad.domain.exceptions.BluetoothInvalidDeviceException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.exceptions.BluetoothPermissionException
-import com.sam.bluepad.domain.models.DevicePlatformOS
+import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
+import com.sam.bluepad.domain.use_cases.RandomGenerator
 import com.sam.bluepad.domain.utils.Resource
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
-import kotlin.uuid.Uuid
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 
 private const val TAG = "BLE_CONNECTOR"
 
 @SuppressLint("MissingPermission")
-actual class BLEConnectionManagerImpl(private val context: Context) : BLEConnectionManager {
+actual class BLEConnectionManagerImpl(
+	private val context: Context,
+	private val protoBuf: ProtoBuf,
+	private val deviceInfoProvider: LocalDeviceInfoProvider,
+	private val platformInfoProvider: PlatformInfoProvider,
+	private val randomGenerator: RandomGenerator,
+) : BLEConnectionManager {
 
 	private val _bluetoothManager by lazy { context.getSystemService<BluetoothManager>() }
 
@@ -41,100 +56,110 @@ actual class BLEConnectionManagerImpl(private val context: Context) : BLEConnect
 		get() = _bluetoothManager?.adapter
 
 	private val _connectionState = MutableStateFlow(BLEConnectionState.DISCONNECTED)
-	override val isDeviceConnected: Flow<BLEConnectionState>
+	override val connectionState: Flow<BLEConnectionState>
 		get() = _connectionState.asStateFlow()
 
 	private var _gattConnection: BluetoothGatt? = null
 
 
-	override fun connectToDeviceAndRetrieveData(address: String): Flow<Resource<BLEPeerData, Exception>> {
-		return callbackFlow {
+	override fun connectAndReceiveData(
+		address: String,
+		informReceiver: Boolean,
+		disconnectOnDone: Boolean
+	): Flow<Resource<BLEPeerData, Exception>> = callbackFlow {
 
-			var deviceName: String? = null
-			var deviceId: Uuid? = null
+		trySend(Resource.Loading)
 
-			var deviceNonce: String? = null
-			var deviceOs: DevicePlatformOS? = null
-
-			var isDeviceNonceRead = false
-			var isDeviceOsRead = false
-
-			trySend(Resource.Loading)
-
-			// TODO: SOME OF THE EDGE CASES ARE NOT HANDLED
-			val callback = ConnectionCallback(
-				onConnectionStateChange = { _, state ->
-					val updated = _connectionState.updateAndGet { state }
-					if (updated == BLEConnectionState.DISCONNECTED) {
-						// disconnect and close the connection
-						disconnectAndClose()
-						close()
-					}
-				},
-				onGAttFailed = { message ->
-					trySend(Resource.Error(BLEConnectionFailedException(message)))
-					_connectionState.update { BLEConnectionState.DISCONNECTED }
+		// TODO: SOME OF THE EDGE CASES ARE NOT HANDLED
+		val callback = ConnectionCallback(
+			onConnectionStateChange = { _, state ->
+				val updated = _connectionState.updateAndGet { state }
+				if (updated == BLEConnectionState.DISCONNECTED) {
+					// disconnect and close the connection
+					disconnect()
 					close()
-				},
-				onReadCharacteristic = { gatt, uuid, value ->
-					val stringValue = value.decodeToString()
-					Logger.d(TAG) { "READ UUID :$uuid" }
-					when (uuid) {
-						BLEConstants.deviceNameCharacteristic -> deviceName = stringValue
-						BLEConstants.connectionNonceCharacteristic -> {
-							isDeviceNonceRead = true
-							deviceNonce = stringValue
+				}
+			},
+			onGAttFailed = { message ->
+				trySend(Resource.Error(BLEConnectionFailedException(message)))
+				_connectionState.update { BLEConnectionState.DISCONNECTED }
+				close()
+			},
+			onReadCharacteristic = { gatt, uuid, bytes ->
+				when (uuid) {
+					BLEConstants.deviceInfoCharacteristics -> {
+						val peerData = try {
+							protoBuf.decodeFromByteArray<BLEPeerData>(bytes)
+						} catch (e: Exception) {
+							Logger.e(TAG, e) { "UNABLE TO DECODE BYTES" }
+							return@ConnectionCallback
 						}
-
-						BLEConstants.deviceIdCharacteristics -> {
-							try {
-								val deviceUUID = Uuid.fromByteArray(value)
-								deviceId = deviceUUID
-							} catch (e: Exception) {
-								Logger.e(TAG, e) { "DEVICE ID READ ERROR" }
-							}
-						}
-
-						BLEConstants.deviceOSCharacteristics -> {
-							deviceOs = try {
-								DevicePlatformOS.valueOf(stringValue.uppercase())
-							} catch (_: Exception) {
-								DevicePlatformOS.UNKNOWN
-							}
-							isDeviceOsRead = true
-						}
-					}
-					// everything is read happy to close the connection
-					if (deviceName != null && deviceId != null && isDeviceNonceRead && isDeviceOsRead) {
-						val peerData = BLEPeerData(
-							deviceName = deviceName,
-							deviceId = deviceId,
-							nonce = deviceNonce,
-							deviceOs = deviceOs
-						)
 						Logger.d(TAG) { "PEER DATA :$peerData" }
 						trySend(Resource.Success(peerData))
-						gatt.disconnect()
-						// close the channel
-						close()
+						if (informReceiver) runBlocking {
+							gatt.sendDeviceInfo(nonce = peerData.nonce)
+						}
+						if (disconnectOnDone) {
+							gatt.disconnect()
+							close()
+						}
 					}
-				},
-			)
 
-			// initiate connection
-			val result = connectAndWaitForExchange(address, callback)
-			if (result.isFailure) {
-				val exception = result.exceptionOrNull()
-				if (exception is Exception) trySend(Resource.Error(exception))
-				// close the flow
-				close()
-			} else {
-				// stop the connection if collector scope is cancelled
-				awaitClose { disconnectAndClose() }
+					else -> {}
+				}
+			},
+		)
+
+		// initiate connection
+		val result = connectAndWaitForExchange(address, callback)
+		if (result.isFailure) {
+			val exception = result.exceptionOrNull()
+			if (exception is Exception) trySend(Resource.Error(exception))
+			// close the flow
+			close()
+		} else {
+			// stop the connection if collector scope is cancelled
+			awaitClose {
+				callback.cleanUp()
+				disconnect()
 			}
 		}
 	}
 
+	@Suppress("DEPRECATION")
+	private suspend fun BluetoothGatt.sendDeviceInfo(nonce: String? = null) {
+		val characteristics = services.find { it.uuid == BLEConstants.discoveryServiceId }
+			?.characteristics
+			?.find { it == BLEConstants.deviceInfoCharacteristics }
+			?: return
+
+		val info = deviceInfoProvider.readDeviceInfo.first()
+		val peerData = BLEPeerData(
+			deviceId = info.deviceId,
+			deviceName = info.name,
+			deviceOs = platformInfoProvider.platformOS,
+			nonce = nonce
+		)
+
+		val bytes = try {
+			protoBuf.encodeToByteArray<BLEPeerData>(peerData)
+		} catch (e: Exception) {
+			Logger.e(TAG, e) { "UNABLE TO SERIALIZE DEVICE INFO" }
+			return
+		}
+
+		val isSuccess = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+			writeCharacteristic(
+				characteristics,
+				bytes,
+				BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+			) == BluetoothStatusCodes.SUCCESS
+		} else {
+			characteristics.value = bytes
+			writeCharacteristic(characteristics)
+		}
+		Logger.d(TAG) { "SENDING CURRENT DEVICE INFO SUCCESS :$isSuccess" }
+	}
 
 	private fun connectAndWaitForExchange(address: String, gattCallback: BluetoothGattCallback)
 			: Result<Unit> {
@@ -160,7 +185,7 @@ actual class BLEConnectionManagerImpl(private val context: Context) : BLEConnect
 		}
 	}
 
-	override fun disconnectAndClose() {
+	override fun disconnect() {
 		try {
 			if (_gattConnection != null) {
 				_gattConnection?.disconnect()

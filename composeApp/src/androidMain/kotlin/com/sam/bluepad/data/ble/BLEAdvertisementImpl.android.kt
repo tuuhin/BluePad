@@ -16,15 +16,13 @@ import com.sam.bluepad.BuildKonfig
 import com.sam.bluepad.data.utils.hasAdvertisePermission
 import com.sam.bluepad.data.utils.hasConnectPermission
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
-import com.sam.bluepad.domain.ble.BLEAdvertisementType
+import com.sam.bluepad.domain.ble.BLEConnectionType
 import com.sam.bluepad.domain.ble.BLEConstants
+import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.exceptions.BLEAdvertisePermissionException
 import com.sam.bluepad.domain.exceptions.BLEAdvertiseUnsupportedException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.exceptions.BluetoothPermissionException
-import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
-import com.sam.bluepad.domain.use_cases.RandomGenerator
-import com.sam.bluepad.domain.utils.PlatformInfoProvider
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,15 +35,10 @@ private const val TAG = "BLE_ADVERTISEMENT"
 @SuppressLint("MissingPermission")
 actual class BLEAdvertisementImpl(
 	private val context: Context,
-	private val infoProvider: LocalDeviceInfoProvider,
-	private val randomGenerator: RandomGenerator,
-	private val platformInfoProvider: PlatformInfoProvider,
+	private val connectionCallback: ServerConnectionCallback,
 ) : BLEAdvertisementManager {
 
 	private val _bluetoothManager by lazy { context.getSystemService<BluetoothManager>() }
-	private val _connectionCallback by lazy {
-		ServerConnectionCallback(infoProvider, randomGenerator, platformInfoProvider)
-	}
 
 	private val _isRunning = MutableStateFlow(false)
 	private val _errorsChannel = Channel<Exception>(capacity = Channel.CONFLATED)
@@ -82,9 +75,12 @@ actual class BLEAdvertisementImpl(
 	override val errorFlow
 		get() = _errorsChannel.receiveAsFlow()
 
+	override val peerSaveDevices: Flow<List<BLEPeerData>>
+		get() = connectionCallback.externalPeers
+
 	private var _bleServer: BluetoothGattServer? = null
 
-	override suspend fun startAdvertising(type: BLEAdvertisementType): Result<Unit> {
+	override suspend fun startAdvertising(type: BLEConnectionType): Result<Unit> {
 
 		val isExtendedSupported = _bluetoothManager?.adapter
 			?.isLeExtendedAdvertisingSupported ?: false
@@ -104,29 +100,29 @@ actual class BLEAdvertisementImpl(
 		val advertiser = _bluetoothManager?.adapter
 			?.bluetoothLeAdvertiser ?: return Result.failure(BLEAdvertiseUnsupportedException())
 
-		_bleServer = _bluetoothManager?.openGattServer(context, _connectionCallback)
+		_bleServer = _bluetoothManager?.openGattServer(context, connectionCallback)
 		Logger.i(TAG) { "GATT SERVER BEGUN!" }
 
-		_connectionCallback.setOnServiceAdded { Logger.d(TAG) { "TRANSPORT SERVICE ADDED " } }
-		_connectionCallback.setOnSendResponse { device, requestId, status, offset, value ->
+		connectionCallback.setOnServiceAdded { Logger.d(TAG) { "TRANSPORT SERVICE ADDED " } }
+		connectionCallback.setOnSendResponse { device, requestId, status, offset, value ->
 			_bleServer?.sendResponse(device, requestId, status, offset, value)
 			Logger.d(TAG) { "READ RESPONSE SEND :$status" }
 		}
 		when (type) {
-			BLEAdvertisementType.DISCOVERY -> {
+			BLEConnectionType.DEVICE_DISCOVERY -> {
 				_bleServer?.addService(BLEServiceToGatt.deviceDiscoveryService)
 				Logger.d(TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
 			}
 
-			BLEAdvertisementType.PROXIMITY_AND_SYNC -> {
+			BLEConnectionType.PROXIMITY_AND_SYNC -> {
 				_bleServer?.addService(BLEServiceToGatt.deviceSyncService)
 				Logger.d(TAG) { "BLE ADVERTISEMENT FOR SYNC " }
 			}
 		}
 
 		val advertisementServiceId = when (type) {
-			BLEAdvertisementType.DISCOVERY -> ParcelUuid(BLEConstants.transportServiceId.toJavaUuid())
-			BLEAdvertisementType.PROXIMITY_AND_SYNC -> ParcelUuid(BLEConstants.syncServiceId.toJavaUuid())
+			BLEConnectionType.DEVICE_DISCOVERY -> ParcelUuid(BLEConstants.discoveryServiceId.toJavaUuid())
+			BLEConnectionType.PROXIMITY_AND_SYNC -> ParcelUuid(BLEConstants.syncServiceId.toJavaUuid())
 		}
 
 		// advertisement settings
@@ -176,7 +172,7 @@ actual class BLEAdvertisementImpl(
 	}
 
 	override fun cleanUp() {
-		_connectionCallback.cleanUp()
+		connectionCallback.cleanUp()
 		stopAdvertising()
 	}
 

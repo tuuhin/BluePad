@@ -4,10 +4,11 @@ import co.touchlab.kermit.Logger
 import com.sam.blejavaadvertise.callbacks.GATTServerCallback
 import com.sam.blejavaadvertise.models.GATTBluetoothError
 import com.sam.blejavaadvertise.models.GATTServiceAdvertisementStatus
+import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
+import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.use_cases.RandomGenerator
-import com.sam.bluepad.domain.utils.PlatformInfoProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,27 +17,34 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
+import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
 
 private const val TAG = "BLE_ADVERTISEMENT_CALLBACK"
 
 class BLEAdvertisementCallback(
-	provider: LocalDeviceInfoProvider,
+	localDeviceInfo: LocalDeviceInfoProvider,
+	private val protoBuf: ProtoBuf,
 	private val randomGenerator: RandomGenerator,
 	private val platformInfoProvider: PlatformInfoProvider,
 ) : GATTServerCallback {
 
+	private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 	private val _deviceNonceMap = ConcurrentHashMap<String, ByteArray>()
 
-	private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-	private val _deviceData = provider.readDeviceInfo
+	private val _deviceInfo = localDeviceInfo.readDeviceInfo
 		.stateIn(_scope, SharingStarted.Eagerly, null)
 
 	private val _isRunning = MutableStateFlow(false)
 	val isRunning = _isRunning.asStateFlow()
+
+	private val _externalPeer = MutableStateFlow<List<BLEPeerData>>(emptyList())
+	val externalPeers = _externalPeer.asStateFlow()
 
 	override fun onServiceAdded(
 		serviceUuid: String,
@@ -58,27 +66,44 @@ class BLEAdvertisementCallback(
 		characteristicUuid: String?,
 	): ByteArray? {
 
-		if (serviceUuid == null || characteristicUuid == null || deviceAddress == null) return null
+		if (serviceUuid == null || characteristicUuid == null || deviceAddress == null)
+			return null
 
 		val characteristicsUUID = Uuid.parse(characteristicUuid)
 		val serviceUUID = Uuid.parse(serviceUuid)
-		Logger.d(TAG) { "READ REQUESTED ON :$characteristicsUUID SERVICE:$serviceUUID" }
 
-		return when (characteristicsUUID) {
-			BLEConstants.connectionNonceCharacteristic -> {
-				randomGenerator.generateRandomBytes().also { nonceBytes ->
-					_deviceNonceMap[deviceAddress] = nonceBytes
+		if (serviceUUID == BLEConstants.discoveryServiceId) {
+			Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicsUUID FROM DISCOVERY SERVICE" }
+
+			val deviceInfo = _deviceInfo.value ?: return null
+
+			val value = when (characteristicsUUID) {
+				BLEConstants.deviceInfoCharacteristics -> {
+					val nonce = randomGenerator.generateRandomBytes(12).also { nonceBytes ->
+						_deviceNonceMap[deviceAddress] = nonceBytes
+					}
+					val peerData = BLEPeerData(
+						deviceId = deviceInfo.deviceId,
+						deviceName = deviceInfo.name,
+						nonce = nonce.decodeToString(),
+						deviceOs = platformInfoProvider.platformOS,
+					)
+					protoBuf.encodeToByteArray<BLEPeerData>(peerData)
 				}
+
+				else -> null
 			}
-
-			BLEConstants.deviceIdCharacteristics -> _deviceData.value?.deviceId?.toByteArray()
-			BLEConstants.deviceNameCharacteristic -> _deviceData.value?.name?.encodeToByteArray()
-			BLEConstants.deviceOSCharacteristics -> platformInfoProvider.platformName()
-				.encodeToByteArray()
-
-			BLEConstants.allowSyncCharacteristics -> byteArrayOf(0x1)
-			else -> null
+			Logger.d(TAG) { "SENDING SUCCESS RESPONSE FOR CHARACTERISTICS :${characteristicUuid}" }
+			return value
 		}
+		// handle the sync service here
+		if (serviceUUID == BLEConstants.syncServiceId) {
+			Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicUuid FROM SYNC SERVICE" }
+			// TODO: FILL THE REQUIREMENTS
+			return null
+		}
+		Logger.w(TAG) { "REQUESTING INVALID SERVICE" }
+		return null
 	}
 
 	override fun onWriteCharacteristicRequest(
@@ -87,45 +112,37 @@ class BLEAdvertisementCallback(
 		characteristicUuid: String?,
 		value: ByteArray?
 	) {
-		if (deviceAddress == null || characteristicUuid == null || serviceUuid == null) return
+		if (deviceAddress == null || characteristicUuid == null || serviceUuid == null || value == null)
+			return
 
 		val characteristicsUUID = Uuid.parse(characteristicUuid)
 		val serviceUUID = Uuid.parse(serviceUuid)
 		Logger.d(TAG) { "WRITE REQUESTED ON :$characteristicsUUID SERVICE:$serviceUUID" }
 
-		if (serviceUUID != BLEConstants.syncServiceId || value == null) {
-			Logger.d(TAG) { "INVALID SERVICE REQUESTED SYNC SERVICE NEEDED OR NO VALUE" }
-			return
-		}
+		if (serviceUUID == BLEConstants.discoveryServiceId) {
+			Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicsUUID FROM DISCOVERY SERVICE" }
 
-		val deviceInfo = _deviceData.value ?: run {
-			Logger.d(TAG) { "CANNOT READ DEVICE INFO" }
-			return
-		}
-
-		when (characteristicsUUID) {
-			BLEConstants.receiverDeviceIdCharacteristics -> {
-				val uuid = try {
-					Uuid.fromByteArray(value)
-				} catch (_: Exception) {
-					Logger.w(TAG) { "CANNOT PASE RECEIVER ID" }
-					return
+			when (characteristicsUUID) {
+				BLEConstants.deviceInfoCharacteristics -> {
+					val peerData = try {
+						protoBuf.decodeFromByteArray<BLEPeerData>(value)
+					} catch (e: Exception) {
+						Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
+						return
+					}
+					_externalPeer.update { devices -> (devices + peerData).distinctBy { it.deviceId } }
 				}
-				Logger.d(TAG) { "RECEIVER DEVICE ID FOUND :$uuid" }
-			}
 
-			BLEConstants.deviceIdCharacteristics -> {
-				val correctAdviser = deviceInfo.deviceId.toByteArray().contentEquals(value)
-				Logger.d(TAG) { "SOME ADVISOR FOUND :IS_CORRECT $correctAdviser" }
+				else -> return
 			}
-
-			BLEConstants.connectionNonceCharacteristic -> {
-				val nonceCorrect = _deviceNonceMap[deviceAddress]?.contentEquals(value) ?: false
-				Logger.d(TAG) { "CORRECT NONCE , CONNECTION IS UN_HARMED :$nonceCorrect" }
-			}
-
-			else -> {}
 		}
+		if (serviceUUID == BLEConstants.syncServiceId) {
+			Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicUuid FROM SYNC SERVICE" }
+			// TODO: FILL THE REQUIREMENTS
+			return
+		}
+		// invalids
+		Logger.w(TAG) { "REQUESTING INVALID SERVICE" }
 	}
 
 	fun setRunning(value: Boolean) {
@@ -134,6 +151,8 @@ class BLEAdvertisementCallback(
 
 	fun cleanUp() {
 		if (_scope.isActive) _scope.cancel()
+		_externalPeer.update { emptyList() }
+		_deviceNonceMap.clear()
 	}
 
 }

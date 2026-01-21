@@ -16,6 +16,7 @@ import co.touchlab.kermit.Logger
 import com.sam.bluepad.BuildKonfig
 import com.sam.bluepad.data.utils.hasBLEScanPermission
 import com.sam.bluepad.data.utils.hasLocationPermission
+import com.sam.bluepad.domain.ble.BLEConnectionType
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
 import com.sam.bluepad.domain.ble.models.BLEPeerDevice
@@ -37,9 +38,7 @@ import kotlin.uuid.toJavaUuid
 private const val TAG = "BLE_DISCOVERY"
 
 @SuppressLint("MissingPermission")
-actual class BLEDiscoveryImpl(
-	private val context: Context
-) : BLEDiscoveryManager {
+actual class BLEDiscoveryImpl(private val context: Context) : BLEDiscoveryManager {
 
 	private val _bluetoothManager by lazy { context.getSystemService<BluetoothManager>() }
 
@@ -61,7 +60,7 @@ actual class BLEDiscoveryImpl(
 			val scanRecord = result?.scanRecord ?: return
 			val device = result.device ?: return
 
-			val parcelUid = ParcelUuid(BLEConstants.transportServiceId.toJavaUuid())
+			val parcelUid = ParcelUuid(BLEConstants.discoveryServiceId.toJavaUuid())
 			val hasServiceId = (scanRecord.serviceUuids ?: emptyList()).contains(parcelUid)
 
 			if (!hasServiceId) return
@@ -96,7 +95,8 @@ actual class BLEDiscoveryImpl(
 		}
 	}
 
-	override suspend fun startScan(timeout: Duration): Result<Unit> {
+	override suspend fun startScan(connection: BLEConnectionType, timeout: Duration)
+			: Result<Unit> {
 		if (_bluetoothManager?.adapter?.isEnabled != true)
 			return Result.failure(BluetoothNotEnabledException())
 		if (!context.hasBLEScanPermission)
@@ -150,15 +150,21 @@ actual class BLEDiscoveryImpl(
 		Logger.d(TAG) { "SCAN STOPPED" }
 	}
 
-	private fun startScanCallBack() {
+	private fun startScanCallBack(connection: BLEConnectionType = BLEConnectionType.DEVICE_DISCOVERY) {
 		if (_isScanning.value) return
 		// stop classic scan if running
 		if (_btAdapter?.isDiscovering == true) _btAdapter?.cancelDiscovery()
+
+		val scanFilterUUId = when (connection) {
+			BLEConnectionType.DEVICE_DISCOVERY -> BLEConstants.discoveryServiceId
+			BLEConnectionType.PROXIMITY_AND_SYNC -> BLEConstants.syncServiceId
+		}
+
 		// updates is scanning
 		_isScanning.update { true }
 		val scanFilters = listOf<ScanFilter>(
 			ScanFilter.Builder()
-				.setServiceUuid(ParcelUuid(BLEConstants.transportServiceId.toJavaUuid()))
+				.setServiceUuid(ParcelUuid(scanFilterUUId.toJavaUuid()))
 				.build()
 		)
 
