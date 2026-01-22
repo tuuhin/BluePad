@@ -173,7 +173,7 @@ actual class BLEConnectionManagerImpl(
 			data = bytes,
 			writeType = WriteType.WithoutResponse
 		)
-		Logger.d(TAG) { "SENDING WRITE INFO" }
+		Logger.d(TAG) { "SEND WRITE INFO TO ${characteristic.characteristicUuid} LENGTH :${bytes.size}" }
 	}
 
 	suspend fun createAndConnect(address: String): Peripheral {
@@ -222,4 +222,6 @@ actual class BLEConnectionManagerImpl(
 			e.printStackTrace()
 		}
 	}
+
+	override fun cleanUp() = Unit
 }

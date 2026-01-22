@@ -29,4 +29,9 @@ interface BLEConnectionManager {
 	 * Disconnects from the currently connected device and releases all resources.
 	 */
 	fun disconnect()
+
+	/**
+	 * Clears the resources
+	 */
+	fun cleanUp()
 }

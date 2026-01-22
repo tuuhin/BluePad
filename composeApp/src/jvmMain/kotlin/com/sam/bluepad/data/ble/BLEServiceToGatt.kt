@@ -11,7 +11,7 @@ object BLEServiceToGatt {
 			.addCharacteristics(
 				listOf(
 					Characteristic.builder(BLEConstants.deviceInfoCharacteristics.toHexDashString())
-						.canWriteRequest(true)
+						.canWriteCommand(true)
 						.canRead(true)
 						.build(),
 				)

@@ -4,9 +4,14 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
+import android.os.Build
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.models.BLEConnectionState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.uuid.Uuid
 import kotlin.uuid.toKotlinUuid
@@ -15,9 +20,11 @@ private const val TAG = "BLE_CONNECTION_CALLBACK"
 
 @SuppressLint("MissingPermission")
 class ConnectionCallback(
+	private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
 	private val onConnectionStateChange: (gatt: BluetoothGatt?, state: BLEConnectionState) -> Unit,
 	private val onGAttFailed: (String) -> Unit,
-	private val onReadCharacteristic: (BluetoothGatt, Uuid, ByteArray) -> Unit
+	private val onReadCharacteristic: suspend (BluetoothGatt, Uuid, ByteArray) -> Unit,
+	private val onWriteCharacteristic: suspend (BluetoothGatt, Uuid) -> Unit,
 ) : BluetoothGattCallback() {
 
 	private val _readQueue = ConcurrentLinkedQueue<BluetoothGattCharacteristic>()
@@ -80,6 +87,18 @@ class ConnectionCallback(
 		_readQueue.poll()?.let { gatt.readCharacteristic(it) }
 	}
 
+	@Suppress("DEPRECATION")
+	@Deprecated("Deprecated in Java")
+	override fun onCharacteristicRead(
+		gatt: BluetoothGatt,
+		characteristic: BluetoothGattCharacteristic,
+		status: Int
+	) {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
+		onCharacteristicRead(gatt, characteristic, characteristic.value, status)
+	}
+
+
 	override fun onCharacteristicRead(
 		gatt: BluetoothGatt,
 		characteristic: BluetoothGattCharacteristic,
@@ -91,24 +110,31 @@ class ConnectionCallback(
 			Logger.w(TAG) { "CANNOT READ CHARACTERISTICS" }
 			return
 		}
-		val valueAsString = value.decodeToString()
-		Logger.d(TAG) { "READING CHARACTERISTICS :${characteristic.uuid} :$valueAsString" }
-		onReadCharacteristic(gatt, characteristic.uuid.toKotlinUuid(), value)
-		// check if anything left on the queue
-		_readQueue.poll()?.let { gatt.readCharacteristic(it) }
+		coroutineScope.launch {
+			Logger.d(TAG) { "READING CHARACTERISTICS :${characteristic.uuid}" }
+			onReadCharacteristic(gatt, characteristic.uuid.toKotlinUuid(), value)
+			// check if anything left on the queue
+			_readQueue.poll()?.let { gatt.readCharacteristic(it) }
+		}
 	}
 
+
 	override fun onCharacteristicWrite(
-		gatt: BluetoothGatt?,
-		characteristic: BluetoothGattCharacteristic?,
+		gatt: BluetoothGatt,
+		characteristic: BluetoothGattCharacteristic,
 		status: Int
 	) {
 		if (status != BluetoothGatt.GATT_SUCCESS) {
 			Logger.w(TAG) { "WRITE CHARACTERISTICS FAILED" }
 			return
 		}
-		Logger.d(TAG) { "WRITE CHARACTERISTICS FOR :${characteristic?.uuid} SUCCESS" }
+		coroutineScope.launch {
+			Logger.d(TAG) { "WRITE CHARACTERISTICS FOR :${characteristic.uuid} SUCCESS" }
+			onWriteCharacteristic(gatt, characteristic.uuid.toKotlinUuid())
+		}
 	}
 
-	fun cleanUp() = _readQueue.clear()
+	fun cleanUp() {
+		_readQueue.clear()
+	}
 }

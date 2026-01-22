@@ -2,6 +2,7 @@ package com.sam.bluepad.data.ble
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattServer
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.AdvertiseData
@@ -103,10 +104,10 @@ actual class BLEAdvertisementImpl(
 		_bleServer = _bluetoothManager?.openGattServer(context, connectionCallback)
 		Logger.i(TAG) { "GATT SERVER BEGUN!" }
 
-		connectionCallback.setOnServiceAdded { Logger.d(TAG) { "TRANSPORT SERVICE ADDED " } }
+		connectionCallback.setOnServiceAdded { Logger.d(TAG) { "SERVICE ADDED " } }
 		connectionCallback.setOnSendResponse { device, requestId, status, offset, value ->
 			_bleServer?.sendResponse(device, requestId, status, offset, value)
-			Logger.d(TAG) { "READ RESPONSE SEND :$status" }
+			Logger.d(TAG) { "SERVER RESPONSE SEND SUCCESS: ${status == BluetoothGatt.GATT_SUCCESS}" }
 		}
 		when (type) {
 			BLEConnectionType.DEVICE_DISCOVERY -> {

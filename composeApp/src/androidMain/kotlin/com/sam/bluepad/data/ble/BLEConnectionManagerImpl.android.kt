@@ -26,18 +26,23 @@ import com.sam.bluepad.domain.exceptions.BluetoothPermissionException
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import com.sam.bluepad.domain.utils.Resource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import kotlin.uuid.toKotlinUuid
 
 private const val TAG = "BLE_CONNECTOR"
 
@@ -50,6 +55,8 @@ actual class BLEConnectionManagerImpl(
 	private val randomGenerator: RandomGenerator,
 ) : BLEConnectionManager {
 
+	private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
 	private val _bluetoothManager by lazy { context.getSystemService<BluetoothManager>() }
 
 	private val _btAdapter: BluetoothAdapter?
@@ -60,6 +67,12 @@ actual class BLEConnectionManagerImpl(
 		get() = _connectionState.asStateFlow()
 
 	private var _gattConnection: BluetoothGatt? = null
+
+	private val _localDeviceInfo = deviceInfoProvider.readDeviceInfo.stateIn(
+		scope = _scope,
+		started = SharingStarted.Eagerly,
+		initialValue = null
+	)
 
 
 	override fun connectAndReceiveData(
@@ -72,6 +85,7 @@ actual class BLEConnectionManagerImpl(
 
 		// TODO: SOME OF THE EDGE CASES ARE NOT HANDLED
 		val callback = ConnectionCallback(
+			coroutineScope = _scope,
 			onConnectionStateChange = { _, state ->
 				val updated = _connectionState.updateAndGet { state }
 				if (updated == BLEConnectionState.DISCONNECTED) {
@@ -85,6 +99,12 @@ actual class BLEConnectionManagerImpl(
 				_connectionState.update { BLEConnectionState.DISCONNECTED }
 				close()
 			},
+			onWriteCharacteristic = { gatt, uuid ->
+				if (uuid == BLEConstants.deviceInfoCharacteristics && disconnectOnDone) {
+					gatt.disconnect()
+					close()
+				}
+			},
 			onReadCharacteristic = { gatt, uuid, bytes ->
 				when (uuid) {
 					BLEConstants.deviceInfoCharacteristics -> {
@@ -96,13 +116,7 @@ actual class BLEConnectionManagerImpl(
 						}
 						Logger.d(TAG) { "PEER DATA :$peerData" }
 						trySend(Resource.Success(peerData))
-						if (informReceiver) runBlocking {
-							gatt.sendDeviceInfo(nonce = peerData.nonce)
-						}
-						if (disconnectOnDone) {
-							gatt.disconnect()
-							close()
-						}
+						if (informReceiver) gatt.sendDeviceInfo(nonce = peerData.nonce)
 					}
 
 					else -> {}
@@ -127,13 +141,14 @@ actual class BLEConnectionManagerImpl(
 	}
 
 	@Suppress("DEPRECATION")
-	private suspend fun BluetoothGatt.sendDeviceInfo(nonce: String? = null) {
-		val characteristics = services.find { it.uuid == BLEConstants.discoveryServiceId }
+	private fun BluetoothGatt.sendDeviceInfo(nonce: String? = null) {
+		val characteristics = services
+			.find { it.uuid.toKotlinUuid() == BLEConstants.discoveryServiceId }
 			?.characteristics
-			?.find { it == BLEConstants.deviceInfoCharacteristics }
+			?.find { it.uuid.toKotlinUuid() == BLEConstants.deviceInfoCharacteristics }
 			?: return
 
-		val info = deviceInfoProvider.readDeviceInfo.first()
+		val info = _localDeviceInfo.value ?: return
 		val peerData = BLEPeerData(
 			deviceId = info.deviceId,
 			deviceName = info.name,
@@ -158,7 +173,7 @@ actual class BLEConnectionManagerImpl(
 			characteristics.value = bytes
 			writeCharacteristic(characteristics)
 		}
-		Logger.d(TAG) { "SENDING CURRENT DEVICE INFO SUCCESS :$isSuccess" }
+		Logger.d(TAG) { "SENDING CURRENT DEVICE INFO STATUS:$isSuccess " }
 	}
 
 	private fun connectAndWaitForExchange(address: String, gattCallback: BluetoothGattCallback)
@@ -198,4 +213,6 @@ actual class BLEConnectionManagerImpl(
 			Logger.e(TAG, e) { "GATT CONNECTED FAILED TO CLOSE" }
 		}
 	}
+
+	override fun cleanUp() = _scope.cancel()
 }

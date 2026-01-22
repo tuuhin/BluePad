@@ -8,10 +8,11 @@ import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
+import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.use_cases.RandomGenerator
-import com.sam.bluepad.domain.utils.PlatformInfoProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,9 +20,13 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
 import kotlin.uuid.toKotlinUuid
@@ -33,16 +38,15 @@ private typealias SendResponse = (device: BluetoothDevice?, requestId: Int, stat
 @SuppressLint("MissingPermission")
 class ServerConnectionCallback(
 	provider: LocalDeviceInfoProvider,
+	private val protoBuf: ProtoBuf,
 	private val randomGenerator: RandomGenerator,
 	private val platformInfoProvider: PlatformInfoProvider,
 ) : BluetoothGattServerCallback() {
 
-	private val _deviceNonceMap = ConcurrentHashMap<String, ByteArray>()
-	private val _syncDevices = MutableStateFlow<List<RemoteDeviceResponse>>(emptyList())
-
 	private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+	private val _deviceNonceMap = ConcurrentHashMap<String, ByteArray>()
 
-	private val deviceInfo = provider.readDeviceInfo.stateIn(
+	private val _deviceInfo = provider.readDeviceInfo.stateIn(
 		scope = _scope,
 		started = SharingStarted.Eagerly,
 		initialValue = null
@@ -59,9 +63,13 @@ class ServerConnectionCallback(
 		_onServiceAdded = onServiceAdded
 	}
 
+	private val _syncDevices = MutableStateFlow<List<RemoteDeviceResponse>>(emptyList())
 	val remoteSyncDevice: Flow<List<Uuid>> = _syncDevices.mapNotNull { devices ->
 		devices.filter { it.isAllValid }.mapNotNull { it.removeDeviceId }
 	}
+
+	private val _externalPeer = MutableStateFlow<List<BLEPeerData>>(emptyList())
+	val externalPeers = _externalPeer.asStateFlow()
 
 	override fun onConnectionStateChange(device: BluetoothDevice?, status: Int, newState: Int) {
 		if (device == null || status != BluetoothGatt.GATT_SUCCESS) return
@@ -71,7 +79,13 @@ class ServerConnectionCallback(
 		} else {
 			_syncDevices.update { devices -> (devices.filterNot { it.address == device.address }) }
 		}
-		Logger.d(TAG) { "DEVICE IDENTIFIER:${device.address} BOND STATE: ${device.bondState} CONNECTION STATE CHANGED" }
+		val bondState = when (device.bondState) {
+			BluetoothDevice.BOND_BONDED -> "BONDED"
+			BluetoothDevice.BOND_BONDING -> "BONDING"
+			BluetoothDevice.BOND_NONE -> "NO BOND"
+			else -> null
+		}
+		Logger.d(TAG) { "DEVICE IDENTIFIER:${device.address} BOND STATE: $bondState CONNECTION STATE CHANGED" }
 	}
 
 	override fun onServiceAdded(status: Int, service: BluetoothGattService?) {
@@ -81,7 +95,6 @@ class ServerConnectionCallback(
 		}
 		if (service == null) return
 		Logger.i(TAG) { "SERVICE :${service.uuid} ADDED" }
-
 		_onServiceAdded?.invoke()
 	}
 
@@ -95,38 +108,57 @@ class ServerConnectionCallback(
 			sendFailedResponse(device, requestId, offset)
 			return
 		}
-		Logger.d(TAG) { "READ REQUESTED FOR CHARACTERISTICS :${characteristic.uuid} SERVICE: ${characteristic.service.uuid}" }
+		// handle discovery service here only
+		if (characteristic.service.uuid.toKotlinUuid() == BLEConstants.discoveryServiceId) {
+			Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM DISCOVERY SERVICE" }
 
-		if (characteristic.service.uuid.toKotlinUuid() != BLEConstants.transportServiceId || characteristic.service.uuid.toKotlinUuid() != BLEConstants.syncServiceId) {
-			Logger.d(TAG) { "INVALID SERVICE REQUESTED" }
-			sendFailedResponse(device, requestId, offset)
-			return
-		}
-
-		val deviceInfo = deviceInfo.value ?: run {
-			Logger.d(TAG) { "CANNOT READ DEVICE INFO" }
-			sendFailedResponse(device, requestId, offset)
-			return
-		}
-		val value = when (characteristic.uuid.toKotlinUuid()) {
-			BLEConstants.deviceIdCharacteristics -> deviceInfo.deviceId.toByteArray()
-			BLEConstants.deviceNameCharacteristic -> deviceInfo.name.encodeToByteArray()
-			BLEConstants.deviceOSCharacteristics -> platformInfoProvider.platformName()
-				.encodeToByteArray()
-
-			BLEConstants.allowSyncCharacteristics -> byteArrayOf(0x1)
-			BLEConstants.connectionNonceCharacteristic -> randomGenerator.generateRandomBytes(12)
-				.also { nonceBytes ->
-					_deviceNonceMap[device.address] = nonceBytes
-				}
-
-			else -> {
+			val deviceInfo = _deviceInfo.value ?: run {
+				Logger.e(TAG) { "CANNOT READ DEVICE INFO" }
 				sendFailedResponse(device, requestId, offset)
 				return
 			}
+
+			val value = when (characteristic.uuid.toKotlinUuid()) {
+				BLEConstants.deviceInfoCharacteristics -> {
+					try {
+						val nonce = randomGenerator.generateRandomBytes(12).also { nonceBytes ->
+							_deviceNonceMap[device.address] = nonceBytes
+						}
+						val peerData = BLEPeerData(
+							deviceId = deviceInfo.deviceId,
+							deviceName = deviceInfo.name,
+							nonce = nonce.decodeToString(),
+							deviceOs = platformInfoProvider.platformOS,
+						)
+						protoBuf.encodeToByteArray<BLEPeerData>(peerData)
+
+					} catch (e: Exception) {
+						Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
+						sendFailedResponse(device, requestId, offset)
+						return
+					}
+				}
+
+				else -> {
+					sendFailedResponse(device, requestId, offset)
+					return
+				}
+			}
+			Logger.d(TAG) { "SENDING SUCCESS READ RESPONSE FOR CHARACTERISTICS :${characteristic.uuid}" }
+			_sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
+			return
 		}
-		Logger.d(TAG) { "SENDING SUCCESS RESPONSE FOR CHARACTERISTICS :${characteristic.uuid}" }
-		_sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
+
+		// handle the sync service here
+		if (characteristic.service.uuid.toKotlinUuid() == BLEConstants.syncServiceId) {
+			Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
+			// TODO: FILL THE REQUIREMENTS
+			_sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null)
+			return
+		}
+		// invalids
+		Logger.w(TAG) { "REQUESTING INVALID SERVICE" }
+		sendFailedResponse(device, requestId, offset)
 	}
 
 	override fun onCharacteristicWriteRequest(
@@ -138,78 +170,46 @@ class ServerConnectionCallback(
 		offset: Int,
 		value: ByteArray?
 	) {
-		if (device == null || characteristic == null) {
-			sendFailedResponse(device, requestId, offset, responseNeeded)
-			return
-		}
-		Logger.d(TAG) { "READ REQUESTED FOR CHARACTERISTICS :${characteristic.uuid} SERVICE: ${characteristic.service.uuid}" }
-
-		if (characteristic.service.uuid.toKotlinUuid() != BLEConstants.syncServiceId || value == null) {
-			Logger.d(TAG) { "INVALID SERVICE REQUESTED SYNC SERVICE NEEDED OR NO VALUE" }
+		// ensure we have some data
+		if (device == null || characteristic == null || value == null) {
 			sendFailedResponse(device, requestId, offset, responseNeeded)
 			return
 		}
 
-		val deviceInfo = deviceInfo.value ?: run {
-			Logger.d(TAG) { "CANNOT READ DEVICE INFO" }
+		if (characteristic.service.uuid.toKotlinUuid() == BLEConstants.discoveryServiceId) {
+			Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM DISCOVERY SERVICE" }
+
+			when (characteristic.uuid.toKotlinUuid()) {
+				BLEConstants.deviceInfoCharacteristics -> {
+					try {
+						val peerData = protoBuf.decodeFromByteArray<BLEPeerData>(value)
+						_externalPeer.update { devices -> (devices + peerData).distinctBy { it.deviceId } }
+					} catch (e: Exception) {
+						Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
+						sendFailedResponse(device, requestId, offset, responseNeeded)
+						return
+					}
+				}
+
+				else -> {
+					sendFailedResponse(device, requestId, offset, responseNeeded)
+					return
+				}
+			}
+			if (!responseNeeded) return
+			Logger.d(TAG) { "SENDING SUCCESS WRITE RESPONSE FOR CHARACTERISTICS :${characteristic.uuid}" }
+			_sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
+			return
+		}
+		// sync service
+		if (characteristic.service.uuid.toKotlinUuid() == BLEConstants.syncServiceId) {
+			Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
 			sendFailedResponse(device, requestId, offset, responseNeeded)
 			return
 		}
-
-		when (characteristic.uuid.toKotlinUuid()) {
-			BLEConstants.receiverDeviceIdCharacteristics -> {
-				val uuid = try {
-					Uuid.fromByteArray(value)
-				} catch (_: Exception) {
-					Logger.w(TAG) { "CANNOT PASE RECEIVER ID" }
-					sendFailedResponse(device, requestId, offset, responseNeeded)
-					return
-				}
-				Logger.d(TAG) { "RECEIVER DEVICE ID FOUND :$uuid" }
-				_syncDevices.update { devices ->
-					devices.map { dv ->
-						if (dv.address == device.address) dv.copy(removeDeviceId = uuid)
-						else dv
-					}
-				}
-			}
-
-			BLEConstants.deviceIdCharacteristics -> {
-				val correctAdviser = deviceInfo.deviceId.toByteArray().contentEquals(value)
-				Logger.d(TAG) { "SOME ADVISOR FOUND :IS_CORRECT $correctAdviser" }
-				_syncDevices.update { devices ->
-					devices.map { dv ->
-						if (dv.address == device.address) dv.copy(currentDeviceIdValidated = correctAdviser)
-						else dv
-					}
-				}
-				if (!correctAdviser) {
-					sendFailedResponse(device, requestId, offset, responseNeeded)
-					return
-				}
-			}
-
-			BLEConstants.connectionNonceCharacteristic -> {
-				val nonceCorrect = _deviceNonceMap[device.address]?.contentEquals(value) ?: false
-				_syncDevices.update { devices ->
-					devices.map { dv ->
-						if (dv.address == device.address) dv.copy(readNonceValidated = nonceCorrect)
-						else dv
-					}
-				}
-				Logger.d(TAG) { "CORRECT NONCE , CONNECTION IS UN_HARMED" }
-				if (!nonceCorrect) {
-					sendFailedResponse(device, requestId, offset, responseNeeded)
-					return
-				}
-			}
-
-			else -> {}
-		}
-
-		if (!responseNeeded) return
-		// finally a success message
-		_sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
+		// invalids
+		Logger.w(TAG) { "REQUESTING INVALID SERVICE" }
+		sendFailedResponse(device, requestId, offset, responseNeeded)
 	}
 
 	private fun sendFailedResponse(
@@ -228,6 +228,7 @@ class ServerConnectionCallback(
 		_scope.cancel()
 		_deviceNonceMap.clear()
 		_syncDevices.value = emptyList()
+		_externalPeer.value = emptyList()
 	}
 }
 
