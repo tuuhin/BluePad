@@ -142,6 +142,7 @@ actual class BLEAdvertisementImpl(
 			.setIncludeDeviceName(true)
 			.setIncludeTxPowerLevel(false)
 			.addServiceUuid(advertisementServiceId)
+			.addServiceData(advertisementServiceId, BuildKonfig.APP_ID.encodeToByteArray())
 			.build()
 
 		val scanResponse = AdvertiseData.Builder()

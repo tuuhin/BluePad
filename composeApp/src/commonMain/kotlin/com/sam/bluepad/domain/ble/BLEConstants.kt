@@ -14,4 +14,7 @@ object BLEConstants {
 	val connectionNonceCharacteristic = Uuid.parse("84ed9fb6-f86b-4ad3-8649-3ce94fdd9e88")
 	val allowSyncCharacteristics = Uuid.parse("e8faba5c-5511-48e1-9810-1eb1f46dcaab")
 	val receiverDeviceIdCharacteristics = Uuid.parse("320cba65-26b7-4f74-aafb-95e29c6f9649")
+
+	// connection mtu
+	const val REQUESTED_MTU = 512 + 3
 }

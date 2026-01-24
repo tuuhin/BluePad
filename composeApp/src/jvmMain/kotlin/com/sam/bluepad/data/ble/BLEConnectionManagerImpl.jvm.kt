@@ -19,6 +19,7 @@ import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import com.sam.bluepad.domain.utils.Resource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -34,7 +36,6 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
-import java.util.concurrent.CancellationException
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
@@ -61,45 +62,48 @@ actual class BLEConnectionManagerImpl(
 	): Flow<Resource<BLEPeerData, Exception>> = callbackFlow {
 
 		trySend(Resource.Loading)
-		try {
-			// reset the peripheral
-			_peripheral?.close()
-			// create the peripheral
-			val peripheral = createAndConnect(address).also { _peripheral = it }
-			// read the service and characteristics
-			peripheral.onReadDiscoveryCharacteristics(
-				onServiceNotFound = { trySend(Resource.Error(BLEServiceNotFoundException())) },
-				onCharacteristicData = { peri, result ->
-					val peerData = result
-						.getOrDefault(BLEConstants.deviceInfoCharacteristics, null)
-						?.let { bytes ->
-							try {
-								protoBuf.decodeFromByteArray<BLEPeerData>(bytes)
-							} catch (e: Exception) {
-								Logger.e(TAG, e) { "UNABLE TO DECODE BYTES" }
-								null
-							}
-						} ?: return@onReadDiscoveryCharacteristics
 
-					Logger.d(TAG) { "PEER DATA READ :$peerData" }
-					trySend(Resource.Success(peerData))
-
-					if (informReceiver) peri.sendCurrentDeviceInfo(nonce = peerData.nonce)
-					if (disconnectOnDone) {
-						Logger.d(TAG) { "DISCONNECTING CONNECTION" }
-						peri.disconnect()
-					}
-				},
-			)
-			// disconnect when the flow is closed
-			awaitClose {
-				Logger.d(TAG) { "DISCONNECTING CONNECTION" }
-				disconnect()
-			}
+		// reset the peripheral
+		cleanUp()
+		// create the peripheral
+		val peripheral = try {
+			createAndConnect(address).also { _peripheral = it }
 		} catch (e: Exception) {
+			Logger.w(TAG, e) { "CANNOT CREATE THE PERIPHERAL DEVICES" }
 			trySend(Resource.Error(e))
 			close()
+			return@callbackFlow
 		}
+		// read the service and characteristics
+		peripheral.onReadDiscoveryCharacteristics(
+			onServiceNotFound = { trySend(Resource.Error(BLEServiceNotFoundException())) },
+			onCharacteristicData = { peri, result ->
+				val peerData = result
+					.getOrDefault(BLEConstants.deviceInfoCharacteristics, null)
+					?.let { bytes ->
+						try {
+							protoBuf.decodeFromByteArray<BLEPeerData>(bytes)
+						} catch (e: Exception) {
+							Logger.e(TAG, e) { "UNABLE TO DECODE BYTES" }
+							null
+						}
+					} ?: return@onReadDiscoveryCharacteristics
+
+				Logger.d(TAG) { "PEER DATA READ :$peerData" }
+				trySend(Resource.Success(peerData))
+
+				if (informReceiver) peri.sendCurrentDeviceInfo(nonce = peerData.nonce)
+				if (disconnectOnDone) {
+					Logger.d(TAG) { "DISCONNECTING CONNECTION" }
+					peri.disconnect()
+				}
+			},
+		)
+		// clean the peripheral when done
+		awaitClose { cleanUp() }
+	}.catch { err ->
+		if (err is CancellationException) Logger.d(TAG) { "CANCELLATION EXCEPTION OCCURRED" }
+		if (err is Exception) emit(Resource.Error(err))
 	}
 
 	private fun Peripheral.observePeripheralState() {
@@ -208,20 +212,25 @@ actual class BLEConnectionManagerImpl(
 		}
 	}
 
-	override fun disconnect() {
+	override suspend fun disconnect() {
+		try {
+			_peripheral?.disconnect()
+			Logger.d(TAG) { "PERIPHERAL DISCONNECTED" }
+			_deviceConnectionState.update { BLEConnectionState.DISCONNECTED }
+		} catch (e: Exception) {
+			Logger.e(TAG, e) { "FAILED TO CLOSE THE CONNECTION" }
+		}
+	}
+
+	override fun cleanUp() {
 		try {
 			if (_peripheral != null) {
 				_peripheral?.close()
 				_peripheral = null
 				Logger.d(TAG) { "PERIPHERAL CONNECTION CLOSED" }
 			}
-			_deviceConnectionState.update { BLEConnectionState.DISCONNECTED }
-		} catch (_: CancellationException) {
-			Logger.w(TAG) { "CONNECTION WAS CANCELLED" }
 		} catch (e: Exception) {
-			e.printStackTrace()
+			Logger.e(TAG, e) { "FAILED TO CLOSE THE CONNECTION" }
 		}
 	}
-
-	override fun cleanUp() = Unit
 }

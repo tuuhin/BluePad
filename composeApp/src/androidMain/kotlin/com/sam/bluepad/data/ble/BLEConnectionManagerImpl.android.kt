@@ -74,7 +74,6 @@ actual class BLEConnectionManagerImpl(
 		initialValue = null
 	)
 
-
 	override fun connectAndReceiveData(
 		address: String,
 		informReceiver: Boolean,
@@ -89,8 +88,8 @@ actual class BLEConnectionManagerImpl(
 			onConnectionStateChange = { _, state ->
 				val updated = _connectionState.updateAndGet { state }
 				if (updated == BLEConnectionState.DISCONNECTED) {
-					// disconnect and close the connection
-					disconnect()
+					// close the connection and close the flow
+					cleanUp()
 					close()
 				}
 			},
@@ -112,6 +111,8 @@ actual class BLEConnectionManagerImpl(
 							protoBuf.decodeFromByteArray<BLEPeerData>(bytes)
 						} catch (e: Exception) {
 							Logger.e(TAG, e) { "UNABLE TO DECODE BYTES" }
+							trySend(Resource.Error(Exception("Cannot decode peer data")))
+							gatt.close()
 							return@ConnectionCallback
 						}
 						Logger.d(TAG) { "PEER DATA :$peerData" }
@@ -135,7 +136,7 @@ actual class BLEConnectionManagerImpl(
 			// stop the connection if collector scope is cancelled
 			awaitClose {
 				callback.cleanUp()
-				disconnect()
+				cleanUp()
 			}
 		}
 	}
@@ -200,19 +201,24 @@ actual class BLEConnectionManagerImpl(
 		}
 	}
 
-	override fun disconnect() {
+	override suspend fun disconnect() {
 		try {
-			if (_gattConnection != null) {
-				_gattConnection?.disconnect()
-				_gattConnection?.close()
-				Logger.d(TAG) { "GATT CLIENT DISCONNECTED AND CLOSED" }
-			}
-			_gattConnection = null
+			_gattConnection?.disconnect()
+			Logger.d(TAG) { "GATT CLIENT DISCONNECTED" }
 			_connectionState.update { BLEConnectionState.DISCONNECTED }
 		} catch (e: Exception) {
 			Logger.e(TAG, e) { "GATT CONNECTED FAILED TO CLOSE" }
 		}
 	}
 
-	override fun cleanUp() = _scope.cancel()
+	override fun cleanUp() {
+		_scope.cancel()
+		try {
+			_gattConnection?.close()
+			Logger.d(TAG) { "GATT CLIENT CLOSED" }
+			_gattConnection = null
+		} catch (e: Exception) {
+			Logger.e(TAG, e) { "GATT CONNECTED FAILED TO CLOSE" }
+		}
+	}
 }

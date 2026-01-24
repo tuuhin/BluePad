@@ -30,39 +30,34 @@ class ConnectionCallback(
 	private val _readQueue = ConcurrentLinkedQueue<BluetoothGattCharacteristic>()
 
 	override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+		val domainState = when (newState) {
+			BluetoothGatt.STATE_CONNECTED -> BLEConnectionState.CONNECTED
+			BluetoothGatt.STATE_CONNECTING -> BLEConnectionState.CONNECTING
+			BluetoothGatt.STATE_DISCONNECTING -> BLEConnectionState.DISCONNECTING
+			BluetoothGatt.STATE_DISCONNECTED -> BLEConnectionState.DISCONNECTED
+			else -> return
+		}
+		Logger.d(TAG) { "CONNECTION STATE CHANGED! :$domainState" }
+
 		if (status != BluetoothGatt.GATT_SUCCESS) {
 			onGAttFailed("Cannot read connection state")
-			Logger.w(TAG) { "CONNECTION STATUS FAILED" }
+			Logger.w(TAG) { "CONNECTION STATUS FAILED :$domainState" }
 			// clear the queue if anything fails
 			_readQueue.clear()
 			return
 		}
-		Logger.e(TAG) { "CONNECTION STATE CHANGED! :$newState" }
-		when (newState) {
-			BluetoothGatt.STATE_CONNECTED -> {
-				onConnectionStateChange(gatt, BLEConnectionState.CONNECTED)
-				//discover services
-				gatt?.discoverServices()
-			}
 
+		onConnectionStateChange(gatt, domainState)
+
+		when (newState) {
+			BluetoothGatt.STATE_CONNECTED -> gatt?.requestMtu(BLEConstants.REQUESTED_MTU)
 			BluetoothGatt.STATE_DISCONNECTED -> {
 				// clear the queue if anything fails
 				_readQueue.clear()
-				onConnectionStateChange(gatt, BLEConnectionState.DISCONNECTING)
 				gatt?.close()
 			}
 
-			BluetoothGatt.STATE_CONNECTING -> onConnectionStateChange(
-				gatt,
-				BLEConnectionState.CONNECTING
-			)
-
-			BluetoothGatt.STATE_DISCONNECTING -> onConnectionStateChange(
-				gatt,
-				BLEConnectionState.DISCONNECTING
-			)
-
-			else -> Logger.d(TAG) { "DEVICE STATE NOT CONNECTED : $newState" }
+			else -> {}
 		}
 	}
 
@@ -81,10 +76,23 @@ class ConnectionCallback(
 		}
 		// we read all the characteristics
 		val requiredCharacteristics = service.characteristics.filter { it.uuid != null }
-		Logger.d(TAG) { "REQUIRED CHARACTERISTICS FOUND STARTING READ :${requiredCharacteristics.size}" }
+		Logger.d(TAG) { "NO. OF CHARACTERISTICS FOUND STARTING READ :${requiredCharacteristics.size}" }
 		// read characteristic
 		_readQueue.addAll(requiredCharacteristics)
-		_readQueue.poll()?.let { gatt.readCharacteristic(it) }
+		_readQueue.poll()?.let {
+			Logger.d(TAG) { "REQUESTING ${it.uuid} READ" }
+			gatt.readCharacteristic(it)
+		}
+	}
+
+	override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
+		if (status != BluetoothGatt.GATT_SUCCESS) {
+			Logger.w(TAG) { "CANNOT DISCOVER SERVICES" }
+			onGAttFailed("Cannot request higher mtu")
+			return
+		}
+		Logger.d(TAG) { "UPDATED MTU :$mtu" }
+		gatt?.discoverServices()
 	}
 
 	@Suppress("DEPRECATION")
