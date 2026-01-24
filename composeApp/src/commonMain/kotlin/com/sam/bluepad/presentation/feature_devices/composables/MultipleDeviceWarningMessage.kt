@@ -63,7 +63,7 @@ fun MultipleDeviceWarning(
 						.sizeIn(minWidth = 40.dp, minHeight = 40.dp)
 						.background(
 							color = contentColor,
-							shape = MaterialShapes.Clover8Leaf.toShape()
+							shape = MaterialShapes.Cookie12Sided.toShape(),
 						),
 					contentAlignment = Alignment.Center,
 				) {

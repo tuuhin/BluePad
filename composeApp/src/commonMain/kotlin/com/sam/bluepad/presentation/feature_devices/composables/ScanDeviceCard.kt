@@ -1,6 +1,8 @@
 package com.sam.bluepad.presentation.feature_devices.composables
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.EaseIn
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -27,12 +28,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sam.bluepad.domain.ble.models.BLEPeerDevice
 import com.sam.bluepad.domain.ble.models.BLEPeerSignalStrength
 import com.sam.bluepad.resources.Res
+import com.sam.bluepad.resources.action_connect
 import com.sam.bluepad.resources.scan_device_signal_strength_avg
 import com.sam.bluepad.resources.scan_device_signal_strength_excellent
 import com.sam.bluepad.resources.scan_device_signal_strength_good
@@ -43,6 +46,7 @@ import com.sam.bluepad.resources.scan_result_device_address_tittle
 import com.sam.bluepad.resources.scan_result_device_name_not_found
 import com.sam.bluepad.resources.scan_result_device_name_title
 import com.sam.bluepad.resources.scan_result_device_signal_strength_title
+import com.sam.bluepad.theme.Dimensions
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -53,14 +57,13 @@ fun ScanDeviceCard(
 	isActionEnabled: Boolean = true,
 	shape: Shape = MaterialTheme.shapes.large,
 ) {
-
 	Card(
 		modifier = modifier,
 		shape = shape,
 		elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
 	) {
 		Column(
-			modifier = Modifier.fillMaxWidth().padding(12.dp),
+			modifier = Modifier.fillMaxWidth().padding(Dimensions.CARD_INTERNAL_PADDING),
 			verticalArrangement = Arrangement.spacedBy(4.dp)
 		) {
 			Row(
@@ -70,16 +73,16 @@ fun ScanDeviceCard(
 			) {
 				Text(
 					text = stringResource(Res.string.scan_result_device_name_title),
-					style = MaterialTheme.typography.titleMediumEmphasized,
+					style = MaterialTheme.typography.bodyMediumEmphasized,
 					fontWeight = FontWeight.SemiBold,
-					color = MaterialTheme.colorScheme.primary
+					color = MaterialTheme.colorScheme.onSurface
 				)
 				Text(
 					text = device.bleDeviceName
 						?: stringResource(Res.string.scan_result_device_name_not_found),
-					style = MaterialTheme.typography.bodyMediumEmphasized,
+					style = MaterialTheme.typography.titleMediumEmphasized,
 					color = if (device.bleDeviceName == null) MaterialTheme.colorScheme.tertiary
-					else MaterialTheme.colorScheme.secondary
+					else MaterialTheme.colorScheme.primary
 				)
 			}
 			Row(
@@ -89,15 +92,16 @@ fun ScanDeviceCard(
 			) {
 				Text(
 					text = stringResource(Res.string.scan_result_device_address_tittle),
-					style = MaterialTheme.typography.titleMediumEmphasized,
+					style = MaterialTheme.typography.bodyMediumEmphasized,
 					fontWeight = FontWeight.SemiBold,
-					color = MaterialTheme.colorScheme.primary
+					color = MaterialTheme.colorScheme.onSurface
 				)
 				Text(
 					text = device.deviceAddress,
-					style = MaterialTheme.typography.bodyMediumEmphasized,
+					style = MaterialTheme.typography.titleSmallEmphasized,
 					fontFamily = FontFamily.Monospace,
-					color = MaterialTheme.colorScheme.secondary
+					fontWeight = FontWeight.SemiBold,
+					color = MaterialTheme.colorScheme.primary
 				)
 			}
 			Row(
@@ -107,28 +111,34 @@ fun ScanDeviceCard(
 			) {
 				Text(
 					text = stringResource(Res.string.scan_result_device_signal_strength_title),
-					style = MaterialTheme.typography.titleMediumEmphasized,
+					style = MaterialTheme.typography.bodyMediumEmphasized,
 					fontWeight = FontWeight.SemiBold,
-					color = MaterialTheme.colorScheme.primary
+					color = MaterialTheme.colorScheme.onSurface
 				)
-				DeviceSignalStrength(device = device)
+				DeviceSignalStrength(
+					device = device,
+					style = MaterialTheme.typography.titleSmallEmphasized
+				)
 			}
 			HorizontalDivider()
 			Button(
 				onClick = onConnect,
 				colors = ButtonDefaults.buttonColors(
-					containerColor = MaterialTheme.colorScheme.secondaryContainer,
-					contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+					containerColor = MaterialTheme.colorScheme.secondary,
+					contentColor = MaterialTheme.colorScheme.onSecondary
 				),
 				shapes = ButtonDefaults.shapes(
 					shape = ButtonDefaults.shape,
 					pressedShape = ButtonDefaults.mediumPressedShape
 				),
 				enabled = isActionEnabled,
-				modifier = Modifier.widthIn(min = 120.dp)
-					.align(Alignment.CenterHorizontally),
+				contentPadding = ButtonDefaults.SmallContentPadding,
+				modifier = Modifier.fillMaxWidth().align(Alignment.CenterHorizontally),
 			) {
-				Text(text = "Connect")
+				Text(
+					text = stringResource(Res.string.action_connect),
+					style = MaterialTheme.typography.bodyMediumEmphasized
+				)
 			}
 		}
 	}
@@ -137,13 +147,15 @@ fun ScanDeviceCard(
 @Composable
 private fun DeviceSignalStrength(
 	device: BLEPeerDevice,
-	modifier: Modifier = Modifier
+	modifier: Modifier = Modifier,
+	style: TextStyle = MaterialTheme.typography.bodyMediumEmphasized,
+	color: Color = MaterialTheme.colorScheme.secondary
 ) {
 
 	val power by remember(device.rssi) { derivedStateOf { device.signalStrength } }
 	val powerAnimatedColor by animateColorAsState(
 		targetValue = power.color,
-		animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
+		animationSpec = tween(durationMillis = 200, easing = EaseIn)
 	)
 
 	Row(
@@ -163,8 +175,8 @@ private fun DeviceSignalStrength(
 		)
 		Text(
 			text = power.readableString,
-			style = MaterialTheme.typography.bodyMediumEmphasized,
-			color = MaterialTheme.colorScheme.secondary
+			style = style,
+			color = color,
 		)
 	}
 }

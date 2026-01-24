@@ -25,7 +25,7 @@ import com.sam.bluepad.domain.ble.models.BLEPeerDevice
 import kotlinx.collections.immutable.ImmutableList
 
 @Composable
-fun ScanDeviceList(
+fun ScanDevicesList(
 	searchedPeers: ImmutableList<BLEPeerDevice>,
 	onConnect: (BLEPeerDevice) -> Unit,
 	onListRefresh: () -> Unit,

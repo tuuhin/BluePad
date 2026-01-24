@@ -3,39 +3,55 @@ package com.sam.bluepad.presentation.feature_devices.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.presentation.composables.ListContentLoadingWrapper
-import com.sam.bluepad.presentation.feature_devices.composables.EmptyDevicesListContainer
 import com.sam.bluepad.presentation.feature_devices.composables.SavedExternalDevicesList
 import com.sam.bluepad.presentation.feature_devices.events.ManageDevicesScreenEvent
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
 import com.sam.bluepad.resources.Res
+import com.sam.bluepad.resources.action_add_new_device
 import com.sam.bluepad.resources.action_ble_advertise
+import com.sam.bluepad.resources.devices_screen_list_empty
 import com.sam.bluepad.resources.devices_screen_subtitle
 import com.sam.bluepad.resources.devices_screen_title
 import com.sam.bluepad.resources.ic_add
+import com.sam.bluepad.resources.ic_no_devices
 import com.sam.bluepad.theme.Dimensions
 import kotlinx.collections.immutable.ImmutableList
 import org.jetbrains.compose.resources.painterResource
@@ -68,11 +84,17 @@ fun ManageDevicesScreen(
 				navigationIcon = navigation,
 				scrollBehavior = topBarScrollBehaviour,
 				actions = {
-					TextButton(
+					Button(
 						onClick = onNavigateToAdvertise,
-						modifier = Modifier.offset((-10).dp)
+						shapes = ButtonDefaults.shapes(),
+						contentPadding = ButtonDefaults.SmallContentPadding,
+						colors = ButtonDefaults.buttonColors(
+							containerColor = MaterialTheme.colorScheme.primaryContainer,
+							contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+						),
+						modifier = Modifier.offset((-10).dp),
 					) {
-						Text(stringResource(Res.string.action_ble_advertise))
+						Text(text = stringResource(Res.string.action_ble_advertise))
 					}
 				}
 			)
@@ -85,11 +107,11 @@ fun ManageDevicesScreen(
 			) {
 				ExtendedFloatingActionButton(
 					onClick = onNavigateToAddDevice,
-					text = { Text(text = "Add") },
+					text = { Text(text = stringResource(Res.string.action_add_new_device)) },
 					icon = {
 						Icon(
 							painter = painterResource(Res.drawable.ic_add),
-							contentDescription = "Add"
+							contentDescription = stringResource(Res.string.action_add_new_device)
 						)
 					},
 					expanded = windowSize.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
@@ -116,6 +138,9 @@ fun ManageDevicesScreen(
 					onRevokeDevice = { device ->
 						onEvent(ManageDevicesScreenEvent.OnRevokeDevice(device))
 					},
+					onDeleteDevice = { device ->
+						onEvent(ManageDevicesScreenEvent.OnDeleteDevice(device))
+					},
 					modifier = Modifier.fillMaxSize(),
 					contentPadding = PaddingValues(
 						horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
@@ -124,5 +149,43 @@ fun ManageDevicesScreen(
 				)
 			},
 		)
+	}
+}
+
+@Composable
+private fun EmptyDevicesListContainer(
+	onAddDevice: () -> Unit,
+	modifier: Modifier = Modifier
+) {
+	Column(
+		modifier = modifier,
+		horizontalAlignment = Alignment.CenterHorizontally,
+		verticalArrangement = Arrangement.Center
+	) {
+		Image(
+			painter = painterResource(Res.drawable.ic_no_devices),
+			contentDescription = "No devices present",
+			colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.secondary),
+			modifier = Modifier.size(200.dp)
+		)
+		Text(
+			text = stringResource(Res.string.devices_screen_list_empty),
+			style = MaterialTheme.typography.bodyMediumEmphasized,
+			color = MaterialTheme.colorScheme.onSurface,
+			textAlign = TextAlign.Center,
+			modifier = Modifier.width(200.dp),
+		)
+		Spacer(modifier = Modifier.height(12.dp))
+		ElevatedButton(
+			onClick = onAddDevice,
+			modifier = Modifier.heightIn(ButtonDefaults.MediumContainerHeight),
+			contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
+			shapes = ButtonDefaults.shapes(
+				shape = ButtonDefaults.shape,
+				pressedShape = ButtonDefaults.squareShape
+			)
+		) {
+			Text(text = stringResource(Res.string.action_add_new_device))
+		}
 	}
 }

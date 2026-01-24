@@ -28,11 +28,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.sam.bluepad.presentation.feature_devices.events.AdvertisementScreenEvent
@@ -44,13 +45,8 @@ import com.sam.bluepad.resources.device_advertisement_dialog_text
 import com.sam.bluepad.resources.device_advertisement_dialog_title
 import com.sam.bluepad.resources.dialog_action_cancel
 import com.sam.bluepad.theme.Dimensions
-import dev.icerock.moko.permissions.Permission
-import dev.icerock.moko.permissions.PermissionState
-import dev.icerock.moko.permissions.PermissionsController
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
 
 @Composable
 fun DeviceAdvertisementDialog(
@@ -67,20 +63,16 @@ fun DeviceAdvertisementDialog(
 	shadowElevation: Dp = 0.dp,
 ) {
 
-	val permissionController = koinInject<PermissionsController>()
-	val scope = rememberCoroutineScope()
-
 	Surface(
 		shape = shape,
 		color = containerColor,
 		tonalElevation = tonalElevation,
 		shadowElevation = shadowElevation,
 		modifier = modifier.widthIn(min = Dimensions.DIALOG_MIN_WIDTH).width(IntrinsicSize.Max)
-
 	) {
 		Column(
 			modifier = Modifier.padding(all = Dimensions.DIALOG_CONTENT_PADDING),
-			horizontalAlignment = Alignment.Start
+			horizontalAlignment = Alignment.CenterHorizontally
 		) {
 			Text(
 				text = stringResource(Res.string.device_advertisement_dialog_title),
@@ -88,20 +80,26 @@ fun DeviceAdvertisementDialog(
 				color = titleContentColor
 			)
 
-			Spacer(modifier = Modifier.height(16.dp))
+			Spacer(modifier = Modifier.height(Dimensions.DIALOG_SECTIONS_PADDING))
 			Text(
 				text = stringResource(Res.string.device_advertisement_dialog_text),
-				style = MaterialTheme.typography.bodyMedium,
+				style = MaterialTheme.typography.bodyMediumEmphasized,
 				color = textContentColor,
+				textAlign = TextAlign.Center
 			)
 
 			Column(
-				verticalArrangement = Arrangement.spacedBy(10.dp),
-				modifier = Modifier.padding(vertical = 20.dp)
+				verticalArrangement = Arrangement.spacedBy(4.dp),
+				modifier = Modifier.padding(vertical = Dimensions.DIALOG_SECTIONS_PADDING)
+					.fillMaxWidth()
 			) {
 				val points = stringArrayResource(Res.array.device_advertisement_dialog_points)
-				points.forEach {
-					BulletItem(it)
+				points.forEach { point ->
+					BulletItem(
+						text = point,
+						textColor = textContentColor,
+						textStyle = MaterialTheme.typography.labelLargeEmphasized
+					)
 				}
 			}
 
@@ -120,7 +118,7 @@ fun DeviceAdvertisementDialog(
 					)
 				}
 			}
-
+			Spacer(modifier = Modifier.height(Dimensions.DIALOG_SECTIONS_PADDING))
 			Row(
 				modifier = Modifier.fillMaxWidth(),
 				horizontalArrangement = Arrangement.End,
@@ -136,23 +134,11 @@ fun DeviceAdvertisementDialog(
 				) {
 					Text(text = stringResource(Res.string.dialog_action_cancel))
 				}
-				Spacer(modifier = Modifier.width(8.dp))
+				Spacer(modifier = Modifier.width(Dimensions.DIALOG_ACTIONS_SPACING))
 				Button(
 					onClick = {
-						scope.launch {
-							when (permissionController.getPermissionState(Permission.BLUETOOTH_LE)) {
-								PermissionState.NotGranted, PermissionState.NotDetermined, PermissionState.Denied -> {
-									permissionController.providePermission(Permission.BLUETOOTH_LE)
-								}
-
-								PermissionState.Granted -> {
-									if (isAdvertising) onEvent(AdvertisementScreenEvent.OnStopAdvertise)
-									else onEvent(AdvertisementScreenEvent.OnStartAdvertise)
-								}
-
-								PermissionState.DeniedAlways -> permissionController.openAppSettings()
-							}
-						}
+						if (isAdvertising) onEvent(AdvertisementScreenEvent.OnStopAdvertise)
+						else onEvent(AdvertisementScreenEvent.OnStartAdvertise)
 					},
 					shapes = ButtonDefaults.shapes(
 						shape = ButtonDefaults.elevatedShape,
@@ -172,7 +158,13 @@ fun DeviceAdvertisementDialog(
 }
 
 @Composable
-private fun BulletItem(text: String) {
+private fun BulletItem(
+	text: String,
+	textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
+	textColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+	bulletShape: Shape = MaterialShapes.Cookie4Sided.toShape(),
+	bulletColor: Color = MaterialTheme.colorScheme.secondary,
+) {
 	Row(
 		verticalAlignment = Alignment.CenterVertically,
 		horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -180,15 +172,12 @@ private fun BulletItem(text: String) {
 		Box(
 			modifier = Modifier
 				.size(12.dp)
-				.background(
-					MaterialTheme.colorScheme.primary,
-					MaterialShapes.Cookie4Sided.toShape()
-				)
+				.background(color = bulletColor, shape = bulletShape)
 		)
 		Text(
 			text = text,
-			style = MaterialTheme.typography.bodyMedium,
-			color = MaterialTheme.colorScheme.onSurfaceVariant
+			style = textStyle,
+			color = textColor
 		)
 	}
 }

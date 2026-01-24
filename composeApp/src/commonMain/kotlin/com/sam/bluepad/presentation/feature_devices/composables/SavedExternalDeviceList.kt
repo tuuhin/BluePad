@@ -20,6 +20,7 @@ fun SavedExternalDevicesList(
 	devices: ImmutableList<ExternalDeviceModel>,
 	onSyncDevice: (ExternalDeviceModel) -> Unit,
 	onRevokeDevice: (ExternalDeviceModel) -> Unit,
+	onDeleteDevice: (ExternalDeviceModel) -> Unit,
 	modifier: Modifier = Modifier,
 	listState: LazyGridState = rememberLazyGridState(),
 	contentPadding: PaddingValues = PaddingValues.Zero,
@@ -37,9 +38,9 @@ fun SavedExternalDevicesList(
 
 	LazyVerticalGrid(
 		state = listState,
-		columns = GridCells.Adaptive(minSize = 220.dp),
-		horizontalArrangement = Arrangement.spacedBy(8.dp),
-		verticalArrangement = Arrangement.spacedBy(8.dp),
+		columns = GridCells.Adaptive(minSize = 180.dp),
+		horizontalArrangement = Arrangement.spacedBy(12.dp),
+		verticalArrangement = Arrangement.spacedBy(12.dp),
 		contentPadding = contentPadding,
 		modifier = modifier
 	) {
@@ -52,9 +53,9 @@ fun SavedExternalDevicesList(
 				device = device,
 				onSync = { onSyncDevice(device) },
 				onRevoke = { onRevokeDevice(device) },
+				onDelete = { onDeleteDevice(device) },
 				modifier = Modifier.animateItem()
 			)
 		}
 	}
-
 }

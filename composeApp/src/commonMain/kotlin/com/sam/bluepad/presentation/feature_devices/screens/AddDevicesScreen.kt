@@ -1,9 +1,10 @@
 package com.sam.bluepad.presentation.feature_devices.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
@@ -44,7 +45,7 @@ import com.sam.bluepad.domain.ble.models.BLEPeerDevice
 import com.sam.bluepad.presentation.composables.ListContentLoadingWrapper
 import com.sam.bluepad.presentation.feature_devices.composables.BLEScanStartStopButton
 import com.sam.bluepad.presentation.feature_devices.composables.MultipleDeviceWarning
-import com.sam.bluepad.presentation.feature_devices.composables.ScanDeviceList
+import com.sam.bluepad.presentation.feature_devices.composables.ScanDevicesList
 import com.sam.bluepad.presentation.feature_devices.events.AddDeviceScreenEvent
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.resources.Res
@@ -134,7 +135,7 @@ fun AddDevicesScreen(
 			}
 			Box(
 				modifier = Modifier.weight(1f)
-					.animateContentSize(MaterialTheme.motionScheme.fastEffectsSpec())
+					.fillMaxSize()
 					.padding(
 						horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
 						vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING
@@ -148,19 +149,22 @@ fun AddDevicesScreen(
 				ListContentLoadingWrapper(
 					content = searchedPeers,
 					onItems = { peers ->
-						ScanDeviceList(
+						ScanDevicesList(
 							searchedPeers = peers,
 							isListRefreshing = isListRefreshing,
 							onListRefresh = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
 							onConnect = { device ->
-								onNavigateToConnect(device.deviceAddress)
 								if (isScanRunning) onEvent(AddDeviceScreenEvent.OnStopDeviceScan)
+								onNavigateToConnect(device.deviceAddress)
 							},
 							modifier = Modifier.fillMaxSize(),
 						)
 					},
 					onEmpty = {
-						NoDevicesFoundContainer(modifier = Modifier.fillMaxSize())
+						NoDevicesFoundContainer(
+							showContainer = !isScanRunning,
+							modifier = Modifier.fillMaxSize()
+						)
 					},
 				)
 			}
@@ -169,30 +173,45 @@ fun AddDevicesScreen(
 }
 
 @Composable
-private fun NoDevicesFoundContainer(modifier: Modifier = Modifier) {
-	Column(
-		horizontalAlignment = Alignment.CenterHorizontally,
-		verticalArrangement = Arrangement.Center,
+private fun NoDevicesFoundContainer(
+	showContainer: Boolean,
+	modifier: Modifier = Modifier
+) {
+	AnimatedVisibility(
+		visible = showContainer,
+		enter = scaleIn(
+			initialScale = .75f,
+			animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
+		) + fadeIn(),
+		exit = scaleOut(
+			targetScale = .4f,
+			animationSpec = MaterialTheme.motionScheme.slowSpatialSpec()
+		) + fadeOut(),
 		modifier = modifier,
 	) {
-		Image(
-			painter = painterResource(Res.drawable.ic_no_devices),
-			contentDescription = "No devices present",
-			modifier = Modifier.size(64.dp),
-			colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.secondary)
-		)
-		Spacer(modifier = Modifier.height(24.dp))
-		Text(
-			text = stringResource(Res.string.scan_results_no_device_title),
-			style = MaterialTheme.typography.headlineSmallEmphasized,
-			color = MaterialTheme.colorScheme.onSurface
-		)
-		Spacer(modifier = Modifier.height(8.dp))
-		Text(
-			text = stringResource(Res.string.scan_results_no_device_desc),
-			style = MaterialTheme.typography.bodyMediumEmphasized,
-			color = MaterialTheme.colorScheme.onSurfaceVariant,
-			textAlign = TextAlign.Center,
-		)
+		Column(
+			horizontalAlignment = Alignment.CenterHorizontally,
+			verticalArrangement = Arrangement.Center,
+		) {
+			Image(
+				painter = painterResource(Res.drawable.ic_no_devices),
+				contentDescription = "No devices present",
+				modifier = Modifier.size(72.dp),
+				colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.secondary)
+			)
+			Spacer(modifier = Modifier.height(24.dp))
+			Text(
+				text = stringResource(Res.string.scan_results_no_device_title),
+				style = MaterialTheme.typography.headlineSmallEmphasized,
+				color = MaterialTheme.colorScheme.onSurface
+			)
+			Spacer(modifier = Modifier.height(8.dp))
+			Text(
+				text = stringResource(Res.string.scan_results_no_device_desc),
+				style = MaterialTheme.typography.bodyMediumEmphasized,
+				color = MaterialTheme.colorScheme.onSurfaceVariant,
+				textAlign = TextAlign.Center,
+			)
+		}
 	}
 }

@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.sam.bluepad.domain.models.DevicePlatformOS
 import com.sam.bluepad.resources.Res
@@ -24,14 +26,15 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun DeviceOSTypeContainer(
+	modifier: Modifier = Modifier,
 	deviceOs: DevicePlatformOS = DevicePlatformOS.ANDROID,
-	modifier: Modifier = Modifier
+	containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
 ) {
 	Box(
 		modifier = modifier
 			.sizeIn(minWidth = 44.dp, minHeight = 44.dp)
 			.background(
-				color = MaterialTheme.colorScheme.primaryContainer,
+				color = containerColor,
 				shape = when (deviceOs) {
 					DevicePlatformOS.ANDROID -> MaterialShapes.Cookie4Sided.toShape()
 					DevicePlatformOS.WINDOWS -> MaterialShapes.Square.toShape()
@@ -47,7 +50,7 @@ fun DeviceOSTypeContainer(
 				DevicePlatformOS.UNKNOWN -> painterResource(Res.drawable.ic_os_unknown)
 			},
 			contentDescription = stringResource(Res.string.scan_results_save_device_warning),
-			tint = MaterialTheme.colorScheme.onPrimaryContainer,
+			tint = contentColorFor(containerColor),
 			modifier = Modifier.size(24.dp)
 		)
 	}

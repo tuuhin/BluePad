@@ -10,7 +10,9 @@
   <string name="action_start_scan">Start</string>
   <string name="action_stop_scan">Stop</string>
   <string name="action_revoke_device">Revoke</string>
+  <string name="action_delete_device">Delete</string>
   <string name="action_delete">Delete</string>
+  <string name="action_add_new_device">Add Device</string>
   <string name="action_save">Save</string>
   <string name="action_update">Update</string>
   <string name="action_sync_device">Sync</string>
@@ -21,6 +23,7 @@
   <string name="action_back">Back Arrow</string>
   <string name="devices_screen_title">Devices</string>
   <string name="devices_screen_subtitle">Manage and sync sketches across your devices</string>
+  <string name="devices_screen_list_empty">No devices were added</string>
   <string name="scan_results_no_device_title">No devices found</string>
   <string name="scan_results_no_device_desc">No device found after scan, if you have's started any scan</string>
   <string name="scan_results_save_device_warning">Sometime scan results can have duplicate values, use the latest device or refresh result</string>
@@ -31,6 +34,7 @@
   <string name="scan_device_signal_strength_poor">Poor</string>
   <string name="scan_device_signal_strength_very_poor">Very Poor</string>
   <string name="scan_device_signal_strength_unreliable">Unreliable</string>
+
   <!--  Device Card title -->
   <string name="scan_result_device_name_not_found">N/A</string>
   <string name="scan_result_device_name_title">Device Name</string>
@@ -40,19 +44,24 @@
   <string name="device_advertisement_dialog_title">Advertise this device</string>
   <string name="device_advertisement_dialog_text">This makes your device visible so another nearby device can add it.</string>
   <string-array name="device_advertisement_dialog_points">
-    <item>Visible only for a short time</item>
-    <item>Requires your approval</item>
+    <item>Makes current device visible to scanners</item>
+    <item>While device is advertising connect to it to exchange information</item>
+    <item>Current device will auto capture connectable device info and save it</item>
   </string-array>
   <string name="device_advertisement_action_start">Start Advertisement</string>
   <string name="device_advertisement_action_stop">Stop Advertisement</string>
   <!--  External device connection state-->
   <string name="external_device_conn_state_connecting">Connecting</string>
   <string name="external_device_conn_state_connected">Connected</string>
-  <string name="external_device_conn_state_disconnecting">Disconnected</string>
+  <string name="external_device_conn_state_disconnecting">Disconnecting</string>
   <string name="external_device_conn_state_disconnected">Disconnected</string>
-  <string name="external_device_conn_dialog_title">Connect to Device</string>
-  <string name="external_device_conn_dialog_text">Trying to connect to the external device</string>
-  <string name="external_device_conn_device_data_found">Collecting device data successfully</string>
+  <string name="external_device_conn_dialog_title">Connecting to Device</string>
+  <string name="external_device_conn_dialog_text">Trying connecting to external device and exchanging device information</string>
+  <string name="external_device_conn_device_data_found">Device information is collected successfully</string>
+  <string name="external_device_conn_device_data_collection_started">Collecting device information</string>
+  <string name="external_device_conn_device_disconnected">Device has been disconnected, try connecting to it again</string>
+  <string name="action_connect">Connect</string>
+  <string name="external_device_conn_retry_connection">Retry</string>
   <!--  sketches content screen-->
   <string name="sketches_screen_title">Sketches</string>
   <string name="sketches_screen_subtitle">View, edit, and manage your quick sketches.</string>

@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.sam.bluepad.presentation.navigation.nav_graph.AssociatedNavGraph
@@ -57,6 +58,7 @@ fun NavigationNavGraphWrapper(
 ) {
 	val windowSize = LocalWindowSizeInfo.current
 	val bluetoothState = LocalBluetoothState.current
+	val layoutDirection = LocalLayoutDirection.current
 
 	val state = rememberWideNavigationRailState(
 		initialValue = if (initialRailExpanded) WideNavigationRailValue.Expanded
@@ -98,7 +100,11 @@ fun NavigationNavGraphWrapper(
 	) { scPadding ->
 		Box(
 			modifier = Modifier.fillMaxSize()
-				.padding(scPadding)
+				.padding(
+					bottom = scPadding.calculateBottomPadding(),
+					start = scPadding.calculateLeftPadding(layoutDirection),
+					end = scPadding.calculateRightPadding(layoutDirection)
+				)
 		) {
 			if (windowSize.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)) {
 				Row(
