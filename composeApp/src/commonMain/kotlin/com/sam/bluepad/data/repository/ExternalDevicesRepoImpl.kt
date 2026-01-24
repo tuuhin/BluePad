@@ -8,6 +8,8 @@ import com.sam.bluepad.domain.exceptions.InvalidExternalDeviceIdException
 import com.sam.bluepad.domain.exceptions.NoRevokedDeviceFoundException
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
+import com.sam.bluepad.domain.repository.ResourceExternalDevice
+import com.sam.bluepad.domain.repository.ResourceExternalDeviceList
 import com.sam.bluepad.domain.utils.Resource
 import com.sam.bluepad.domain.utils.handleDBOperation
 import kotlinx.coroutines.flow.Flow
@@ -19,44 +21,61 @@ class ExternalDevicesRepoImpl(
 	private val devicesDao: DevicesInfoDao
 ) : ExternalDevicesRepository {
 
-	override fun saveOrUpdateDevice(
-		device: ExternalDeviceModel,
-		unRevokeOnUpdate: Boolean
-	): Flow<Resource<ExternalDeviceModel, Exception>> {
+	override fun saveOrUpdateDevice(device: ExternalDeviceModel, keepRevoked: Boolean)
+			: Flow<ResourceExternalDevice> {
 		return handleDBOperation {
 
-			val entity = if (unRevokeOnUpdate) device.toEntity().copy(isRevoked = false)
-			else device.toEntity()
+			// if the entity is revoked don't change it
+			val entity = if (keepRevoked) device.toEntity()
+			else device.toEntity().copy(isRevoked = false)
 
 			devicesDao.insertOrUpdateDevice(entity)
 
-			val result = devicesDao
-				.readDeviceById(device.id)
+			val result = devicesDao.readDeviceById(device.id)
 				?: return@handleDBOperation Resource.Error(InvalidExternalDeviceIdException())
 
 			Resource.Success(result.toDevice())
 		}
 	}
 
-	override fun toggleDeviceRevocation(device: ExternalDeviceModel): Flow<Resource<ExternalDeviceModel, Exception>> {
+	override fun saveOrUpdateDevices(devices: List<ExternalDeviceModel>, keepRevoked: Boolean)
+			: Flow<ResourceExternalDeviceList> {
 		return handleDBOperation {
-			val result = devicesDao
-				.readDeviceById(device.id)
+			// if the entity is revoked don't change it
+			val entities = devices.map { device ->
+				if (keepRevoked) device.toEntity()
+				else device.toEntity().copy(isRevoked = false)
+			}
+
+			devicesDao.insertOrUpdateDevices(entities)
+			val deviceIds = entities.map { infoEntity -> infoEntity.id }
+			val updatedDevices = devicesDao.readDevicesByIds(deviceIds)
+				.map { infoEntity -> infoEntity.toDevice() }
+
+			Resource.Success(updatedDevices)
+		}
+	}
+
+	override fun revokeOrUnRevokeDevice(device: ExternalDeviceModel): Flow<Resource<ExternalDeviceModel, Exception>> {
+		return handleDBOperation {
+			val result = devicesDao.readDeviceById(device.id)
 				?: return@handleDBOperation Resource.Error(InvalidExternalDeviceIdException())
 
-			devicesDao.setRevokeStatusOnDeviceByID(newRevokeStatus = !result.isRevoked, result.id)
+			devicesDao.setRevokeStatusOnDeviceByID(
+				newRevokeStatus = !result.isRevoked,
+				deviceId = result.id
+			)
 
-			val updatedDevice = devicesDao
-				.readDeviceById(result.id)
+			val updatedDevice = devicesDao.readDeviceById(result.id)
 				?: return@handleDBOperation Resource.Error(InvalidExternalDeviceIdException())
 
 			Resource.Success(updatedDevice.toDevice())
 		}
 	}
 
-	override fun getAllDevices(): Flow<Resource<List<ExternalDeviceModel>, Exception>> {
+	override fun getAllDevices(): Flow<ResourceExternalDeviceList> {
 		return devicesDao.readAllDevices(false)
-			.map<List<DeviceInfoEntity>, Resource<List<ExternalDeviceModel>, Exception>> { entities ->
+			.map<List<DeviceInfoEntity>, ResourceExternalDeviceList> { entities ->
 				val devices = entities.map { it.toDevice() }
 				Resource.Success(devices)
 			}
@@ -67,9 +86,9 @@ class ExternalDevicesRepoImpl(
 			}
 	}
 
-	override fun getRevokedDevices(): Flow<Resource<List<ExternalDeviceModel>, Exception>> {
+	override fun getAllRevokedDevices(): Flow<Resource<List<ExternalDeviceModel>, Exception>> {
 		return devicesDao.readAllDevices(true)
-			.map<List<DeviceInfoEntity>, Resource<List<ExternalDeviceModel>, Exception>> { entities ->
+			.map<List<DeviceInfoEntity>, ResourceExternalDeviceList> { entities ->
 				val devices = entities.map { it.toDevice() }
 				Resource.Success(devices)
 			}

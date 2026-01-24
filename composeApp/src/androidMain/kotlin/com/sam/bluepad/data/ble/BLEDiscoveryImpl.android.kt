@@ -161,7 +161,7 @@ actual class BLEDiscoveryImpl(private val context: Context) : BLEDiscoveryManage
 		if (!context.hasBLEScanPermission)
 			return Result.failure(BluetoothPermissionException())
 		// location permission not found
-		if (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !context.hasFineLocationPermission) && !context.hasCoarseLocationPermission)
+		if (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && context.hasFineLocationPermission) && !context.hasCoarseLocationPermission)
 			return Result.failure(LocationPermissionException())
 		// bluetooth not enabled
 		if (_bluetoothManager?.adapter?.isEnabled != true)

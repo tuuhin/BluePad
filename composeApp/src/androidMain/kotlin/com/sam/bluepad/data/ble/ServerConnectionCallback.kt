@@ -88,6 +88,10 @@ class ServerConnectionCallback(
 		Logger.d(TAG) { "DEVICE IDENTIFIER:${device.address} BOND STATE: $bondState CONNECTION STATE CHANGED" }
 	}
 
+	override fun onMtuChanged(device: BluetoothDevice?, mtu: Int) {
+		Logger.d(TAG) { "DEVICE CHANGE ITS MTU :${device?.address} $mtu" }
+	}
+
 	override fun onServiceAdded(status: Int, service: BluetoothGattService?) {
 		if (status != BluetoothGatt.GATT_SUCCESS) {
 			Logger.w(TAG) { "SOME ERROR IN ADDING THE SERVICE: $status" }
@@ -121,7 +125,7 @@ class ServerConnectionCallback(
 			val value = when (characteristic.uuid.toKotlinUuid()) {
 				BLEConstants.deviceInfoCharacteristics -> {
 					try {
-						val nonce = randomGenerator.generateRandomBytes(12).also { nonceBytes ->
+						val nonce = randomGenerator.generateRandomBytes(8).also { nonceBytes ->
 							_deviceNonceMap[device.address] = nonceBytes
 						}
 						val peerData = BLEPeerData(
@@ -130,8 +134,10 @@ class ServerConnectionCallback(
 							nonce = nonce.decodeToString(),
 							deviceOs = platformInfoProvider.platformOS,
 						)
-						protoBuf.encodeToByteArray<BLEPeerData>(peerData)
 
+						val bytes = protoBuf.encodeToByteArray<BLEPeerData>(peerData)
+						Logger.d(TAG) { "SENDING DATA SIZE:${bytes.size}" }
+						bytes
 					} catch (e: Exception) {
 						Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
 						sendFailedResponse(device, requestId, offset)

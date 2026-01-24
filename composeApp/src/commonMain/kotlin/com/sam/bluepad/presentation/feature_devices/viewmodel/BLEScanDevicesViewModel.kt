@@ -2,9 +2,17 @@ package com.sam.bluepad.presentation.feature_devices.viewmodel
 
 import androidx.lifecycle.viewModelScope
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
+import com.sam.bluepad.domain.exceptions.BluetoothPermissionException
+import com.sam.bluepad.domain.exceptions.LocationPermissionException
 import com.sam.bluepad.presentation.feature_devices.events.AddDeviceScreenEvent
 import com.sam.bluepad.presentation.utils.AppViewModel
 import com.sam.bluepad.presentation.utils.UIEvents
+import dev.icerock.moko.permissions.DeniedAlwaysException
+import dev.icerock.moko.permissions.DeniedException
+import dev.icerock.moko.permissions.Permission
+import dev.icerock.moko.permissions.PermissionState
+import dev.icerock.moko.permissions.PermissionsController
+import dev.icerock.moko.permissions.RequestCanceledException
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
@@ -20,6 +28,7 @@ import kotlinx.coroutines.launch
 
 class BLEScanDevicesViewModel(
 	private val bleScanManager: BLEDiscoveryManager,
+	private val permissionManger: PermissionsController,
 ) : AppViewModel() {
 
 	private val _isListRefreshing = MutableStateFlow(false)
@@ -69,9 +78,66 @@ class BLEScanDevicesViewModel(
 	private fun onStartScan() {
 		_bleScanJob = viewModelScope.launch {
 			val result = bleScanManager.startScan()
-			result.onFailure { err ->
-				_uiEvents.emit(UIEvents.ShowSnackBar(err.message ?: "Some error"))
+			result.fold(
+				onSuccess = { _uiEvents.emit(UIEvents.ShowToast("Scan started")) },
+				onFailure = { err ->
+					when (err) {
+						is LocationPermissionException -> {
+							val message = "Allow location permission from settings"
+							handlePermission(Permission.LOCATION, message)
+						}
+
+						is BluetoothPermissionException -> {
+							val message = "Bluetooth scan permission required "
+							handlePermission(Permission.BLUETOOTH_LE, message)
+						}
+
+						else -> {
+							val message = err.message ?: "Some error occurred"
+							_uiEvents.emit(UIEvents.ShowSnackBar(message))
+						}
+					}
+				},
+			)
+		}
+	}
+
+	private fun handlePermission(
+		permission: Permission,
+		message: String? = null,
+		onSuccess: () -> Unit = {}
+	) = viewModelScope.launch {
+		val state = permissionManger.getPermissionState(permission)
+		val settingsMessage = message ?: "Open settings and allow :$permission permission"
+
+		when (state) {
+			PermissionState.NotGranted, PermissionState.NotDetermined, PermissionState.Denied -> {
+				try {
+					permissionManger.providePermission(permission)
+					onSuccess()
+				} catch (_: DeniedException) {
+					_uiEvents.emit(UIEvents.ShowSnackBar("Permission denied"))
+				} catch (_: DeniedAlwaysException) {
+					_uiEvents.emit(
+						UIEvents.ShowSnackBarWithActions(
+							settingsMessage,
+							action = { permissionManger.openAppSettings() },
+							actionText = "Settings"
+						)
+					)
+				} catch (_: RequestCanceledException) {
+				}
 			}
+
+			PermissionState.DeniedAlways -> _uiEvents.emit(
+				UIEvents.ShowSnackBarWithActions(
+					settingsMessage,
+					action = { permissionManger.openAppSettings() },
+					actionText = "Settings"
+				)
+			)
+
+			PermissionState.Granted -> onSuccess()
 		}
 	}
 

@@ -162,15 +162,20 @@ actual class BLEAdvertisementImpl(
 	}
 
 	override fun stopAdvertising() {
-		val advertiser = _bluetoothManager?.adapter?.bluetoothLeAdvertiser ?: return
-		Logger.i(TAG) { "STOPPING ADVERTISEMENT" }
-		advertiser.stopAdvertisingSet(_advertiseCallback)
-		_isRunning.value = false
+		try {
+			val advertiser = _bluetoothManager?.adapter?.bluetoothLeAdvertiser ?: return
+			Logger.i(TAG) { "STOPPING ADVERTISEMENT" }
+			advertiser.stopAdvertisingSet(_advertiseCallback)
 
-		_bleServer?.clearServices()
-		Logger.d(TAG) { "STOPPING SERVER" }
-		_bleServer?.close()
-		_bleServer = null
+			_bleServer?.clearServices()
+			Logger.d(TAG) { "STOPPING SERVER" }
+			_bleServer?.close()
+		} catch (e: Exception) {
+			Logger.d(TAG, e) { "SOME EXCEPTIONS" }
+		} finally {
+			_isRunning.value = false
+			_bleServer = null
+		}
 	}
 
 	override fun cleanUp() {

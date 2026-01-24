@@ -18,10 +18,16 @@ val Context.hasBLEScanPermission: Boolean
 val Context.hasBLEFeature: Boolean
 	get() = packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
 
-val Context.hasLocationPermission: Boolean
+val Context.hasCoarseLocationPermission: Boolean
 	get() = ContextCompat.checkSelfPermission(
 		this,
 		Manifest.permission.ACCESS_COARSE_LOCATION
+	) == PermissionChecker.PERMISSION_GRANTED
+
+val Context.hasFineLocationPermission: Boolean
+	get() = ContextCompat.checkSelfPermission(
+		this,
+		Manifest.permission.ACCESS_FINE_LOCATION
 	) == PermissionChecker.PERMISSION_GRANTED
 
 val Context.hasConnectPermission: Boolean

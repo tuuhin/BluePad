@@ -1,27 +1,28 @@
 package com.sam.bluepad.presentation.feature_devices.viewmodel
 
 import androidx.lifecycle.viewModelScope
+import com.sam.bluepad.data.mappers.toExternalDevice
 import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.models.BLEConnectionState
 import com.sam.bluepad.domain.ble.models.BLEPeerData
-import com.sam.bluepad.domain.models.DevicePlatformOS
-import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.utils.Resource
 import com.sam.bluepad.presentation.feature_devices.events.ConnectDeviceScreenEvent
 import com.sam.bluepad.presentation.utils.AppViewModel
 import com.sam.bluepad.presentation.utils.UIEvents
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class BLEConnectDeviceViewmodel(
 	private val address: String,
@@ -29,7 +30,14 @@ class BLEConnectDeviceViewmodel(
 	private val repository: ExternalDevicesRepository,
 ) : AppViewModel() {
 
-	private val _peerData = MutableStateFlow<BLEPeerData?>(null)
+	private val _connectedPeer = MutableStateFlow<BLEPeerData?>(null)
+	val connectedPeerData = _connectedPeer.asStateFlow()
+
+	private val _errorMessages = MutableSharedFlow<String?>(
+		extraBufferCapacity = 1,
+		onBufferOverflow = BufferOverflow.DROP_OLDEST
+	)
+	val errorMessage = _errorMessages.asSharedFlow()
 
 	val connectionState = connector.connectionState
 		.onStart { onConnectToDevice(address) }
@@ -39,18 +47,9 @@ class BLEConnectDeviceViewmodel(
 			initialValue = BLEConnectionState.CONNECTING
 		)
 
-	val peerData = _peerData.map { it != null }
-		.stateIn(
-			scope = viewModelScope,
-			started = SharingStarted.Eagerly,
-			initialValue = false
-		)
-
 	private val _uiEvents = MutableSharedFlow<UIEvents>()
 	override val uiEvent: SharedFlow<UIEvents>
 		get() = _uiEvents
-
-	private var _connectJob: Job? = null
 
 	fun onEvent(event: ConnectDeviceScreenEvent) {
 		when (event) {
@@ -61,33 +60,34 @@ class BLEConnectDeviceViewmodel(
 	}
 
 	private fun onConnectToDevice(address: String) {
-		_connectJob = connector.connectAndReceiveData(address).onEach { res ->
-			when (res) {
-				is Resource.Success -> _peerData.update { res.data }
-				is Resource.Error -> {
-					val message = res.message ?: res.error.message ?: "Some error"
-					_uiEvents.emit(UIEvents.ShowSnackBar(message))
-				}
+		// clear the connected pair
+		_connectedPeer.value = null
+		_errorMessages.tryEmit(null)
 
-				Resource.Loading -> {
-					_uiEvents.emit(UIEvents.ShowToast("Connection Initiated"))
+		connector.connectAndReceiveData(address = address, disconnectOnDone = false)
+			.onEach { res ->
+				when (res) {
+					is Resource.Success -> _connectedPeer.update { res.data }
+					is Resource.Error -> {
+						val message = res.message ?: res.error.message ?: "Some error"
+						_errorMessages.tryEmit(message)
+					}
+
+					Resource.Loading -> {
+						_uiEvents.emit(UIEvents.ShowToast("Connection Initiated"))
+					}
 				}
-			}
-		}.launchIn(viewModelScope)
+			}.launchIn(viewModelScope)
 	}
 
 	private fun onSaveDevice() {
-		val peerData = _peerData.value ?: return
-		val externalDevice = ExternalDeviceModel(
-			id = peerData.deviceId,
-			displayName = peerData.deviceName,
-			deviceOs = peerData.deviceOs ?: DevicePlatformOS.UNKNOWN
-		)
+		val peerData = _connectedPeer.value ?: return
+		val externalDevice = peerData.toExternalDevice()
 		repository.saveOrUpdateDevice(externalDevice).onEach { res ->
 			when (res) {
 				is Resource.Error -> {
 					val message = res.message ?: res.error.message ?: "Some error"
-					_uiEvents.emit(UIEvents.ShowSnackBar(message))
+					_errorMessages.tryEmit(message)
 				}
 
 				is Resource.Success -> {
@@ -101,17 +101,13 @@ class BLEConnectDeviceViewmodel(
 
 	}
 
-	private fun onDisconnectDevice() {
+	private fun onDisconnectDevice() = viewModelScope.launch {
+		_connectedPeer.value = null
 		connector.disconnect()
-		_connectJob?.cancel()
-		_connectJob = null
 	}
 
 	override fun onCleared() {
-		// cancel the scan job
-		_connectJob?.cancel()
-		_connectJob = null
-		// disconnect andy connection if present
-		connector.disconnect()
+		// disconnect andy connection if present and clean up
+		connector.cleanUp()
 	}
 }

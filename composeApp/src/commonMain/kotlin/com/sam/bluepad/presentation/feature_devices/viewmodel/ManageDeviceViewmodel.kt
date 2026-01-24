@@ -47,6 +47,7 @@ class ManageDeviceViewmodel(
 		when (event) {
 			is ManageDevicesScreenEvent.OnRevokeDevice -> onRevokeDevice(event.device)
 			is ManageDevicesScreenEvent.OnSyncDevice -> onSyncDevice(event.device)
+			is ManageDevicesScreenEvent.OnDeleteDevice -> onDeleteDevice(event.device)
 		}
 	}
 
@@ -70,7 +71,7 @@ class ManageDeviceViewmodel(
 		.launchIn(viewModelScope)
 
 	private fun onRevokeDevice(device: ExternalDeviceModel) =
-		repository.toggleDeviceRevocation(device)
+		repository.revokeOrUnRevokeDevice(device)
 			.onEach { res ->
 				when (res) {
 					is Resource.Error -> {
@@ -86,6 +87,42 @@ class ManageDeviceViewmodel(
 					else -> {}
 				}
 			}.launchIn(viewModelScope)
+
+	private fun onDeleteDevice(device: ExternalDeviceModel) =
+		repository.deleteDevice(device).onEach { res ->
+			when (res) {
+				is Resource.Error -> {
+					val message = res.message ?: res.error.message ?: "Some error"
+					_uiEvents.emit(UIEvents.ShowSnackBar(message))
+				}
+
+				is Resource.Success -> {
+					val message = "Device ${device.displayName} deleted"
+					val event = UIEvents.ShowSnackBarWithActions(
+						message,
+						action = { insertDevice(device) },
+						actionText = "Undo"
+					)
+					_uiEvents.emit(event)
+				}
+
+				else -> {}
+			}
+		}.launchIn(viewModelScope)
+
+
+	private fun insertDevice(device: ExternalDeviceModel) =
+		repository.saveOrUpdateDevice(device).onEach { res ->
+			when (res) {
+				is Resource.Error -> {
+					val message = res.message ?: res.error.message ?: "Some error"
+					_uiEvents.emit(UIEvents.ShowSnackBar(message))
+				}
+
+				else -> {}
+			}
+		}.launchIn(viewModelScope)
+
 
 	private fun onSyncDevice(device: ExternalDeviceModel) = viewModelScope.launch {
 		_uiEvents.emit(UIEvents.ShowSnackBar("Feature unavailable sorry"))
