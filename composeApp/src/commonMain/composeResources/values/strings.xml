@@ -95,4 +95,13 @@
   <string name="receive_sync_devices_list_screen_subtitle">Looking for nearby devices that want to sync</string>
   <string name="option_receiver_active">Receiver is Active</string>
   <string name="option_receiver_inactive">Receiver Off</string>
+
+  <string name="black_list_devices_screen_title">Black Listed Device</string>
+  <string name="black_list_devices_screen_text">The list of devices that are blacklisted earlier</string>
+  <string name="black_list_devices_screen_action_restore_all">Restore All</string>
+  <string name="black_list_devices_screen_action_restore">Restore</string>
+  <string name="black_list_devices_no_items_title">No Blacklisted devices</string>
+  <string name="device_device_id">Device id: %1$s</string>
+  <string name="action_blacklist_devices_screen">BlackList Devices</string>
+  <string name="action_blacklist_device">BlackList</string>
 </resources>

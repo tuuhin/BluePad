@@ -11,14 +11,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.sam.bluepad.domain.bluetooth.BluetoothStateProvider
 import com.sam.bluepad.presentation.navigation.AppRootNavHost
 import com.sam.bluepad.presentation.utils.LocalBluetoothState
 import com.sam.bluepad.presentation.utils.LocalPostureInfo
 import com.sam.bluepad.presentation.utils.LocalSharedTransitionScope
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun App(modifier: Modifier = Modifier) {
@@ -26,9 +25,8 @@ fun App(modifier: Modifier = Modifier) {
 	val snackBarHostState = remember { SnackbarHostState() }
 	val windowInfo = currentWindowAdaptiveInfo()
 
-	val bluetoothStateProvider = koinInject<BluetoothStateProvider>()
-	// as false is our check case we consider it to be true
-	val state by bluetoothStateProvider.bluetoothStatusFlow.collectAsStateWithLifecycle(true)
+	val commonViewmodel = koinViewModel<AppCommonViewModel>()
+	val state by commonViewmodel.bluetoothState.collectAsStateWithLifecycle()
 
 	Surface(
 		color = MaterialTheme.colorScheme.background,

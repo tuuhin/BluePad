@@ -31,9 +31,11 @@ fun EntryProviderScope<NavKey>.sketchesListRouteEntry(
 		isLoading = isLoading,
 		onEvent = viewModel::onEvent,
 		showDeleteDialog = isSketchSelected,
-		onNavigateToNewSketch = { backStack.add(RootNavGraph.AddOrUpdateRoute()) },
 		onNavigateToSketch = { sketch ->
-			backStack.add(RootNavGraph.AddOrUpdateRoute(sketch.id))
+			backStack.add(RootNavGraph.AddOrUpdateRoute(sketch?.id))
 		},
+		onNavigateToReceiveSync = {
+			backStack.add(RootNavGraph.ReceiveSyncDeviceRoute)
+		}
 	)
 }

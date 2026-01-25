@@ -26,7 +26,8 @@ fun EntryProviderScope<NavKey>.devicesRouteEntry(
 		devices = savedDevices,
 		isLoading = isLoading,
 		onEvent = viewModel::onEvent,
-		onNavigateToAdvertise = { backStack.add(RootNavGraph.AdvertiseDeviceRoute) },
-		onNavigateToAddDevice = { backStack.add(RootNavGraph.SearchDeviceRoute) }
+		onNavigateToAdvertiseRoute = { backStack.add(RootNavGraph.AdvertiseDeviceRoute) },
+		onNavigateToAddDeviceRoute = { backStack.add(RootNavGraph.SearchDeviceRoute) },
+		onNavigateToRevokeDevicesRoute = { backStack.add(RootNavGraph.BlackListedDevicesRoute) }
 	)
 }

@@ -36,8 +36,8 @@ import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.presentation.composables.DeviceOSTypeContainer
 import com.sam.bluepad.presentation.utils.PreviewFakes
 import com.sam.bluepad.resources.Res
+import com.sam.bluepad.resources.action_blacklist_device
 import com.sam.bluepad.resources.action_delete_device
-import com.sam.bluepad.resources.action_revoke_device
 import com.sam.bluepad.resources.action_sync_device
 import com.sam.bluepad.resources.ic_delete
 import com.sam.bluepad.resources.ic_unlink
@@ -126,7 +126,7 @@ fun ExternalDeviceCard(
 							shape = MaterialTheme.shapes.large
 						) {
 							DropdownMenuItem(
-								text = { Text(text = stringResource(Res.string.action_revoke_device)) },
+								text = { Text(text = stringResource(Res.string.action_blacklist_device)) },
 								leadingIcon = {
 									Icon(
 										painter = painterResource(Res.drawable.ic_unlink),

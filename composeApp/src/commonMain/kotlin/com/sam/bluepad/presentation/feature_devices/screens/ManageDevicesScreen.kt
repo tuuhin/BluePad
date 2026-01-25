@@ -11,18 +11,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
@@ -40,16 +38,14 @@ import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.presentation.composables.ListContentLoadingWrapper
+import com.sam.bluepad.presentation.feature_devices.composables.ManageDeviceScreenTopAppBar
 import com.sam.bluepad.presentation.feature_devices.composables.SavedExternalDevicesList
 import com.sam.bluepad.presentation.feature_devices.events.ManageDevicesScreenEvent
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_add_new_device
-import com.sam.bluepad.resources.action_ble_advertise
 import com.sam.bluepad.resources.devices_screen_list_empty
-import com.sam.bluepad.resources.devices_screen_subtitle
-import com.sam.bluepad.resources.devices_screen_title
 import com.sam.bluepad.resources.ic_add
 import com.sam.bluepad.resources.ic_no_devices
 import com.sam.bluepad.theme.Dimensions
@@ -65,8 +61,9 @@ fun ManageDevicesScreen(
 	modifier: Modifier = Modifier,
 	isLoading: Boolean = false,
 	navigation: @Composable () -> Unit = {},
-	onNavigateToAddDevice: () -> Unit = {},
-	onNavigateToAdvertise: () -> Unit = {},
+	onNavigateToAddDeviceRoute: () -> Unit = {},
+	onNavigateToAdvertiseRoute: () -> Unit = {},
+	onNavigateToRevokeDevicesRoute: () -> Unit = {},
 ) {
 	val snackBarHostState = LocalSnackBarState.current
 	val windowSize = LocalWindowSizeInfo.current
@@ -76,27 +73,16 @@ fun ManageDevicesScreen(
 		derivedStateOf { devices.isNotEmpty() }
 	}
 
+	val isLargeScreen =
+		windowSize.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
+
 	Scaffold(
 		topBar = {
-			MediumFlexibleTopAppBar(
-				title = { Text(text = stringResource(Res.string.devices_screen_title)) },
-				subtitle = { Text(text = stringResource(Res.string.devices_screen_subtitle)) },
-				navigationIcon = navigation,
-				scrollBehavior = topBarScrollBehaviour,
-				actions = {
-					Button(
-						onClick = onNavigateToAdvertise,
-						shapes = ButtonDefaults.shapes(),
-						contentPadding = ButtonDefaults.SmallContentPadding,
-						colors = ButtonDefaults.buttonColors(
-							containerColor = MaterialTheme.colorScheme.primaryContainer,
-							contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-						),
-						modifier = Modifier.offset((-10).dp),
-					) {
-						Text(text = stringResource(Res.string.action_ble_advertise))
-					}
-				}
+			ManageDeviceScreenTopAppBar(
+				onNavigateToAdvertise = onNavigateToAdvertiseRoute,
+				onNavigateToBlockDevices = onNavigateToRevokeDevicesRoute,
+				navigation = navigation,
+				topBarScrollBehaviour = topBarScrollBehaviour
 			)
 		},
 		floatingActionButton = {
@@ -106,15 +92,17 @@ fun ManageDevicesScreen(
 				exit = slideOutVertically()
 			) {
 				ExtendedFloatingActionButton(
-					onClick = onNavigateToAddDevice,
+					onClick = onNavigateToAddDeviceRoute,
+					shape = if (isLargeScreen) FloatingActionButtonDefaults.largeExtendedFabShape else FloatingActionButtonDefaults.largeShape,
 					text = { Text(text = stringResource(Res.string.action_add_new_device)) },
 					icon = {
 						Icon(
 							painter = painterResource(Res.drawable.ic_add),
-							contentDescription = stringResource(Res.string.action_add_new_device)
+							contentDescription = stringResource(Res.string.action_add_new_device),
+							modifier = Modifier.size(FloatingActionButtonDefaults.MediumIconSize),
 						)
 					},
-					expanded = windowSize.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
+					expanded = isLargeScreen
 				)
 			}
 		},
@@ -126,8 +114,8 @@ fun ManageDevicesScreen(
 			isLoading = isLoading,
 			modifier = Modifier.fillMaxSize().padding(padding),
 			onEmpty = {
-				EmptyDevicesListContainer(
-					onAddDevice = onNavigateToAddDevice,
+				EmptyBlackListedDevicesContainer(
+					onAddDevice = onNavigateToAddDeviceRoute,
 					modifier = Modifier.fillMaxSize()
 				)
 			},
@@ -153,7 +141,7 @@ fun ManageDevicesScreen(
 }
 
 @Composable
-private fun EmptyDevicesListContainer(
+private fun EmptyBlackListedDevicesContainer(
 	onAddDevice: () -> Unit,
 	modifier: Modifier = Modifier
 ) {

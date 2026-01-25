@@ -12,7 +12,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
@@ -26,14 +25,13 @@ import com.sam.bluepad.presentation.composables.ListContentLoadingWrapper
 import com.sam.bluepad.presentation.feature_sketches.composables.DeleteSketchDialog
 import com.sam.bluepad.presentation.feature_sketches.composables.EmptySketchesList
 import com.sam.bluepad.presentation.feature_sketches.composables.SketchesListContent
+import com.sam.bluepad.presentation.feature_sketches.composables.SketchesListTopAppBar
 import com.sam.bluepad.presentation.feature_sketches.events.SketchScreenEvent
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_create_sketch
 import com.sam.bluepad.resources.ic_add
-import com.sam.bluepad.resources.sketches_screen_subtitle
-import com.sam.bluepad.resources.sketches_screen_title
 import com.sam.bluepad.theme.Dimensions
 import kotlinx.collections.immutable.ImmutableList
 import org.jetbrains.compose.resources.painterResource
@@ -48,8 +46,8 @@ fun SketchesListScreen(
 	isLoading: Boolean = false,
 	showDeleteDialog: Boolean = false,
 	navigation: @Composable () -> Unit = {},
-	onNavigateToSketch: (SketchModel) -> Unit = {},
-	onNavigateToNewSketch: () -> Unit = {},
+	onNavigateToSketch: (SketchModel?) -> Unit = {},
+	onNavigateToReceiveSync: () -> Unit = {},
 ) {
 	val topBarScrollBehaviour = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 	val snackBarHostState = LocalSnackBarState.current
@@ -63,21 +61,20 @@ fun SketchesListScreen(
 
 	Scaffold(
 		topBar = {
-			MediumFlexibleTopAppBar(
-				title = { Text(text = stringResource(Res.string.sketches_screen_title)) },
-				subtitle = { Text(text = stringResource(Res.string.sketches_screen_subtitle)) },
-				navigationIcon = navigation,
-				scrollBehavior = topBarScrollBehaviour
+			SketchesListTopAppBar(
+				topBarScrollBehaviour = topBarScrollBehaviour,
+				navigation = navigation,
+				onReceiveData = onNavigateToReceiveSync
 			)
 		},
 		floatingActionButton = {
 			AnimatedVisibility(
-				visible = !isLoading,
+				visible = !isLoading && sketches.isNotEmpty(),
 				enter = slideInVertically(MaterialTheme.motionScheme.slowEffectsSpec()) { height -> height } + fadeIn(),
 				exit = slideOutVertically(MaterialTheme.motionScheme.slowEffectsSpec()) { height -> height } + fadeOut()
 			) {
 				ExtendedFloatingActionButton(
-					onClick = onNavigateToNewSketch,
+					onClick = { onNavigateToSketch(null) },
 					shape = MaterialTheme.shapes.large,
 					text = { Text(text = stringResource(Res.string.action_create_sketch)) },
 					icon = {
@@ -99,7 +96,7 @@ fun SketchesListScreen(
 			modifier = Modifier.padding(padding),
 			onEmpty = {
 				EmptySketchesList(
-					onCreateNew = onNavigateToNewSketch,
+					onCreateNew = { onNavigateToSketch(null) },
 					modifier = Modifier.fillMaxSize()
 				)
 			},
