@@ -32,7 +32,7 @@ class MainActivity : ComponentActivity() {
 		_permissionController.bind(this)
 
 		setContent {
-			BluePadTheme {
+			BluePadTheme(dynamicColor = true) {
 				App()
 			}
 		}

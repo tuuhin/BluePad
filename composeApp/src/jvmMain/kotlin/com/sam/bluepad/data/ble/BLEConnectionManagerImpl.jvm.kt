@@ -103,7 +103,10 @@ actual class BLEConnectionManagerImpl(
 		awaitClose { cleanUp() }
 	}.catch { err ->
 		if (err is CancellationException) Logger.d(TAG) { "CANCELLATION EXCEPTION OCCURRED" }
-		if (err is Exception) emit(Resource.Error(err))
+		if (err is Exception) {
+			Logger.e(TAG, err) { "SOME EXCEPTION OCCURRED" }
+			emit(Resource.Error(err))
+		}
 	}
 
 	private fun Peripheral.observePeripheralState() {
