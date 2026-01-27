@@ -8,7 +8,7 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import com.sam.bluepad.presentation.feature_sync.ReceiveSyncDeviceListScreen
-import com.sam.bluepad.presentation.feature_sync.viewmodel.ReceiveSyncDevicesViewModel
+import com.sam.bluepad.presentation.feature_sync.viewmodel.ReceiveDeviceSyncViewModel
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_back
@@ -21,7 +21,7 @@ fun EntryProviderScope<NavKey>.receiveSyncDataRouteEntry(
 	backStack: NavBackStack<NavKey>
 ) = entry<RootNavGraph.ReceiveSyncDeviceRoute> {
 
-	val viewModel = koinViewModel<ReceiveSyncDevicesViewModel>()
+	val viewModel = koinViewModel<ReceiveDeviceSyncViewModel>()
 
 	val isAdvertising by viewModel.isAdvertising.collectAsStateWithLifecycle()
 	val devices by viewModel.savedDevices.collectAsStateWithLifecycle()

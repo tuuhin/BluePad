@@ -2,10 +2,10 @@ package com.sam.bluepad.presentation.feature_sync.viewmodel
 
 import androidx.lifecycle.viewModelScope
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
-import com.sam.bluepad.domain.ble.BLEAdvertisementType
+import com.sam.bluepad.domain.ble.BLEConnectionType
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
-import com.sam.bluepad.presentation.feature_sync.event.ReceiveSyncEvent
+import com.sam.bluepad.presentation.feature_sync.event.ReceiveDeviceSyncScreenEvents
 import com.sam.bluepad.presentation.utils.AppViewModel
 import com.sam.bluepad.presentation.utils.UIEvents
 import kotlinx.collections.immutable.persistentListOf
@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class ReceiveSyncDevicesViewModel(
+class ReceiveDeviceSyncViewModel(
 	private val advertiser: BLEAdvertisementManager,
 	private val repository: ExternalDevicesRepository,
 ) : AppViewModel() {
@@ -43,22 +43,22 @@ class ReceiveSyncDevicesViewModel(
 	val selectedDevice = _selectedDevice.asStateFlow()
 
 	val isAdvertising = advertiser.isRunning
-		.onStart { advertiser.startAdvertising(BLEAdvertisementType.PROXIMITY_AND_SYNC) }
+		.onStart { advertiser.startAdvertising(BLEConnectionType.PROXIMITY_AND_SYNC) }
 		.stateIn(
 			scope = viewModelScope,
 			started = SharingStarted.Eagerly,
 			initialValue = false
 		)
 
-	fun onEvent(event: ReceiveSyncEvent) {
+	fun onEvent(event: ReceiveDeviceSyncScreenEvents) {
 		when (event) {
-			is ReceiveSyncEvent.OnSelectDevice -> _selectedDevice.update { prev ->
+			is ReceiveDeviceSyncScreenEvents.OnSelectDevice -> _selectedDevice.update { prev ->
 				if (prev == event.device) null else event.device
 			}
 
-			ReceiveSyncEvent.ToggleReceiver -> viewModelScope.launch {
+			ReceiveDeviceSyncScreenEvents.ToggleReceiver -> viewModelScope.launch {
 				if (isAdvertising.value) advertiser.stopAdvertising()
-				else advertiser.startAdvertising(BLEAdvertisementType.PROXIMITY_AND_SYNC)
+				else advertiser.startAdvertising(BLEConnectionType.PROXIMITY_AND_SYNC)
 			}
 		}
 	}

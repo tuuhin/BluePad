@@ -4,19 +4,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.DialogSceneStrategy
+import androidx.navigation3.scene.SceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import com.sam.bluepad.presentation.navigation.dialogs.advertiseDeviceEntry
+import com.sam.bluepad.presentation.navigation.dialogs.connectDeviceEntry
+import com.sam.bluepad.presentation.navigation.dialogs.syncDeviceRouteEntry
 import com.sam.bluepad.presentation.navigation.nav_graph.AssociatedNavGraph
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
 import com.sam.bluepad.presentation.navigation.screens.associatedNavGraphEntry
-import com.sam.bluepad.presentation.navigation.screens.connectDeviceEntry
+import com.sam.bluepad.presentation.navigation.screens.blackListedDevicesRoute
 import com.sam.bluepad.presentation.navigation.screens.createOrUpdateSketchesEntry
+import com.sam.bluepad.presentation.navigation.screens.receiveSyncDataRouteEntry
 import com.sam.bluepad.presentation.navigation.screens.searchDevicesEntry
+import com.sam.bluepad.presentation.navigation.utils.BottomSheetSceneStrategy
 
 @Composable
 fun AppRootNavHost(modifier: Modifier = Modifier) {
@@ -28,10 +34,13 @@ fun AppRootNavHost(modifier: Modifier = Modifier) {
 		RootNavGraph.AssociatedNavGraphRoute,
 	)
 
+	val sceneStrategy: SceneStrategy<NavKey> =
+		remember { BottomSheetSceneStrategy<NavKey>() then DialogSceneStrategy() }
+
 	NavDisplay(
 		backStack = backStack,
 		modifier = modifier,
-		sceneStrategy = remember { DialogSceneStrategy() },
+		sceneStrategy = sceneStrategy,
 		entryDecorators = listOf(
 			rememberSaveableStateHolderNavEntryDecorator(),
 			rememberViewModelStoreNavEntryDecorator(),
@@ -44,6 +53,11 @@ fun AppRootNavHost(modifier: Modifier = Modifier) {
 			advertiseDeviceEntry(backStack)
 			searchDevicesEntry(backStack)
 			connectDeviceEntry(backStack)
+			blackListedDevicesRoute(backStack)
+
+			// sync routes
+			receiveSyncDataRouteEntry(backStack)
+			syncDeviceRouteEntry(backStack)
 		}
 	)
 }

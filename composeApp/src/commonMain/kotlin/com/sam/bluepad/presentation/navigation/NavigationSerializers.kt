@@ -23,8 +23,24 @@ object NavigationSerializers {
 				RootNavGraph.AdvertiseDeviceRoute.serializer()
 			)
 			subclass(
+				RootNavGraph.ConnectDeviceRoute::class,
+				RootNavGraph.ConnectDeviceRoute.serializer()
+			)
+			subclass(
 				RootNavGraph.SearchDeviceRoute::class,
 				RootNavGraph.SearchDeviceRoute.serializer()
+			)
+			subclass(
+				RootNavGraph.SendSyncDeviceRoute::class,
+				RootNavGraph.SendSyncDeviceRoute.serializer()
+			)
+			subclass(
+				RootNavGraph.ReceiveSyncDeviceRoute::class,
+				RootNavGraph.ReceiveSyncDeviceRoute.serializer()
+			)
+			subclass(
+				RootNavGraph.BlackListedDevicesRoute::class,
+				RootNavGraph.BlackListedDevicesRoute.serializer()
 			)
 		}
 	}

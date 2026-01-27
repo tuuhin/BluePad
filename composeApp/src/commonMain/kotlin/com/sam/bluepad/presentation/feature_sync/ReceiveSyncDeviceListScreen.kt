@@ -22,7 +22,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.presentation.feature_sync.composables.ReceiveDevicesOptionsList
 import com.sam.bluepad.presentation.feature_sync.composables.ReceiverStateChip
-import com.sam.bluepad.presentation.feature_sync.event.ReceiveSyncEvent
+import com.sam.bluepad.presentation.feature_sync.event.ReceiveDeviceSyncScreenEvents
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_continue
@@ -37,7 +37,7 @@ import org.jetbrains.compose.resources.stringResource
 fun ReceiveSyncDeviceListScreen(
 	devicesList: ImmutableList<ExternalDeviceModel>,
 	isAdvertising: Boolean,
-	onEvent: (ReceiveSyncEvent) -> Unit,
+	onEvent: (ReceiveDeviceSyncScreenEvents) -> Unit,
 	modifier: Modifier = Modifier,
 	selectedDevice: ExternalDeviceModel? = null,
 	navigation: @Composable () -> Unit = {},
@@ -79,13 +79,19 @@ fun ReceiveSyncDeviceListScreen(
 		) {
 			ReceiverStateChip(
 				isActive = isAdvertising,
-				onClick = { onEvent(ReceiveSyncEvent.ToggleReceiver) },
+				onClick = { onEvent(ReceiveDeviceSyncScreenEvents.ToggleReceiver) },
 				modifier = Modifier.align(Alignment.BottomCenter)
 			)
 			ReceiveDevicesOptionsList(
 				devicesList = devicesList,
 				isAdvertising = isAdvertising,
-				onSelectDevice = { device -> onEvent(ReceiveSyncEvent.OnSelectDevice(device)) },
+				onSelectDevice = { device ->
+					onEvent(
+						ReceiveDeviceSyncScreenEvents.OnSelectDevice(
+							device
+						)
+					)
+				},
 				paddingValues = scPadding,
 				modifier = Modifier.fillMaxSize(),
 			)
