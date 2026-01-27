@@ -35,3 +35,4 @@ plugins {
 include(":composeApp")
 include(":jvm-core:ble-advertise")
 include(":jvm-core:ble-common")
+include(":androidApp")

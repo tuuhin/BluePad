@@ -1,8 +1,8 @@
 [versions]
-agp = "8.13.2"
+agp = "9.0.0"
 kotlinxImmutable = "0.4.0"
 kotlinxDatetime = "0.7.1"
-kotlinxSerialization = "1.10.0-RC"
+kotlinxSerialization = "1.10.0"
 splashApiVersion = "1.2.0"
 android-compileSdk = "36"
 android-targetSdk = "36"
@@ -35,7 +35,7 @@ mokoPermissionsCompose = "0.18.1-desktop-5"
 build-konfig = "0.17.1"
 kableCore = "0.41.0"
 kableExceptions = "0.34.0"
-compose_toast = "2.1.0"
+compose_toast = "2.1.2"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -102,12 +102,11 @@ kotlinx-serialization-protobuf = { module = "org.jetbrains.kotlinx:kotlinx-seria
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
-androidLibrary = { id = "com.android.library", version.ref = "agp" }
 composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 androidx-room = { id = "androidx.room", version.ref = "room" }
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
