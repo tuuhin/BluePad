@@ -6,38 +6,24 @@ import com.sam.bluepad.domain.ble.BLEConstants
 
 object BLEServiceToGatt {
 
-	val deviceDiscoveryService: Service =
-		Service.builder(BLEConstants.discoveryServiceId.toHexDashString())
-			.addCharacteristics(
-				listOf(
-					Characteristic.builder(BLEConstants.deviceInfoCharacteristics.toHexDashString())
-						.canWriteCommand(true)
-						.canRead(true)
-						.build(),
-				)
-			).build()
+    val deviceDiscoveryService: Service =
+        Service.builder(BLEConstants.DEVICE_INFO_SERVICE_ID.toHexDashString())
+            .addCharacteristic(
+                Characteristic.builder(BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID.toHexDashString())
+                    .canWriteCommand(true)
+                    .canRead(true)
+                    .build(),
+            ).build()
 
 
-	val deviceSyncService: Service =
-		Service.builder(BLEConstants.syncServiceId.toHexDashString())
-			.addCharacteristics(
-				listOf(
-					Characteristic.builder(BLEConstants.allowSyncCharacteristics.toHexDashString())
-						.canRead(true)
-						.build(),
-					Characteristic.builder(BLEConstants.deviceIdCharacteristics.toHexDashString())
-						.canRead(true)
-						.canWriteCommand(true)
-						.build(),
-					Characteristic.builder(BLEConstants.connectionNonceCharacteristic.toHexDashString())
-						.canRead(true)
-						.canWriteCommand(true)
-						.build(),
-					Characteristic.builder(BLEConstants.receiverDeviceIdCharacteristics.toHexDashString())
-						.canRead(true)
-						.canWriteCommand(true)
-						.build(),
-				)
-			)
-			.build()
+    val deviceSyncService: Service =
+        Service.builder(BLEConstants.SYNC_SERVICE_ID.toHexDashString())
+            .addCharacteristic(
+                Characteristic.builder(BLEConstants.SYNC_CHARACTERISTICS_ID.toHexDashString())
+                    .canRead(true)
+                    .canWriteCommand(true)
+                    .canNotify(true)
+                    .build(),
+            )
+            .build()
 }

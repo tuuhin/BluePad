@@ -7,48 +7,50 @@ import com.sam.bluepad.domain.ble.BLEServiceType
 
 object BLEServiceToGatt {
 
-	val deviceDiscoveryService = bleServiceOf(
-		uuid = BLEConstants.discoveryServiceId,
-		serviceType = BLEServiceType.PRIMARY,
-		characteristics = listOf(
-			bleCharacteristicsOf(
-				uuid = BLEConstants.deviceInfoCharacteristics,
-				properties = listOf(
-					BLEPropertyType.PROPERTY_READ,
-					BLEPropertyType.PROPERTY_WRITE
-				),
-				permissions = listOf(
-					BLEPermission.PERMISSION_READ,
-					BLEPermission.PERMISSION_WRITE_ENCRYPTED
-				)
-			),
-		)
-	)
+    val deviceDiscoveryService = bleServiceOf(
+        uuid = BLEConstants.DEVICE_INFO_SERVICE_ID,
+        serviceType = BLEServiceType.PRIMARY,
+        characteristics = listOf(
+            bleCharacteristicsOf(
+                uuid = BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID,
+                properties = listOf(
+                    BLEPropertyType.PROPERTY_READ,
+                    BLEPropertyType.PROPERTY_WRITE
+                ),
+                permissions = listOf(
+                    BLEPermission.PERMISSION_READ,
+                    BLEPermission.PERMISSION_WRITE_ENCRYPTED
+                )
+            ),
+        )
+    )
 
-	val deviceSyncService = bleServiceOf(
-		BLEConstants.syncServiceId,
-		serviceType = BLEServiceType.PRIMARY,
-		characteristics = listOf(
-			bleCharacteristicsOf(
-				BLEConstants.allowSyncCharacteristics,
-				listOf(BLEPropertyType.PROPERTY_READ),
-				listOf(BLEPermission.PERMISSION_READ),
-			),
-			bleCharacteristicsOf(
-				BLEConstants.deviceIdCharacteristics,
-				listOf(BLEPropertyType.PROPERTY_READ, BLEPropertyType.PROPERTY_WRITE),
-				listOf(BLEPermission.PERMISSION_READ, BLEPermission.PERMISSION_WRITE)
-			),
-			bleCharacteristicsOf(
-				BLEConstants.connectionNonceCharacteristic,
-				listOf(BLEPropertyType.PROPERTY_READ, BLEPropertyType.PROPERTY_WRITE),
-				listOf(BLEPermission.PERMISSION_READ, BLEPermission.PERMISSION_WRITE)
-			),
-			bleCharacteristicsOf(
-				BLEConstants.receiverDeviceIdCharacteristics,
-				listOf(BLEPropertyType.PROPERTY_READ, BLEPropertyType.PROPERTY_WRITE),
-				listOf(BLEPermission.PERMISSION_READ, BLEPermission.PERMISSION_WRITE)
-			),
-		)
-	)
+    val deviceSyncService = bleServiceOf(
+        uuid = BLEConstants.SYNC_SERVICE_ID,
+        serviceType = BLEServiceType.PRIMARY,
+        characteristics = listOf(
+            bleCharacteristicsOf(
+                uuid = BLEConstants.SYNC_CHARACTERISTICS_ID,
+                properties = listOf(
+                    BLEPropertyType.PROPERTY_READ,
+                    BLEPropertyType.PROPERTY_WRITE,
+                    BLEPropertyType.PROPERTY_NOTIFY
+                ),
+                permissions = listOf(
+                    BLEPermission.PERMISSION_READ,
+                    BLEPermission.PERMISSION_WRITE,
+
+                )
+            ).apply {
+                val descriptor = bleDescriptorOf(
+                    uuid = BLEConstants.CCC_DESCRIPTOR,
+                    permissions = listOf(
+                        BLEPermission.PERMISSION_READ,
+                        BLEPermission.PERMISSION_WRITE
+                    )
+                )
+                addDescriptor(descriptor)
+            }
+        )
+    )
 }

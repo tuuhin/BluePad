@@ -17,64 +17,73 @@ import kotlinx.coroutines.flow.emptyFlow
 private const val TAG = "BLE_ADVERTISER"
 
 actual class BLEAdvertisementImpl(
-	private val callback: BLEAdvertisementCallback
+    private val callback: BLEAdvertisementCallback
 ) : BLEAdvertisementManager {
 
-	private val _advertiser by lazy { BLEAdvertiser() }
+    private val _advertiser by lazy { BLEAdvertiser() }
 
-	override val isRunning: Flow<Boolean>
-		get() = callback.isRunning
+    override val isRunning: Flow<Boolean>
+        get() = callback.isRunning
 
-	override val errorFlow: Flow<Exception>
-		get() = emptyFlow()
+    override val errorFlow: Flow<Exception>
+        get() = emptyFlow()
 
-	override val peerSaveDevices: Flow<List<BLEPeerData>>
-		get() = callback.externalPeers
+    override val peerSaveDevices: Flow<List<BLEPeerData>>
+        get() = callback.externalPeers
 
-	override suspend fun startAdvertising(type: BLEConnectionType): Result<Unit> {
+    override suspend fun startAdvertising(type: BLEConnectionType): Result<Unit> {
 
-		if (!BluetoothInfoProvider.isBluetoothActive())
-			return Result.failure(BluetoothNotEnabledException())
+        if (!BluetoothInfoProvider.isBluetoothActive())
+            return Result.failure(BluetoothNotEnabledException())
 
-		if (!BluetoothInfoProvider.isLEConnectionAllowed())
-			return Result.failure(BLENotSupportedException())
+        if (!BluetoothInfoProvider.isLEConnectionAllowed())
+            return Result.failure(BLENotSupportedException())
 
-		if (!BluetoothInfoProvider.isPeripheralRoleSupported())
-			return Result.failure(BLEAdvertiseUnsupportedException())
+        if (!BluetoothInfoProvider.isPeripheralRoleSupported())
+            return Result.failure(BLEAdvertiseUnsupportedException())
 
-		_advertiser.setListener(callback)
-		return try {
-			_advertiser.startServer()
-			when (type) {
-				BLEConnectionType.DEVICE_DISCOVERY -> {
-					_advertiser.addService(BLEServiceToGatt.deviceDiscoveryService)
-					Logger.d(TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
-				}
+        return try {
+            _advertiser.setListener(callback)
 
-				BLEConnectionType.PROXIMITY_AND_SYNC -> {
-					_advertiser.addService(BLEServiceToGatt.deviceSyncService)
-					Logger.d(TAG) { "BLE ADVERTISEMENT FOR SYNC " }
-				}
-			}
+            callback.setNotifyCharacteristicsChanged { address, uuid, confirm, value ->
+                try {
+                    _advertiser.sendNotification(address, uuid, value, confirm)
+                } catch (e: Exception) {
+                    Logger.e(TAG, e) { "FAILED TO SEND NOTIFICATION" }
+                }
+            }
 
-			val data = BuildKonfig.APP_ID.encodeToByteArray()
-			val config = GattAdvertisementConfig(true, true, data)
-			_advertiser.startAdvertisement(config)
-			Result.success(Unit)
-		} catch (e: Exception) {
-			Result.failure(e)
-		}
-	}
+            _advertiser.startServer()
+            when (type) {
+                BLEConnectionType.DEVICE_DISCOVERY -> {
+                    _advertiser.addService(BLEServiceToGatt.deviceDiscoveryService)
+                    Logger.d(TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
+                }
 
-	override fun stopAdvertising() {
-		_advertiser.stopServer()
-		callback.setRunning(false)
-		Logger.i(TAG) { "ADVERTISEMENT STOPPED" }
-	}
+                BLEConnectionType.PROXIMITY_AND_SYNC -> {
+                    _advertiser.addService(BLEServiceToGatt.deviceSyncService)
+                    Logger.d(TAG) { "BLE ADVERTISEMENT FOR SYNC " }
+                }
+            }
 
-	override fun cleanUp() {
-		callback.cleanUp()
-		Logger.i(TAG) { "STOPPING GATT SERVER AND CLEANING UP" }
-		_advertiser.stopServer()
-	}
+            val data = BuildKonfig.APP_ID.encodeToByteArray()
+            val config = GattAdvertisementConfig(true, true, data)
+            _advertiser.startAdvertisement(config)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override fun stopAdvertising() {
+        _advertiser.stopServer()
+        callback.setRunning(false)
+        Logger.i(TAG) { "ADVERTISEMENT STOPPED" }
+    }
+
+    override fun cleanUp() {
+        callback.cleanUp()
+        Logger.i(TAG) { "STOPPING GATT SERVER AND CLEANING UP" }
+        _advertiser.stopServer()
+    }
 }

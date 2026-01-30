@@ -1,15 +1,17 @@
 package com.sam.bluepad.data.ble
 
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattServer
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertisingSet
 import android.bluetooth.le.AdvertisingSetCallback
 import android.bluetooth.le.AdvertisingSetParameters
 import android.content.Context
+import android.os.Build
 import android.os.ParcelUuid
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
@@ -35,163 +37,185 @@ private const val TAG = "BLE_ADVERTISEMENT"
 
 @SuppressLint("MissingPermission")
 actual class BLEAdvertisementImpl(
-	private val context: Context,
-	private val connectionCallback: ServerConnectionCallback,
+    private val context: Context,
+    private val connectionCallback: ServerConnectionCallback,
 ) : BLEAdvertisementManager {
 
-	private val _bluetoothManager by lazy { context.getSystemService<BluetoothManager>() }
+    private val _bluetoothManager by lazy { context.getSystemService<BluetoothManager>() }
 
-	private val _isRunning = MutableStateFlow(false)
-	private val _errorsChannel = Channel<Exception>(capacity = Channel.CONFLATED)
+    private val _isRunning = MutableStateFlow(false)
+    private val _errorsChannel = Channel<Exception>(capacity = Channel.CONFLATED)
 
-	private val _advertiseCallback = object : AdvertisingSetCallback() {
+    private val _btAdapter: BluetoothAdapter?
+        get() = _bluetoothManager?.adapter
 
-		override fun onAdvertisingSetStarted(
-			advertisingSet: AdvertisingSet?, txPower: Int, status: Int
-		) {
-			if (status == ADVERTISE_SUCCESS) {
-				Logger.d(TAG) { "BLE5 ADVERTISING STARTED txPower=$txPower" }
-				_isRunning.value = true
-			} else {
-				onStartFailure(status)
-			}
-		}
+    private val _advertiseCallback = object : AdvertisingSetCallback() {
 
-		override fun onAdvertisingEnabled(
-			dvertisingSet: AdvertisingSet?, enable: Boolean, status: Int
-		) {
-			if (status != ADVERTISE_SUCCESS && !enable) return
-			Logger.d(TAG) { "BLE5 ADVERTISING ENABLED" }
-		}
+        override fun onAdvertisingSetStarted(
+            advertisingSet: AdvertisingSet?, txPower: Int, status: Int
+        ) {
+            if (status == ADVERTISE_SUCCESS) {
+                Logger.d(TAG) { "BLE5 ADVERTISING STARTED txPower=$txPower" }
+                _isRunning.value = true
+            } else {
+                onStartFailure(status)
+            }
+        }
 
-		override fun onAdvertisingSetStopped(advertisingSet: AdvertisingSet?) {
-			Logger.d(TAG) { "BLE5 ADVERTISING STOPPED" }
-			_isRunning.value = false
-		}
-	}
+        override fun onAdvertisingEnabled(
+            dvertisingSet: AdvertisingSet?, enable: Boolean, status: Int
+        ) {
+            if (status != ADVERTISE_SUCCESS && !enable) return
+            Logger.d(TAG) { "BLE5 ADVERTISING ENABLED" }
+        }
 
-	override val isRunning: Flow<Boolean>
-		get() = _isRunning.asStateFlow()
+        override fun onAdvertisingSetStopped(advertisingSet: AdvertisingSet?) {
+            Logger.d(TAG) { "BLE5 ADVERTISING STOPPED" }
+            _isRunning.value = false
+        }
+    }
 
-	override val errorFlow
-		get() = _errorsChannel.receiveAsFlow()
+    override val isRunning: Flow<Boolean>
+        get() = _isRunning.asStateFlow()
 
-	override val peerSaveDevices: Flow<List<BLEPeerData>>
-		get() = connectionCallback.externalPeers
+    override val errorFlow
+        get() = _errorsChannel.receiveAsFlow()
 
-	private var _bleServer: BluetoothGattServer? = null
+    override val peerSaveDevices: Flow<List<BLEPeerData>>
+        get() = connectionCallback.incomingPeerData
 
-	override suspend fun startAdvertising(type: BLEConnectionType): Result<Unit> {
+    private var _bleServer: BluetoothGattServer? = null
 
-		val isExtendedSupported = _bluetoothManager?.adapter
-			?.isLeExtendedAdvertisingSupported ?: false
-		val isMultipleSupported = _bluetoothManager?.adapter
-			?.isMultipleAdvertisementSupported ?: false
+    @Suppress("DEPRECATION")
+    override suspend fun startAdvertising(type: BLEConnectionType): Result<Unit> {
 
-		if (!context.hasConnectPermission)
-			return Result.failure(BluetoothPermissionException())
-		if (!context.hasAdvertisePermission)
-			return Result.failure(BLEAdvertisePermissionException())
-		if (_bluetoothManager?.adapter?.isEnabled != true)
-			return Result.failure(BluetoothNotEnabledException())
-		if (!isExtendedSupported || !isMultipleSupported)
-			return Result.failure(BLEAdvertiseUnsupportedException())
+        val isExtendedSupported = _btAdapter?.isLeExtendedAdvertisingSupported ?: false
+        val isMultipleSupported = _btAdapter?.isMultipleAdvertisementSupported ?: false
 
+        if (!context.hasConnectPermission)
+            return Result.failure(BluetoothPermissionException())
+        if (!context.hasAdvertisePermission)
+            return Result.failure(BLEAdvertisePermissionException())
+        if (_bluetoothManager?.adapter?.isEnabled != true)
+            return Result.failure(BluetoothNotEnabledException())
+        if (!isExtendedSupported || !isMultipleSupported)
+            return Result.failure(BLEAdvertiseUnsupportedException())
 
-		val advertiser = _bluetoothManager?.adapter
-			?.bluetoothLeAdvertiser ?: return Result.failure(BLEAdvertiseUnsupportedException())
+        val advertiser = _bluetoothManager?.adapter
+            ?.bluetoothLeAdvertiser ?: return Result.failure(BLEAdvertiseUnsupportedException())
 
-		_bleServer = _bluetoothManager?.openGattServer(context, connectionCallback)
-		Logger.i(TAG) { "GATT SERVER BEGUN!" }
+        _bleServer = _bluetoothManager?.openGattServer(context, connectionCallback)
+        Logger.i(TAG) { "GATT SERVER BEGUN!" }
 
-		connectionCallback.setOnServiceAdded { Logger.d(TAG) { "SERVICE ADDED " } }
-		connectionCallback.setOnSendResponse { device, requestId, status, offset, value ->
-			_bleServer?.sendResponse(device, requestId, status, offset, value)
-			Logger.d(TAG) { "SERVER RESPONSE SEND SUCCESS: ${status == BluetoothGatt.GATT_SUCCESS}" }
-		}
-		when (type) {
-			BLEConnectionType.DEVICE_DISCOVERY -> {
-				_bleServer?.addService(BLEServiceToGatt.deviceDiscoveryService)
-				Logger.d(TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
-			}
+        connectionCallback.setOnServiceAdded { Logger.d(TAG) { "SERVICE ADDED " } }
+        connectionCallback.setOnSendResponse { device, requestId, status, offset, value ->
+            val isSuccess =
+                _bleServer?.sendResponse(device, requestId, status, offset, value) ?: false
+            Logger.d(TAG) { "SERVER RESPONSE SEND SUCCESS: $isSuccess" }
+        }
 
-			BLEConnectionType.PROXIMITY_AND_SYNC -> {
-				_bleServer?.addService(BLEServiceToGatt.deviceSyncService)
-				Logger.d(TAG) { "BLE ADVERTISEMENT FOR SYNC " }
-			}
-		}
+        connectionCallback.setNotifyCharacteristicsChanged { device, characteristics, confirm, byteArray ->
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    // values are set independent
+                    val status = _bleServer
+                        ?.notifyCharacteristicChanged(device, characteristics, confirm, byteArray)
+                    status == BluetoothStatusCodes.SUCCESS
+                } else {
+                    characteristics.value = byteArray
+                    _bleServer?.notifyCharacteristicChanged(device, characteristics, confirm)
+                        ?: false
+                }
+            } catch (e: IllegalStateException) {
+                Logger.w(TAG, e) { "ILLEGAL ARGUMENT " }
+                _errorsChannel.trySend(Exception("Characteristics value is blank"))
+                false
+            }
+        }
 
-		val advertisementServiceId = when (type) {
-			BLEConnectionType.DEVICE_DISCOVERY -> ParcelUuid(BLEConstants.discoveryServiceId.toJavaUuid())
-			BLEConnectionType.PROXIMITY_AND_SYNC -> ParcelUuid(BLEConstants.syncServiceId.toJavaUuid())
-		}
+        when (type) {
+            BLEConnectionType.DEVICE_DISCOVERY -> {
+                _bleServer?.addService(BLEServiceToGatt.deviceDiscoveryService)
+                Logger.d(TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
+            }
 
-		// advertisement settings
-		val parameters = AdvertisingSetParameters.Builder()
-			.setLegacyMode(false)
-			.setConnectable(true)
-			.setScannable(false)
-			.setInterval(AdvertisingSetParameters.INTERVAL_MEDIUM)
-			.setTxPowerLevel(AdvertisingSetParameters.TX_POWER_MEDIUM)
-			.setPrimaryPhy(BluetoothDevice.PHY_LE_1M)
-			.setSecondaryPhy(BluetoothDevice.PHY_LE_2M)
-			.build()
+            BLEConnectionType.PROXIMITY_AND_SYNC -> {
+                _bleServer?.addService(BLEServiceToGatt.deviceSyncService)
+                Logger.d(TAG) { "BLE ADVERTISEMENT FOR SYNC " }
+            }
+        }
 
-		// what to advertise
-		val advertiseData = AdvertiseData.Builder()
-			.setIncludeDeviceName(true)
-			.setIncludeTxPowerLevel(false)
-			.addServiceUuid(advertisementServiceId)
-			.addServiceData(advertisementServiceId, BuildKonfig.APP_ID.encodeToByteArray())
-			.build()
+        val advertisementServiceId = when (type) {
+            BLEConnectionType.DEVICE_DISCOVERY -> ParcelUuid(BLEConstants.DEVICE_INFO_SERVICE_ID.toJavaUuid())
+            BLEConnectionType.PROXIMITY_AND_SYNC -> ParcelUuid(BLEConstants.SYNC_SERVICE_ID.toJavaUuid())
+        }
 
-		val scanResponse = AdvertiseData.Builder()
-			.setIncludeTxPowerLevel(false)
-			.setIncludeDeviceName(true)
-			.addServiceUuid(advertisementServiceId)
-			.addServiceData(advertisementServiceId, BuildKonfig.APP_ID.encodeToByteArray())
-			.build()
+        // advertisement settings
+        val parameters = AdvertisingSetParameters.Builder()
+            .setLegacyMode(false)
+            .setConnectable(true)
+            .setScannable(false)
+            .setInterval(AdvertisingSetParameters.INTERVAL_MEDIUM)
+            .setTxPowerLevel(AdvertisingSetParameters.TX_POWER_MEDIUM)
+            .setPrimaryPhy(BluetoothDevice.PHY_LE_1M)
+            .setSecondaryPhy(BluetoothDevice.PHY_LE_2M)
+            .build()
 
-		Logger.d(TAG) { "STARTING ADVERTISEMENT" }
-		// start advertising
-		advertiser.startAdvertisingSet(
-			parameters, advertiseData, scanResponse,
-			null, null, _advertiseCallback
-		)
-		return Result.success(Unit)
-	}
+        // what to advertise
+        val advertiseData = AdvertiseData.Builder()
+            .setIncludeDeviceName(true)
+            .setIncludeTxPowerLevel(false)
+            .addServiceUuid(advertisementServiceId)
+            .addServiceData(advertisementServiceId, BuildKonfig.APP_ID.encodeToByteArray())
+            .build()
 
-	override fun stopAdvertising() {
-		try {
-			val advertiser = _bluetoothManager?.adapter?.bluetoothLeAdvertiser ?: return
-			Logger.i(TAG) { "STOPPING ADVERTISEMENT" }
-			advertiser.stopAdvertisingSet(_advertiseCallback)
+        val scanResponse = AdvertiseData.Builder()
+            .setIncludeTxPowerLevel(false)
+            .setIncludeDeviceName(true)
+            .addServiceUuid(advertisementServiceId)
+            .addServiceData(advertisementServiceId, BuildKonfig.APP_ID.encodeToByteArray())
+            .build()
 
-			_bleServer?.clearServices()
-			Logger.d(TAG) { "STOPPING SERVER" }
-			_bleServer?.close()
-		} catch (e: Exception) {
-			Logger.d(TAG, e) { "SOME EXCEPTIONS" }
-		} finally {
-			_isRunning.value = false
-			_bleServer = null
-		}
-	}
+        Logger.d(TAG) { "STARTING ADVERTISEMENT" }
+        // start advertising
+        advertiser.startAdvertisingSet(
+            parameters, advertiseData, scanResponse,
+            null, null, _advertiseCallback
+        )
+        return Result.success(Unit)
+    }
 
-	override fun cleanUp() {
-		connectionCallback.cleanUp()
-		stopAdvertising()
-	}
+    override fun stopAdvertising() {
+        try {
+            val advertiser = _bluetoothManager?.adapter?.bluetoothLeAdvertiser ?: return
+            Logger.i(TAG) { "STOPPING ADVERTISEMENT" }
+            advertiser.stopAdvertisingSet(_advertiseCallback)
 
-	private fun onStartFailure(errorCode: Int) {
-		val exception = when (errorCode) {
-			AdvertisingSetCallback.ADVERTISE_FAILED_ALREADY_STARTED -> Exception("Advertisement is already running")
-			AdvertisingSetCallback.ADVERTISE_FAILED_TOO_MANY_ADVERTISERS -> Exception("Too many advertiser")
-			AdvertisingSetCallback.ADVERTISE_FAILED_INTERNAL_ERROR -> Exception("Android cannot start advertisement")
-			AdvertisingSetCallback.ADVERTISE_FAILED_FEATURE_UNSUPPORTED -> Exception("BLE not supported")
-			else -> Exception("Cannot start the advertisement ERROR CODE: $errorCode")
-		}
-		Logger.e(TAG, exception) { "GATT SERVER FAILED TO START ERROR CODE: $errorCode" }
-		_errorsChannel.trySend(exception)
-	}
+            _bleServer?.clearServices()
+            Logger.d(TAG) { "STOPPING SERVER" }
+            _bleServer?.close()
+        } catch (e: Exception) {
+            Logger.d(TAG, e) { "SOME EXCEPTIONS" }
+        } finally {
+            _isRunning.value = false
+            _bleServer = null
+        }
+    }
+
+    override fun cleanUp() {
+        connectionCallback.cleanUp()
+        stopAdvertising()
+    }
+
+    private fun onStartFailure(errorCode: Int) {
+        val exception = when (errorCode) {
+            AdvertisingSetCallback.ADVERTISE_FAILED_ALREADY_STARTED -> Exception("Advertisement is already running")
+            AdvertisingSetCallback.ADVERTISE_FAILED_TOO_MANY_ADVERTISERS -> Exception("Too many advertiser")
+            AdvertisingSetCallback.ADVERTISE_FAILED_INTERNAL_ERROR -> Exception("Android cannot start advertisement")
+            AdvertisingSetCallback.ADVERTISE_FAILED_FEATURE_UNSUPPORTED -> Exception("BLE not supported")
+            else -> Exception("Cannot start the advertisement ERROR CODE: $errorCode")
+        }
+        Logger.e(TAG, exception) { "GATT SERVER FAILED TO START ERROR CODE: $errorCode" }
+        _errorsChannel.trySend(exception)
+    }
 }
