@@ -7,7 +7,7 @@ Standard: c++17
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
-ColumnLimit: 100 # 80 is a bit tight for modern screens; 100 is a sweet spot
+ColumnLimit: 120 # 80 is a bit tight for modern screens; 100 is a sweet spot
 
 # Alignment & Spacing
 PointerAlignment: Left
