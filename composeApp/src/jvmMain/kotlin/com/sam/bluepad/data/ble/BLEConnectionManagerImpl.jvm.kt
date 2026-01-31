@@ -79,7 +79,7 @@ actual class BLEConnectionManagerImpl(
 			onServiceNotFound = { trySend(Resource.Error(BLEServiceNotFoundException())) },
 			onCharacteristicData = { peri, result ->
 				val peerData = result
-					.getOrDefault(BLEConstants.deviceInfoCharacteristics, null)
+					.getOrDefault(BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID, null)
 					?.let { bytes ->
 						try {
 							protoBuf.decodeFromByteArray<BLEPeerData>(bytes)
@@ -130,7 +130,7 @@ actual class BLEConnectionManagerImpl(
 			if (state !is State.Connected) return@onEach
 
 			val services = services.value
-				?.find { it.serviceUuid == BLEConstants.discoveryServiceId }
+				?.find { it.serviceUuid == BLEConstants.DEVICE_INFO_SERVICE_ID }
 
 			if (services == null) {
 				Logger.w(TAG) { "REQUIRED SERVICE NOT FOUND" }
@@ -156,9 +156,9 @@ actual class BLEConnectionManagerImpl(
 
 	private suspend fun Peripheral.sendCurrentDeviceInfo(nonce: String? = null) {
 		val characteristic = services.value
-			?.find { it.serviceUuid == BLEConstants.discoveryServiceId }
+			?.find { it.serviceUuid == BLEConstants.DEVICE_INFO_SERVICE_ID }
 			?.characteristics
-			?.find { it.characteristicUuid == BLEConstants.deviceInfoCharacteristics } ?: return
+			?.find { it.characteristicUuid == BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID } ?: return
 
 		val info = deviceInfoProvider.readDeviceInfo.first()
 		val peerData = BLEPeerData(
