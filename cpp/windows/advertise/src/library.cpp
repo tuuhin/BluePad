@@ -455,6 +455,18 @@ JNIEXPORT void JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeAddServ
             }
         }
 
+        // ----------------- CHECK IF SUBSCRIBED CLIENTS UPDATED
+        // ReSharper disable once CppExpressionWithoutSideEffects
+        characteristic.SubscribedClientsChanged([](GattLocalCharacteristic const& ch, auto const&) {
+            const auto clients = ch.SubscribedClients();
+            const auto characteristics_uuid_h = to_hstring(ch.Uuid());
+
+            for (GattSubscribedClient const& client : clients) {
+                auto address = client.Session().DeviceId().Id();
+                WIN_LOG(L" DEVICE ADDRESS " << address << " SUBSCRIBED TO " << characteristics_uuid_h);
+            }
+        });
+
         // ---------- READ REQUEST HANDLER ----------
         characteristic.ReadRequested([ctx, characteristics_uuid_w_str,
                                       service_class_w_str](GattLocalCharacteristic const& characteristic,
@@ -631,7 +643,13 @@ JNIEXPORT void JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeSendNot
     std::wstring device_address_w  = to_hstring(device_address_utf).c_str();
     env->ReleaseStringUTFChars(device_address, device_address_utf);
 
-    const auto subscribed_clients      = characteristics.SubscribedClients();
+    const auto subscribed_clients = characteristics.SubscribedClients();
+
+    if (subscribed_clients.Size() == 0) {
+        WIN_LOG(L"NO SUBSCRIBED CLIENTS FOUND REQUIRED ATLEAST ONE SUBSCRIBER");
+        return;
+    }
+
     GattSubscribedClient target_client = nullptr;
 
     for (auto&& client : subscribed_clients) {
@@ -643,14 +661,14 @@ JNIEXPORT void JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeSendNot
     }
 
     if (target_client == nullptr) {
-        WIN_LOG(L"INVALID DEVICE ADDRESS" << device_address_w << "NO MATCHING ADDRESS FOUND");
+        WIN_LOG(L"INVALID DEVICE ADDRESS " << device_address_w << " NO MATCHING ADDRESS FOUND");
         throw_runtime_exception(env, "Invalid device address");
         return;
     }
 
     try {
         WIN_LOG(L"REQUESTING NOTIFY" << device_address_w << " CHARACTERISTICS " << characteristics_h_str
-                                     << " BUFFER SIZE" << buffer.Length() << " IS INDICATION " << confirm);
+                                     << " BUFFER SIZE " << buffer.Length() << " IS INDICATION " << confirm);
 
         const auto operation = characteristics.NotifyValueAsync(buffer, target_client);
 
@@ -693,7 +711,7 @@ JNIEXPORT void JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeSendNot
             if (status == AsyncStatus::Error) {
                 const hresult hr = async_op.ErrorCode();
 
-                WIN_LOG(L"CHARACTERISTICS :" << characteristics_h_str << "NOTIFICATION STATUS FAIED ERROR CODE "
+                WIN_LOG(L"CHARACTERISTICS :" << characteristics_h_str << "NOTIFICATION STATUS FAILED ERROR CODE "
                                              << hr.value);
 
                 jni_env->CallVoidMethod(ctx->callback, indication_status_method, device_address_utf,

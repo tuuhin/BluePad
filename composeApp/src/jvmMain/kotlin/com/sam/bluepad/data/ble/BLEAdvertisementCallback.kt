@@ -171,7 +171,6 @@ class BLEAdvertisementCallback(
             Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicUuid FROM SYNC SERVICE" }
             try {
                 val response = protoBuf.decodeFromByteArray<BLESyncData.BLEAdvertiseResponse>(value)
-                Logger.d(TAG) { "RESPONSE FOUND :$response" }
                 // then sync ackno
                 val acknowledgment = BLESyncData.BLESyncAcknowledgement(
                     nonce = response.nonce,
@@ -187,8 +186,8 @@ class BLEAdvertisementCallback(
                 )
             } catch (e: Exception) {
                 Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
-                return
             }
+            return
         }
         // invalids
         Logger.w(TAG) { "REQUESTING INVALID SERVICE" }
