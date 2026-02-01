@@ -12,14 +12,13 @@ import com.sam.bluepad.presentation.utils.UiEventsHandler
 import org.koin.compose.viewmodel.koinViewModel
 
 fun EntryProviderScope<NavKey>.settingsRouteEntry(
-	backStack: NavBackStack<NavKey>
+    backStack: NavBackStack<NavKey>
 ) = entry<AssociatedNavGraph.SettingsRoute> {
 
-	val viewmodel = koinViewModel<SettingsViewmodel>()
-	val screenState by viewmodel.screenState.collectAsStateWithLifecycle()
-	val isLoading by viewmodel.isLoading.collectAsStateWithLifecycle()
+    val viewmodel = koinViewModel<SettingsViewmodel>()
+    val currentDevice by viewmodel.localDeviceData.collectAsStateWithLifecycle()
 
-	UiEventsHandler(eventsFlow = viewmodel::uiEvent)
+    UiEventsHandler(eventsFlow = viewmodel::uiEvent)
 
-	SettingsScreen(state = screenState, isLoading = isLoading, onEvent = viewmodel::onEvent)
+    SettingsScreen(deviceState = currentDevice, onEvent = viewmodel::onEvent)
 }
