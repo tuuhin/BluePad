@@ -13,6 +13,7 @@ import com.sam.bluepad.data.serialization.SerializationProtocols
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.repository.SketchesRepository
+import com.sam.bluepad.domain.use_cases.BytesEncoder
 import com.sam.bluepad.domain.use_cases.HashGenerator
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import com.sam.bluepad.domain.use_cases.RandomGeneratorImpl
@@ -45,6 +46,7 @@ val commonAppModule = module(true) {
     singleOf(::RandomGeneratorImpl) bind RandomGenerator::class
     singleOf(::HashGenerator)
     single { SerializationProtocols.protobuf } bind ProtoBuf::class
+    single { BytesEncoder() } bind BytesEncoder::class
 
     // device id provider
     singleOf(::LocalDeviceInfoProviderImpl) bind LocalDeviceInfoProvider::class

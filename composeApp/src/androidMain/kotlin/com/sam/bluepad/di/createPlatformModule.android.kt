@@ -3,7 +3,11 @@ package com.sam.bluepad.di
 import com.sam.bluepad.data.ble.BLEAdvertisementImpl
 import com.sam.bluepad.data.ble.BLEConnectionManagerImpl
 import com.sam.bluepad.data.ble.BLEDiscoveryImpl
+import com.sam.bluepad.data.ble.BLEGattAdvertisementCallback
+import com.sam.bluepad.data.ble.BLESyncConnectionManagerImpl
 import com.sam.bluepad.data.ble.ServerConnectionCallback
+import com.sam.bluepad.data.ble.SyncDeviceConnectionCallback
+import com.sam.bluepad.data.ble.SyncDeviceDiscoveryCallback
 import com.sam.bluepad.data.bluetooth.BluetoothStateProviderImpl
 import com.sam.bluepad.data.database.AppDBBuilder
 import com.sam.bluepad.data.datastore.DataStoreProvider
@@ -13,35 +17,45 @@ import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
+import com.sam.bluepad.domain.ble.BLESyncConnectionManager
 import com.sam.bluepad.domain.bluetooth.BluetoothStateProvider
 import com.sam.bluepad.domain.interactions.CopySketchInteraction
 import com.sam.bluepad.domain.interactions.ShareSketchInteraction
 import dev.icerock.moko.permissions.PermissionsController
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
 
 actual fun createPlatformModule(): Module = module {
-	// db provider
-	single { AppDBBuilder(androidContext()) }
-	// datastore provider
-	singleOf(::DataStoreProvider)
-	// ble provider
-	singleOf(::BLEDiscoveryImpl) bind BLEDiscoveryManager::class
-	singleOf(::BLEConnectionManagerImpl) bind BLEConnectionManager::class
-	singleOf(::BLEAdvertisementImpl) bind BLEAdvertisementManager::class
-	singleOf(::ServerConnectionCallback)
+    // db provider
+    single { AppDBBuilder(androidContext()) }
+    // datastore provider
+    singleOf(::DataStoreProvider)
+    // ble provider
+    singleOf(::BLEDiscoveryImpl) bind BLEDiscoveryManager::class
+    singleOf(::BLEConnectionManagerImpl) bind BLEConnectionManager::class
 
-	// permission controller
-	single { PermissionsController(androidContext()) }
-	// bluetooth state provider
-	singleOf(::BluetoothStateProviderImpl) bind BluetoothStateProvider::class
-	singleOf(::PlatformInfoProvider)
+    // ble advertisement
+    singleOf(::ServerConnectionCallback)
+    factoryOf(::BLEGattAdvertisementCallback)
+    singleOf(::BLEAdvertisementImpl) bind BLEAdvertisementManager::class
 
-	// interactions
-	singleOf(::ShareSketchInteractionImpl) bind ShareSketchInteraction::class
-	singleOf(::CopySketchInteractionImpl) bind CopySketchInteraction::class
+    // ble sync callbacks
+    factoryOf(::SyncDeviceDiscoveryCallback)
+    factoryOf(::SyncDeviceConnectionCallback)
+    singleOf(::BLESyncConnectionManagerImpl) bind BLESyncConnectionManager::class
+
+    // permission controller
+    single { PermissionsController(androidContext()) }
+    // bluetooth state provider
+    singleOf(::BluetoothStateProviderImpl) bind BluetoothStateProvider::class
+    singleOf(::PlatformInfoProvider)
+
+    // interactions
+    singleOf(::ShareSketchInteractionImpl) bind ShareSketchInteraction::class
+    singleOf(::CopySketchInteractionImpl) bind CopySketchInteraction::class
 }
