@@ -10,10 +10,12 @@ import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLESyncConnectionManager
 import com.sam.bluepad.domain.ble.ResourcesSyncDataEvents
 import com.sam.bluepad.domain.ble.models.BLEDeviceSyncEvent
+import com.sam.bluepad.domain.ble.models.BLESyncACKFailedReason
 import com.sam.bluepad.domain.ble.models.BLESyncData
 import com.sam.bluepad.domain.exceptions.BLENotSupportedException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
+import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.utils.Resource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +42,8 @@ private const val TAG = "BLE_SYNC_MANAGER"
 
 actual class BLESyncConnectionManagerImpl(
     private val protoBuf: ProtoBuf,
-    private val deviceInfoProvider: LocalDeviceInfoProvider,
+    private val localDeviceProvider: LocalDeviceInfoProvider,
+    private val externalDevicesRepository: ExternalDevicesRepository,
 ) : BLESyncConnectionManager {
 
     private val _scanner = Scanner {
@@ -57,8 +60,7 @@ actual class BLESyncConnectionManagerImpl(
         }
     }
 
-    override fun discoverAndConnect(timeout: Duration)
-            : Flow<ResourcesSyncDataEvents> = flow {
+    override fun discoverAndConnect(timeout: Duration): Flow<ResourcesSyncDataEvents> = flow {
 
         if (!BluetoothInfoProvider.isBluetoothActive()) {
             emit(Resource.Error(BluetoothNotEnabledException()))
@@ -90,7 +92,8 @@ actual class BLESyncConnectionManagerImpl(
                 Logger.d(TAG) { "CONNECTION JOB CANCELLED" }
                 throw e
             }
-            Logger.e(TAG, e) { "SOME EXCEPTION OCCURRED" }
+            emit(Resource.Error(e))
+            Logger.e(TAG, e) { "Some exception" }
         }
     }.flowOn(Dispatchers.IO)
 
@@ -133,7 +136,7 @@ actual class BLESyncConnectionManagerImpl(
 
                 if (syncCharacteristics == null) {
                     Logger.w(TAG) { "REQUIRED CHARACTERISTIC MISSING" }
-                    trySend(Resource.Error(Exception("Missing characteristics")))
+                    trySend(Resource.Error(MissingSyncCharacteristicsException()))
                     peripheral.close()
                     close()
                     return@channelFlow
@@ -142,7 +145,7 @@ actual class BLESyncConnectionManagerImpl(
                 // handle the notifications
                 peripheral.observe(syncCharacteristics).onEach { bytes ->
                     val result = try {
-                        protoBuf.decodeFromByteArray<BLESyncData.BLESyncAcknowledgement>(bytes)
+                        protoBuf.decodeFromByteArray<BLESyncData>(bytes)
                     } catch (e: SerializationException) {
                         Logger.e(TAG, e) { "CANNOT SERIALIZE THE DATA" }
                         null
@@ -150,11 +153,19 @@ actual class BLESyncConnectionManagerImpl(
                         Logger.e(TAG, e) { "INVALID INPUT" }
                         null
                     }
-                    if (result != null) {
-                        Logger.i(TAG) { "ACK FOUND" }
-                        val ack = BLEDeviceSyncEvent.AdvertisingAcknowledgmentReceived(result)
-                        send(Resource.Success(ack))
-                        // TODO: turn off the notification
+                    when (result) {
+                        is BLESyncData.BLESyncACKFailed -> {
+                            Logger.d(TAG) { "FAILED ACKNOWLEDGEMENT FOUND REASON:${result.reason}" }
+                            close(InvalidAcknowledgementException(result.reason))
+                        }
+
+                        is BLESyncData.BLESyncACKSuccess -> {
+                            Logger.i(TAG) { "ACK FOUND" }
+                            val ack = BLEDeviceSyncEvent.AdvertisingAcknowledgmentReceived(result)
+                            send(Resource.Success(ack))
+                        }
+
+                        else -> {}
                     }
                 }.launchIn(peripheral.scope)
 
@@ -165,16 +176,22 @@ actual class BLESyncConnectionManagerImpl(
                     data = syncData
                 )
                 send(Resource.Success(event))
-                Logger.i(TAG) { "DEVICE INFO READ" }
 
-                val currentDeviceInfo = deviceInfoProvider.readDeviceInfo.first()
+                if (!syncData.allowSync) throw SyncFlagMissingException()
 
-                // TODO: VERIFY THE INCOMMING REQUEST
+                Logger.i(TAG) { "CHARACTERISTICS :${syncCharacteristics.characteristicUuid} READ SUCCESS" }
+                val deviceResult = externalDevicesRepository.getDeviceByUuid(syncData.deviceId)
 
+                if (deviceResult.isFailure) {
+                    Logger.w(TAG) { "CANNOT FIND THE GIVEN DEVICE " }
+                    throw InvalidReceiverIdException()
+                }
+
+                val currentDeviceInfo = localDeviceProvider.readDeviceInfo.first()
                 val outgoingData = BLESyncData.BLEAdvertiseResponse(
                     nonce = syncData.nonce,
-                    receiverDeviceId = syncData.deviceId,
-                    currentDeviceId = currentDeviceInfo.deviceId
+                    receiverID = syncData.deviceId,
+                    senderID = currentDeviceInfo.deviceId
                 )
                 val syncWrite = protoBuf.encodeToByteArray(outgoingData)
                 peripheral.write(syncCharacteristics, syncWrite)
@@ -192,5 +209,10 @@ actual class BLESyncConnectionManagerImpl(
         }.flowOn(Dispatchers.IO)
     }
 
-    override fun cleanUp() = Unit
+    private class MissingSyncCharacteristicsException : Exception("Missing advertisement data")
+    private class InvalidReceiverIdException : Exception("Invalid receiver id provided")
+    private class InvalidAcknowledgementException(reason: BLESyncACKFailedReason) :
+        Exception("Invalid Acknowledgement :${reason.name}")
+
+    private class SyncFlagMissingException : Exception("No sync flag found in the read response")
 }

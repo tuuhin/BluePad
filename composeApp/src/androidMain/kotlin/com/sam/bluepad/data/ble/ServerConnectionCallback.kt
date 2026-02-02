@@ -12,18 +12,30 @@ import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.models.BLEPeerData
+import com.sam.bluepad.domain.ble.models.BLEServerSyncEvent
+import com.sam.bluepad.domain.ble.models.BLESyncACKFailedReason
 import com.sam.bluepad.domain.ble.models.BLESyncData
+import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
+import com.sam.bluepad.domain.repository.ExternalDevicesRepository
+import com.sam.bluepad.domain.use_cases.BytesEncoder
 import com.sam.bluepad.domain.use_cases.RandomGenerator
+import com.sam.bluepad.domain.utils.Resource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -40,21 +52,28 @@ private typealias GATTNotifyCharacteristicsChanged = (device: BluetoothDevice, c
 @SuppressLint("MissingPermission")
 class ServerConnectionCallback(
     provider: LocalDeviceInfoProvider,
+    repository: ExternalDevicesRepository,
     private val protoBuf: ProtoBuf,
+    private val encoder: BytesEncoder,
     private val randomGenerator: RandomGenerator,
     private val platformInfoProvider: PlatformInfoProvider,
 ) : BluetoothGattServerCallback() {
 
     private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private val _deviceNonceMap = ConcurrentHashMap<String, ByteArray>()
-    private val _bleCCCDescriptorMap = ConcurrentHashMap<String, Boolean>()
+    private val _localNonceMap = ConcurrentHashMap<String, String>()
+    private val _cccDescriptorMap = ConcurrentHashMap<String, Boolean>()
 
     private val _deviceInfo = provider.readDeviceInfo.stateIn(
         scope = _scope,
         started = SharingStarted.Eagerly,
         initialValue = null
     )
+
+    private val _savedDevices = repository.getAllDevices()
+        .filterIsInstance<Resource.Success<List<ExternalDeviceModel>, Exception>>()
+        .map { it.data }
+        .stateIn(_scope, SharingStarted.Eagerly, emptyList())
 
     private var _sendResponse: GATTSendResponse? = null
     private var _notifyCharacteristicsChanged: GATTNotifyCharacteristicsChanged? = null
@@ -73,24 +92,36 @@ class ServerConnectionCallback(
     }
 
     private val _incomingPeerData = MutableStateFlow<List<BLEPeerData>>(emptyList())
-    val incomingPeerData = _incomingPeerData.asStateFlow()
+    val incomingPeerData: Flow<List<BLEPeerData>>
+        get() = _incomingPeerData.asStateFlow()
+
+    private val _incomingSyncRequest = Channel<BLEServerSyncEvent>(Channel.CONFLATED)
+    val syncRequestEvents: Flow<BLEServerSyncEvent>
+        get() = _incomingSyncRequest.consumeAsFlow()
 
     override fun onConnectionStateChange(device: BluetoothDevice?, status: Int, newState: Int) {
         if (device == null || status != BluetoothGatt.GATT_SUCCESS) return
-        val bondState = when (device.bondState) {
-            BluetoothDevice.BOND_NONE -> "NO BOND"
-            BluetoothDevice.BOND_BONDED -> "BONDED"
-            BluetoothDevice.BOND_BONDING -> "BONDING"
-            else -> null
+
+        val bondState = try {
+            when (device.bondState) {
+                BluetoothDevice.BOND_NONE -> "NO BOND"
+                BluetoothDevice.BOND_BONDED -> "BONDED"
+                BluetoothDevice.BOND_BONDING -> "BONDING"
+                else -> null
+            }
+        } catch (e: SecurityException) {
+            Logger.e(TAG, e) { "MISSING CONNECT PERMISSION" }
+            null
         }
+
         val state = when (newState) {
             BluetoothProfile.STATE_CONNECTED -> "CONNECTED"
             BluetoothProfile.STATE_DISCONNECTED -> "DISCONNECTED"
             else -> null
         }
         if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-            _deviceNonceMap.remove(device.address)
-            _bleCCCDescriptorMap.remove(device.address)
+            _localNonceMap.remove(device.address)
+            _cccDescriptorMap.remove(device.address)
         }
         Logger.d(TAG) { "DEVICE IDENTIFIER:${device.address} BOND STATE:$bondState CONNECTION STATE:$state" }
     }
@@ -137,7 +168,6 @@ class ServerConnectionCallback(
 
             val value = try {
                 val nonce = randomGenerator.generateRandomBytes(size = NONCE_SIZE)
-                    .also { nonceBytes -> _deviceNonceMap[device.address] = nonceBytes }
                 val peerData = BLEPeerData(
                     deviceId = deviceInfo.deviceId,
                     deviceOs = platformInfoProvider.platformOS,
@@ -173,15 +203,11 @@ class ServerConnectionCallback(
             }
 
             val value = try {
-                val nonce = randomGenerator.generateRandomBytes(NONCE_SIZE).also { nonceBytes ->
-                    _deviceNonceMap[device.address] = nonceBytes
+                val nonce = randomGenerator.generateRandomBytes(NONCE_SIZE).let { nonceBytes ->
+                    encoder.encodeBytes(nonceBytes).apply { _localNonceMap[device.address] = this }
                 }
-                val advertiseData = BLESyncData.BLEAdvertiseData(
-                    deviceId = deviceInfo.deviceId,
-                    nonce = nonce.decodeToString(),
-                    allowSync = true
-                )
-                val bytes = protoBuf.encodeToByteArray<BLESyncData.BLEAdvertiseData>(advertiseData)
+                val data = BLESyncData.BLEAdvertiseData(deviceInfo.deviceId, nonce, true)
+                val bytes = protoBuf.encodeToByteArray<BLESyncData.BLEAdvertiseData>(data)
                 Logger.d(TAG) { "RESPONDING WITH DATA SIZE:${bytes.size}" }
                 bytes
             } catch (e: Exception) {
@@ -247,19 +273,48 @@ class ServerConnectionCallback(
 
             try {
                 val response = protoBuf.decodeFromByteArray<BLESyncData.BLEAdvertiseResponse>(value)
-                Logger.d(TAG) { "RESPONSE FOUND :$response" }
-                // TODO: HANDLE THE ACK DATA LATER
-                val acknowledgment = BLESyncData.BLESyncAcknowledgement(
-                    nonce = response.nonce,
-                    serverID = Uuid.random()
-                )
-                val ackBytes = protoBuf.encodeToByteArray(acknowledgment)
+                Logger.d(TAG) { "WRITE REQUESTED ACCEPTED CHARACTERISTIC ID: ${characteristic.uuid}" }
+
+                val savedNonce = _localNonceMap[device.address]
+                val externalDevice = _savedDevices.value.find { it.id == response.senderID }
+                val connectionId = Uuid.random()
+
+                val data = when {
+                    savedNonce == null -> BLESyncData.BLESyncACKFailed(reason = BLESyncACKFailedReason.INVALID_INCOMING_DATA)
+                    savedNonce != response.nonce ->
+                        BLESyncData.BLESyncACKFailed(BLESyncACKFailedReason.TAMPERED_DATA)
+
+                    response.receiverID != _deviceInfo.value?.deviceId ->
+                        BLESyncData.BLESyncACKFailed(reason = BLESyncACKFailedReason.INVALID_RECEIVER)
+
+                    externalDevice == null -> BLESyncData.BLESyncACKFailed(BLESyncACKFailedReason.UNKNOWN_SENDER)
+                    else -> BLESyncData.BLESyncACKSuccess(
+                        serverID = connectionId,
+                        nonce = response.nonce,
+                        deviceAddress = device.address
+                    )
+                }
+
+                val bytes = protoBuf.encodeToByteArray<BLESyncData>(data)
                 _notifyCharacteristicsChanged?.invoke(
                     device,
                     characteristic,
-                    characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0,
-                    ackBytes
+                    false,
+                    bytes
                 )
+
+                if (externalDevice == null) {
+                    Logger.d(TAG) { "RECEIVER DEVICE IS NOT KNOWN" }
+                    sendFailedResponse(device, requestId, offset, responseNeeded)
+                    return
+                }
+                val event = BLEServerSyncEvent.ConnectionRequest(externalDevice, connectionId)
+                _incomingSyncRequest.trySend(event)
+                when (data) {
+                    is BLESyncData.BLESyncACKSuccess -> Logger.d(TAG) { "NOTIFICATION ON CHARACTERISTIC : ${characteristic.uuid} SEND SUCCESS" }
+                    is BLESyncData.BLESyncACKFailed -> Logger.d(TAG) { "NOTIFICATION ON CHARACTERISTIC : ${characteristic.uuid} FAILED REASON :${data.reason}" }
+                    else -> {}
+                }
             } catch (e: Exception) {
                 Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
                 sendFailedResponse(device, requestId, offset)
@@ -288,6 +343,7 @@ class ServerConnectionCallback(
         Logger.i(TAG) { "READ REQUEST DESCRIPTOR ID ${descriptor.uuid} CHARACTERISTIC ID : ${descriptor.characteristic.uuid}" }
 
         if (descriptor.characteristic.uuid.toKotlinUuid() != BLEConstants.SYNC_CHARACTERISTICS_ID) {
+            Logger.d(TAG) { "INVALID CHARACTERISTICS PROVIDED :${descriptor.characteristic.uuid}" }
             sendFailedResponse(device, requestId, offset, false)
             return
         }
@@ -297,12 +353,8 @@ class ServerConnectionCallback(
             sendFailedResponse(device, requestId, offset, false)
             return
         }
-        if (descriptor.characteristic.uuid.toKotlinUuid() != BLEConstants.SYNC_CHARACTERISTICS_ID) {
-            Logger.d(TAG) { "INVALID CHARACTERISTICS PROVIDED :${descriptor.characteristic.uuid}" }
-            sendFailedResponse(device, requestId, offset, false)
-            return
-        }
-        val isEnabled = _bleCCCDescriptorMap[device.address] ?: false
+
+        val isEnabled = _cccDescriptorMap[device.address] ?: false
         val isIndication =
             descriptor.characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0
         val bytes = when (isEnabled) {
@@ -356,7 +408,7 @@ class ServerConnectionCallback(
             return
         }
 
-        _bleCCCDescriptorMap[device.address] = isNotifyEnabled
+        _cccDescriptorMap[device.address] = isNotifyEnabled
         val bytesAsString = value.joinToString("-") { it.toHexString() }
         Logger.d(TAG) { "UPDATED DESCRIPTOR VALUE :$bytesAsString" }
 
@@ -376,9 +428,11 @@ class ServerConnectionCallback(
 
     fun cleanUp() {
         // clears everything on done
-        _scope.cancel()
-        _deviceNonceMap.clear()
-        _bleCCCDescriptorMap.clear()
+        if (_scope.isActive) _scope.cancel()
+        // clear the maps
+        _localNonceMap.clear()
+        _cccDescriptorMap.clear()
+        // clear the maps
         _incomingPeerData.value = emptyList()
     }
 }

@@ -25,7 +25,7 @@ public class BLEAdvertiser {
             @Override
             public byte[] onReadCharacteristics(String deviceAddress, String serviceUuid, String characteristicUuid) {
                 if (listener == null) return new byte[0];
-                return listener.onReadCharacteristics(serviceUuid, serviceUuid, characteristicUuid);
+                return listener.onReadCharacteristics(deviceAddress, serviceUuid, characteristicUuid);
             }
 
             @Override

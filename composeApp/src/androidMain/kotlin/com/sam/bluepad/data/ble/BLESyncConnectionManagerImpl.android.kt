@@ -25,7 +25,6 @@ import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.exceptions.BluetoothPermissionException
 import com.sam.bluepad.domain.exceptions.LocationDisabledException
 import com.sam.bluepad.domain.exceptions.LocationPermissionException
-import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.utils.Resource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -39,18 +38,16 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.protobuf.ProtoBuf
 import kotlin.time.Duration
 import kotlin.uuid.toJavaUuid
 
 private const val TAG = "SYNC_CONNECTION_MANAGER"
 
-@Suppress("DEPRECATION")
 @SuppressLint("MissingPermission")
 actual class BLESyncConnectionManagerImpl(
     private val context: Context,
-    private val protoBuf: ProtoBuf,
-    private val deviceInfoProvider: LocalDeviceInfoProvider,
+    private val scanCallback: SyncDeviceDiscoveryCallback,
+    private val connectionCallback: SyncDeviceConnectionCallback,
 ) : BLESyncConnectionManager {
 
     private val _bluetoothManager by lazy { context.getSystemService<BluetoothManager>() }
@@ -108,8 +105,6 @@ actual class BLESyncConnectionManagerImpl(
 
     private fun runBLEDiscovery(): Flow<BluetoothDevice> = channelFlow {
 
-        val scanCallback = SyncDeviceDiscoveryCallback()
-
         launch(Dispatchers.Main) {
             // in case any device is found collect the device
             scanCallback.devicesFlow.collect(::send)
@@ -118,8 +113,7 @@ actual class BLESyncConnectionManagerImpl(
         launch(Dispatchers.Main) {
             // if any errors happens throw the error and close the channel
             val error = scanCallback.errorsFlow.first()
-            close()
-            throw error
+            close(error)
         }
 
         val scanFilters = listOf<ScanFilter>(
@@ -146,32 +140,31 @@ actual class BLESyncConnectionManagerImpl(
 
     private fun handleConnection(device: BluetoothDevice) = channelFlow<ResourcesSyncDataEvents> {
 
-        val gattCallback = SyncDeviceConnectionCallback(
-            protoBuf = protoBuf,
-            provider = deviceInfoProvider
-        )
-
-        // handle the errors
         launch {
-            gattCallback.errorFlow.collect { err ->
-                send(Resource.Error(err))
-            }
+            // close the flow if any error happens
+            val error = connectionCallback.errorFlow.first()
+            close(error)
         }
 
         // handle the events
         launch {
-            gattCallback.eventsFlow.collect { event ->
+            connectionCallback.eventsFlow.collect { event ->
                 send(Resource.Success(event))
             }
         }
 
         Log.d(TAG, "OPENING GATT CONNECTION")
-        val gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+        val btGatt = device.connectGatt(
+            context,
+            false,
+            connectionCallback,
+            BluetoothDevice.TRANSPORT_LE
+        )
 
         awaitClose {
             Log.d(TAG, "CLOSING GATT CONNECTION")
-            gattCallback.cancel()
-            gatt.close()
+            connectionCallback.cancel()
+            btGatt.close()
         }
     }
 
@@ -184,6 +177,4 @@ actual class BLESyncConnectionManagerImpl(
             else -> null
         }
     }
-
-    override fun cleanUp() = Unit
 }

@@ -12,5 +12,4 @@ interface BLESyncConnectionManager {
 
     fun discoverAndConnect(timeout: Duration = 20.seconds): Flow<ResourcesSyncDataEvents>
 
-    fun cleanUp()
 }

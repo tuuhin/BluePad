@@ -19,8 +19,12 @@ object SerializationProtocols {
                     BLESyncData.BLEAdvertiseResponse.serializer()
                 )
                 subclass(
-                    BLESyncData.BLESyncAcknowledgement::class,
-                    BLESyncData.BLESyncAcknowledgement.serializer()
+                    BLESyncData.BLESyncACKSuccess::class,
+                    BLESyncData.BLESyncACKSuccess.serializer()
+                )
+                subclass(
+                    BLESyncData.BLESyncACKFailed::class,
+                    BLESyncData.BLESyncACKFailed.serializer()
                 )
             }
         }

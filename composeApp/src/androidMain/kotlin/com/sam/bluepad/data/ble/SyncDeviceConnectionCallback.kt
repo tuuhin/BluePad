@@ -11,15 +11,24 @@ import co.touchlab.kermit.Logger
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.models.BLEConnectionState
 import com.sam.bluepad.domain.ble.models.BLEDeviceSyncEvent
+import com.sam.bluepad.domain.ble.models.BLESyncACKFailedReason
 import com.sam.bluepad.domain.ble.models.BLESyncData
+import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
+import com.sam.bluepad.domain.repository.ExternalDevicesRepository
+import com.sam.bluepad.domain.utils.Resource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
@@ -29,10 +38,10 @@ import kotlin.uuid.toKotlinUuid
 
 private const val TAG = "SYNC_CONNECTION_CALLBACK"
 
-@Suppress("DEPRECATION")
 @SuppressLint("MissingPermission")
 class SyncDeviceConnectionCallback(
-    provider: LocalDeviceInfoProvider,
+    deviceInfoProvider: LocalDeviceInfoProvider,
+    externalDevicesRepository: ExternalDevicesRepository,
     private val protoBuf: ProtoBuf,
 ) : BluetoothGattCallback() {
 
@@ -41,16 +50,26 @@ class SyncDeviceConnectionCallback(
     private val _eventsChannel = Channel<BLEDeviceSyncEvent>(Channel.CONFLATED)
     private val _errorChannel = Channel<Exception>(Channel.CONFLATED)
 
-    val eventsFlow = _eventsChannel.receiveAsFlow()
-    val errorFlow = _errorChannel.receiveAsFlow()
+    val eventsFlow = _eventsChannel.consumeAsFlow()
+    val errorFlow = _errorChannel.consumeAsFlow()
 
-    private val _incomingData = ConcurrentHashMap<String, BLESyncData.BLEAdvertiseData>()
+    private val _advertiseDataCache = ConcurrentHashMap<String, BLESyncData.BLEAdvertiseData>()
 
-    private val deviceInfo = provider.readDeviceInfo.stateIn(
+    private val deviceInfo = deviceInfoProvider.readDeviceInfo.stateIn(
         scope = _scope,
         started = SharingStarted.Eagerly,
         initialValue = null
     )
+
+    private val _savedDevices = externalDevicesRepository.getAllDevices()
+        .onEach { res ->
+            if (res !is Resource.Error) return@onEach
+            Logger.e(TAG, res.error) { "SOME ERROR OCCURRED WHILE READING DEVICES" }
+        }
+        .filterIsInstance<Resource.Success<List<ExternalDeviceModel>, Exception>>()
+        .map { res -> res.data }
+        .stateIn(_scope, SharingStarted.Eagerly, emptyList())
+
 
     override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
@@ -112,10 +131,14 @@ class SyncDeviceConnectionCallback(
             return
         }
         Logger.d(TAG) { "UPDATED MTU :$mtu" }
-        Logger.d(TAG) { "REQUESTED SERVICE DISCOVERY" }
-        gatt?.discoverServices()
+        _scope.launch {
+            Logger.d(TAG) { "REQUESTED SERVICE DISCOVERY" }
+            delay(200)
+            gatt?.discoverServices()
+        }
     }
 
+    @Suppress("DEPRECATION")
     @Deprecated("Deprecated in Java")
     override fun onCharacteristicRead(
         gatt: BluetoothGatt,
@@ -126,7 +149,7 @@ class SyncDeviceConnectionCallback(
         onCharacteristicRead(gatt, characteristic, characteristic.value, status)
     }
 
-
+    @Suppress("DEPRECATION")
     override fun onCharacteristicRead(
         gatt: BluetoothGatt,
         characteristic: BluetoothGattCharacteristic,
@@ -143,18 +166,29 @@ class SyncDeviceConnectionCallback(
             return
         }
         try {
-            val advertiseData = protoBuf.decodeFromByteArray<BLESyncData.BLEAdvertiseData>(value)
+            val syncData = protoBuf.decodeFromByteArray<BLESyncData.BLEAdvertiseData>(value)
             _eventsChannel.trySend(
                 BLEDeviceSyncEvent.AdvertisingDataRead(
                     characteristicsId = characteristic.uuid.toKotlinUuid(),
-                    data = advertiseData
+                    data = syncData
                 )
             )
-            Logger.d(TAG) { "ADVERTISE DATA RECEIVED DEVICE_ID:${advertiseData.deviceId}" }
-            gatt.device?.address?.let { _incomingData.put(it, advertiseData) }
 
-            // TODO: CHECK IF ITS VALID OR NOT
-            // turn on notification
+            if (!syncData.allowSync) {
+                Logger.e(TAG) { "SYNC FLAG MISSING" }
+                _errorChannel.trySend(SyncFlagMissingException())
+                return
+            }
+            _savedDevices.value.find { it.id == syncData.deviceId } ?: run {
+                Logger.w(TAG) { "CANNOT FIND THE GIVEN DEVICE " }
+                _errorChannel.trySend(InvalidReceiverIdException())
+                return
+            }
+
+            Logger.d(TAG) { "ADVERTISE DATA RECEIVED DEVICE_ID:${syncData.deviceId}" }
+            val deviceAddress = gatt.device?.address ?: return
+            _advertiseDataCache[deviceAddress] = syncData
+
             val isNotificationStarted = gatt.setCharacteristicNotification(characteristic, true)
             Logger.d(TAG) { "NOTIFICATION LISTENER ENABLED:$isNotificationStarted" }
 
@@ -196,16 +230,8 @@ class SyncDeviceConnectionCallback(
         _eventsChannel.trySend(BLEDeviceSyncEvent.AdvertisingResponseSend)
     }
 
-    override fun onDescriptorRead(
-        gatt: BluetoothGatt,
-        descriptor: BluetoothGattDescriptor,
-        status: Int,
-        value: ByteArray
-    ) {
-        super.onDescriptorRead(gatt, descriptor, status, value)
-        Logger.e(TAG) { "SOME !!!!!!!!!!!!!!!!" }
-    }
 
+    @Suppress("DEPRECATION")
     override fun onDescriptorWrite(
         gatt: BluetoothGatt?,
         descriptor: BluetoothGattDescriptor?,
@@ -223,15 +249,15 @@ class SyncDeviceConnectionCallback(
             // now write the characteristics
             val currentDeviceInfo = deviceInfo.value ?: return
             val advertiseData = gatt?.device?.let {
-                _incomingData.getOrDefault(it.address, null)
+                _advertiseDataCache.getOrDefault(it.address, null)
             } ?: return
             // characteristics to write
             val outgoingData = BLESyncData.BLEAdvertiseResponse(
                 nonce = advertiseData.nonce,
-                receiverDeviceId = advertiseData.deviceId,
-                currentDeviceId = currentDeviceInfo.deviceId
+                receiverID = advertiseData.deviceId,
+                senderID = currentDeviceInfo.deviceId
             )
-            val syncWrite = protoBuf.encodeToByteArray<BLESyncData.BLEAdvertiseResponse>(outgoingData)
+            val syncWrite = protoBuf.encodeToByteArray<BLESyncData>(outgoingData)
             val response = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 gatt.writeCharacteristic(
                     descriptor.characteristic,
@@ -246,6 +272,7 @@ class SyncDeviceConnectionCallback(
         }
     }
 
+    @Suppress("DEPRECATION")
     @Deprecated("Deprecated in Java")
     override fun onCharacteristicChanged(
         gatt: BluetoothGatt?,
@@ -264,12 +291,27 @@ class SyncDeviceConnectionCallback(
     ) {
         if (characteristic.uuid.toKotlinUuid() != BLEConstants.SYNC_CHARACTERISTICS_ID) return
         try {
-            val result = protoBuf.decodeFromByteArray<BLESyncData.BLESyncAcknowledgement>(value)
+            val result = protoBuf.decodeFromByteArray<BLESyncData>(value)
             Logger.i(TAG) { "SYNC ACK DATA FOUND" }
-            _eventsChannel.trySend(BLEDeviceSyncEvent.AdvertisingAcknowledgmentReceived(result))
+            when (result) {
+                is BLESyncData.BLESyncACKFailed -> {
+                    val error = InvalidAcknowledgementException(result.reason)
+                    Logger.d(TAG, error) { "FAILED ACKNOWLEDGEMENT FOUND REASON:${result.reason}" }
+                    _errorChannel.trySend(error)
+                }
+
+                is BLESyncData.BLESyncACKSuccess -> {
+                    Logger.i(TAG) { "ACK FOUND" }
+                    val ack = BLEDeviceSyncEvent.AdvertisingAcknowledgmentReceived(result)
+                    _eventsChannel.trySend(ack)
+                }
+
+                else -> {}
+            }
 
             // data is found so turn this off now
             // TODO: Only the android system stop keeping track of the notification
+            // TODO: Write disable in the gatt descriptor
             val isDisabled = gatt.setCharacteristicNotification(characteristic, false)
             Logger.d(TAG) { "NOTIFICATION LISTENER DISABLED:$isDisabled" }
 
@@ -283,6 +325,13 @@ class SyncDeviceConnectionCallback(
 
     fun cancel() {
         _scope.cancel()
-        _incomingData.clear()
+        _advertiseDataCache.clear()
     }
+
+    private class InvalidReceiverIdException : Exception("Invalid receiver id provided")
+    private class InvalidAcknowledgementException(reason: BLESyncACKFailedReason) :
+        Exception("Invalid Acknowledgement :${reason.name}")
+
+    private class SyncFlagMissingException : Exception("No sync flag found in the read response")
+
 }

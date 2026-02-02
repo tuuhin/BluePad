@@ -59,10 +59,11 @@ sealed interface BLEDeviceSyncEvent {
      *
      * @property ack The acknowledgment data received from the device,
      * which may indicate the success or failure of the sync on its end.
-     * @see BLESyncData.BLESyncAcknowledgement
+     * @see BLESyncData.BLESyncACKSuccess
      */
-    data class AdvertisingAcknowledgmentReceived(val ack: BLESyncData.BLESyncAcknowledgement) :
-        BLEDeviceSyncEvent
+    data class AdvertisingAcknowledgmentReceived(
+        val ack: BLESyncData.BLESyncACKSuccess
+    ) : BLEDeviceSyncEvent
 
     /**
      * THe device has disconnected, either intentionally by the app or
