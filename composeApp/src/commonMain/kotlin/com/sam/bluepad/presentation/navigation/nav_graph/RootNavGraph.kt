@@ -23,7 +23,7 @@ sealed interface RootNavGraph : NavKey {
 	data class ConnectDeviceRoute(val address: String) : RootNavGraph
 
 	@Serializable
-	data class SendSyncDeviceRoute(val device: Uuid) : RootNavGraph
+	data class SyncConnectorRoute(val deviceId: Uuid) : RootNavGraph
 
 	@Serializable
 	data object ReceiveSyncDeviceRoute : RootNavGraph
