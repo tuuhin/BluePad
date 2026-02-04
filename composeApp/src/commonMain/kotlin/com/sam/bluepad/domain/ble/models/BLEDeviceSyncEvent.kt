@@ -1,5 +1,6 @@
 package com.sam.bluepad.domain.ble.models
 
+import com.sam.bluepad.domain.models.ExternalDeviceModel
 import kotlin.uuid.Uuid
 
 sealed interface BLEDeviceSyncEvent {
@@ -39,12 +40,12 @@ sealed interface BLEDeviceSyncEvent {
      * BLE characteristic.
      *
      * @property characteristicsId The UUID of the characteristic from which the data was read.
-     * @property data The parsed advertising data payload.
+     * @property device The parsed advertising data payload.
      * @see BLESyncData.BLEAdvertiseData
      */
     data class AdvertisingDataRead(
         val characteristicsId: Uuid,
-        val data: BLESyncData.BLEAdvertiseData
+        val device: ExternalDeviceModel
     ) : BLEDeviceSyncEvent
 
     /**

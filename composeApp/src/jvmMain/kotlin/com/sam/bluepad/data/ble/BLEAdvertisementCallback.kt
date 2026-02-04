@@ -235,7 +235,7 @@ class BLEAdvertisementCallback(
                 )
 
                 if (externalDevice == null) return
-                val event = BLEServerSyncEvent.ConnectionRequest(externalDevice, connectionId)
+                val event = BLEServerSyncEvent.SyncRequest(externalDevice, connectionId)
                 _incomingSyncRequest.trySend(event)
                 when (data) {
                     is BLESyncData.BLESyncACKSuccess -> Logger.d(TAG) { "NOTIFICATION ON CHARACTERISTIC : $characteristicUuid SEND IS_SUCCESS:UNKOWN" }

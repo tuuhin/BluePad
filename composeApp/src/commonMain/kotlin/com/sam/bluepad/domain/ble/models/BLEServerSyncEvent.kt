@@ -5,5 +5,8 @@ import kotlin.uuid.Uuid
 
 sealed interface BLEServerSyncEvent {
 
-    data class ConnectionRequest(val device: ExternalDeviceModel, val connectorUuid: Uuid) : BLEServerSyncEvent
+    data class SyncRequest(
+        val device: ExternalDeviceModel,
+        val connectorUuid: Uuid
+    ) : BLEServerSyncEvent
 }

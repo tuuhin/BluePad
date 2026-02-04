@@ -8,19 +8,22 @@ import co.touchlab.kermit.Logger
 import com.sam.bluepad.BuildKonfig
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.exceptions.BLEDiscoveryException
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlin.uuid.toJavaUuid
 
 private const val TAG = "SYNC_DISCOVERY_CALLBACK"
 
 class SyncDeviceDiscoveryCallback : ScanCallback() {
 
-    private val _devicesChannel = Channel<BluetoothDevice>(Channel.CONFLATED)
-    private val _errorsChannel = Channel<Exception>(capacity = Channel.CONFLATED)
+    private var _onDeviceFound: ((BluetoothDevice) -> Unit)? = null
+    private var _onError: ((Exception) -> Unit)? = null
 
-    val devicesFlow = _devicesChannel.receiveAsFlow()
-    val errorsFlow = _errorsChannel.receiveAsFlow()
+    fun onDeviceFound(func: (BluetoothDevice) -> Unit) {
+        _onDeviceFound = func
+    }
+
+    fun onError(func: (Exception) -> Unit) {
+        _onError = func
+    }
 
     override fun onScanResult(callbackType: Int, result: ScanResult?) {
         val scanRecord = result?.scanRecord ?: return
@@ -37,7 +40,7 @@ class SyncDeviceDiscoveryCallback : ScanCallback() {
         Logger.d(TAG) { "SCAN RESULT FOUND UUID:${parcelUid.uuid} DATA:$readableData" }
         if (serviceData?.decodeToString() != BuildKonfig.APP_ID) return
         // send the device
-        _devicesChannel.trySend(device)
+        _onDeviceFound?.invoke(device)
     }
 
     override fun onScanFailed(errorCode: Int) {
@@ -50,7 +53,12 @@ class SyncDeviceDiscoveryCallback : ScanCallback() {
             SCAN_FAILED_SCANNING_TOO_FREQUENTLY -> BLEDiscoveryException("Scanning too frequently")
             else -> return
         }
-        _errorsChannel.trySend(exception)
+        _onError?.invoke(exception)
         Logger.e(TAG, exception) { "FAILED TO SEND ERROR CODE : $errorCode" }
+    }
+
+    fun clearCallbacks() {
+        _onDeviceFound = null
+        _onError = null
     }
 }

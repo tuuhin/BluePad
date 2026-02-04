@@ -308,7 +308,7 @@ class ServerConnectionCallback(
                     sendFailedResponse(device, requestId, offset, responseNeeded)
                     return
                 }
-                val event = BLEServerSyncEvent.ConnectionRequest(externalDevice, connectionId)
+                val event = BLEServerSyncEvent.SyncRequest(externalDevice, connectionId)
                 _incomingSyncRequest.trySend(event)
                 when (data) {
                     is BLESyncData.BLESyncACKSuccess -> Logger.d(TAG) { "NOTIFICATION ON CHARACTERISTIC : ${characteristic.uuid} SEND SUCCESS" }

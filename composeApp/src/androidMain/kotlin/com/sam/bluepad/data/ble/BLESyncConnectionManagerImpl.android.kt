@@ -36,7 +36,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
 import kotlin.uuid.toJavaUuid
@@ -89,7 +89,7 @@ actual class BLESyncConnectionManagerImpl(
             emit(Resource.Success(BLEDeviceSyncEvent.DeviceFound(identifier)))
             // deals with the connection
             val connectionFlow = handleConnection(btDevice)
-            emitAll(connectionFlow)
+            emitAll(connectionFlow.map { Resource.Success(it) })
         } catch (_: TimeoutCancellationException) {
             Logger.w(TAG) { "SCAN TIMEOUT ADVERTISEMENT NOT FOUND FOR TIMEOUT: $timeout" }
             emit(Resource.Success(BLEDeviceSyncEvent.DeviceScanTimeout))
@@ -105,16 +105,8 @@ actual class BLESyncConnectionManagerImpl(
 
     private fun runBLEDiscovery(): Flow<BluetoothDevice> = channelFlow {
 
-        launch(Dispatchers.Main) {
-            // in case any device is found collect the device
-            scanCallback.devicesFlow.collect(::send)
-        }
-
-        launch(Dispatchers.Main) {
-            // if any errors happens throw the error and close the channel
-            val error = scanCallback.errorsFlow.first()
-            close(error)
-        }
+        scanCallback.onDeviceFound { trySend(it) }
+        scanCallback.onError { err -> close(err) }
 
         val scanFilters = listOf<ScanFilter>(
             ScanFilter.Builder()
@@ -135,23 +127,15 @@ actual class BLESyncConnectionManagerImpl(
         awaitClose {
             Log.i(TAG, "BLE SCAN STOPPED")
             _btLEScanner?.stopScan(scanCallback)
+            scanCallback.clearCallbacks()
         }
     }
 
-    private fun handleConnection(device: BluetoothDevice) = channelFlow<ResourcesSyncDataEvents> {
+    private fun handleConnection(device: BluetoothDevice) = channelFlow<BLEDeviceSyncEvent> {
 
-        launch {
-            // close the flow if any error happens
-            val error = connectionCallback.errorFlow.first()
-            close(error)
-        }
-
-        // handle the events
-        launch {
-            connectionCallback.eventsFlow.collect { event ->
-                send(Resource.Success(event))
-            }
-        }
+        // callbacks
+        connectionCallback.onEvents { event -> trySend(event) }
+        connectionCallback.onError { err -> close(err) }
 
         Log.d(TAG, "OPENING GATT CONNECTION")
         val btGatt = device.connectGatt(
@@ -163,8 +147,8 @@ actual class BLESyncConnectionManagerImpl(
 
         awaitClose {
             Log.d(TAG, "CLOSING GATT CONNECTION")
-            connectionCallback.cancel()
             btGatt.close()
+            connectionCallback.onClose()
         }
     }
 
