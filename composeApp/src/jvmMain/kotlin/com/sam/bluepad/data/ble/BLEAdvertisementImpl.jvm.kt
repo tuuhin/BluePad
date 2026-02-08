@@ -12,8 +12,11 @@ import com.sam.bluepad.domain.ble.models.BLEServerSyncEvent
 import com.sam.bluepad.domain.exceptions.BLEAdvertiseUnsupportedException
 import com.sam.bluepad.domain.exceptions.BLENotSupportedException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.withContext
 
 private const val TAG = "BLE_ADVERTISER"
 
@@ -46,36 +49,46 @@ actual class BLEAdvertisementImpl(
         if (!BluetoothInfoProvider.isPeripheralRoleSupported())
             return Result.failure(BLEAdvertiseUnsupportedException())
 
-        return try {
-            _advertiser.setListener(callback)
+        return withContext(Dispatchers.IO) {
+            try {
+                _advertiser.setListener(callback)
 
-            callback.setNotifyCharacteristicsChanged { address, uuid, confirm, value ->
-                try {
-                    _advertiser.sendNotification(address, uuid, value, confirm)
-                } catch (e: Exception) {
-                    Logger.e(TAG, e) { "FAILED TO SEND NOTIFICATION" }
+                callback.setNotifyCharacteristicsChanged(::handleNotification)
+
+                _advertiser.startServer()
+                when (type) {
+                    BLEConnectionType.DEVICE_DISCOVERY -> {
+                        _advertiser.addService(BLEServiceToGatt.deviceDiscoveryService)
+                        Logger.d(TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
+                    }
+
+                    BLEConnectionType.PROXIMITY_AND_SYNC -> {
+                        _advertiser.addService(BLEServiceToGatt.deviceSyncService)
+                        Logger.d(TAG) { "BLE ADVERTISEMENT FOR SYNC " }
+                    }
                 }
+
+                val data = BuildKonfig.APP_ID.encodeToByteArray()
+                val config = GattAdvertisementConfig(true, true, data)
+                _advertiser.startAdvertisement(config)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Result.failure(e)
             }
+        }
+    }
 
-            _advertiser.startServer()
-            when (type) {
-                BLEConnectionType.DEVICE_DISCOVERY -> {
-                    _advertiser.addService(BLEServiceToGatt.deviceDiscoveryService)
-                    Logger.d(TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
-                }
-
-                BLEConnectionType.PROXIMITY_AND_SYNC -> {
-                    _advertiser.addService(BLEServiceToGatt.deviceSyncService)
-                    Logger.d(TAG) { "BLE ADVERTISEMENT FOR SYNC " }
-                }
-            }
-
-            val data = BuildKonfig.APP_ID.encodeToByteArray()
-            val config = GattAdvertisementConfig(true, true, data)
-            _advertiser.startAdvertisement(config)
-            Result.success(Unit)
+    private fun handleNotification(
+        address: String,
+        uuid: String,
+        confirm: Boolean,
+        value: ByteArray
+    ) {
+        try {
+            _advertiser.sendNotification(address, uuid, value, confirm)
         } catch (e: Exception) {
-            Result.failure(e)
+            Logger.e(TAG, e) { "FAILED TO SEND NOTIFICATION" }
         }
     }
 

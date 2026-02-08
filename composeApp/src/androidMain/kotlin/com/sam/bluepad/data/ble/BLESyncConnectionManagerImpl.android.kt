@@ -121,11 +121,11 @@ actual class BLESyncConnectionManagerImpl(
             .setLegacy(false)
             .build()
 
-        Log.i(TAG, "BLE SCAN STARTED")
+        Logger.i(TAG) { "BLE SCAN STARTED" }
         _btLEScanner?.startScan(scanFilters, scanSettings, scanCallback) ?: close()
 
         awaitClose {
-            Log.i(TAG, "BLE SCAN STOPPED")
+            Logger.i(TAG) { "BLE SCAN STOPPED" }
             _btLEScanner?.stopScan(scanCallback)
             scanCallback.clearCallbacks()
         }
@@ -137,7 +137,7 @@ actual class BLESyncConnectionManagerImpl(
         connectionCallback.onEvents { event -> trySend(event) }
         connectionCallback.onError { err -> close(err) }
 
-        Log.d(TAG, "OPENING GATT CONNECTION")
+        Logger.d(TAG) { "OPENING GATT CONNECTION" }
         val btGatt = device.connectGatt(
             context,
             false,
@@ -146,10 +146,15 @@ actual class BLESyncConnectionManagerImpl(
         )
 
         awaitClose {
-            Log.d(TAG, "CLOSING GATT CONNECTION")
+            Logger.d(TAG) { "CLOSING GATT CONNECTION" }
             btGatt.close()
-            connectionCallback.onClose()
+            connectionCallback.onClearCallbacks()
         }
+    }
+
+    override fun close() {
+        Log.d(TAG, "CALLBACK CLEAN UP")
+        connectionCallback.onClose()
     }
 
     private fun checkPermissionsAndPreconditions(): Exception? {

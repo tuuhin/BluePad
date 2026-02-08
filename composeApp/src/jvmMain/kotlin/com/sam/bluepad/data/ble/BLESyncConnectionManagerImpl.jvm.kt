@@ -226,6 +226,8 @@ actual class BLESyncConnectionManagerImpl(
         }.flowOn(Dispatchers.IO)
     }
 
+    override fun close() = Unit
+
     private class MissingSyncCharacteristicsException : Exception("Missing advertisement data")
     private class InvalidReceiverIdException : Exception("Invalid receiver id provided")
     private class InvalidAcknowledgementException(reason: BLESyncACKFailedReason) :

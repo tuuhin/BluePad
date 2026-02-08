@@ -19,6 +19,7 @@ import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.utils.Resource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
@@ -44,7 +45,7 @@ class SyncDeviceConnectionCallback(
     private val protoBuf: ProtoBuf,
 ) : BluetoothGattCallback() {
 
-    private val _scope = CoroutineScope(Dispatchers.IO)
+    private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private var _onEvents: ((BLEDeviceSyncEvent) -> Unit)? = null
     private var _onError: ((Exception) -> Unit)? = null
@@ -329,12 +330,19 @@ class SyncDeviceConnectionCallback(
         }
     }
 
-
-    fun onClose() {
-        _scope.cancel()
-        _advertiseDataCache.clear()
+    fun onClearCallbacks() {
+        Logger.d(TAG) { "CALLBACKS REMOVED" }
         _onError = null
         _onEvents = null
+        _advertiseDataCache.clear()
+    }
+
+    fun onClose() {
+        if (_scope.isActive) {
+            Logger.d(TAG) { "CANCELLING SCOPE" }
+            _scope.cancel()
+        }
+        onClearCallbacks()
     }
 
     private class InvalidReceiverIdException : Exception("Invalid receiver id provided")

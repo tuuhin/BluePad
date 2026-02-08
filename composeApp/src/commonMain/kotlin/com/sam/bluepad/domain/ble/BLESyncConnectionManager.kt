@@ -8,7 +8,7 @@ import kotlin.time.Duration.Companion.seconds
 
 typealias ResourcesSyncDataEvents = Resource<BLEDeviceSyncEvent, Exception>
 
-interface BLESyncConnectionManager {
+interface BLESyncConnectionManager : AutoCloseable {
 
     fun discoverAndConnect(timeout: Duration = 20.seconds): Flow<ResourcesSyncDataEvents>
 
