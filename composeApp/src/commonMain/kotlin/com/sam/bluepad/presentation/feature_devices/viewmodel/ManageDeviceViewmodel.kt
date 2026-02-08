@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 class ManageDeviceViewmodel(
 	private val repository: ExternalDevicesRepository,
@@ -46,7 +45,6 @@ class ManageDeviceViewmodel(
 	fun onEvent(event: ManageDevicesScreenEvent) {
 		when (event) {
 			is ManageDevicesScreenEvent.OnRevokeDevice -> onRevokeDevice(event.device)
-			is ManageDevicesScreenEvent.OnSyncDevice -> onSyncDevice(event.device)
 			is ManageDevicesScreenEvent.OnDeleteDevice -> onDeleteDevice(event.device)
 		}
 	}
@@ -122,10 +120,5 @@ class ManageDeviceViewmodel(
 				else -> {}
 			}
 		}.launchIn(viewModelScope)
-
-
-	private fun onSyncDevice(device: ExternalDeviceModel) = viewModelScope.launch {
-		_uiEvents.emit(UIEvents.ShowSnackBar("Feature unavailable sorry"))
-	}
 
 }

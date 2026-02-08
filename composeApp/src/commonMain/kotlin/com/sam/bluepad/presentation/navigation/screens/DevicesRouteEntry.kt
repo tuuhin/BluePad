@@ -13,21 +13,22 @@ import com.sam.bluepad.presentation.utils.UiEventsHandler
 import org.koin.compose.viewmodel.koinViewModel
 
 fun EntryProviderScope<NavKey>.devicesRouteEntry(
-	backStack: NavBackStack<NavKey>
+    backStack: NavBackStack<NavKey>
 ) = entry<AssociatedNavGraph.DeviceRoute> {
 
-	val viewModel = koinViewModel<ManageDeviceViewmodel>()
-	val savedDevices by viewModel.devices.collectAsStateWithLifecycle()
-	val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val viewModel = koinViewModel<ManageDeviceViewmodel>()
+    val savedDevices by viewModel.devices.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
-	UiEventsHandler(viewModel::uiEvent)
+    UiEventsHandler(viewModel::uiEvent)
 
-	ManageDevicesScreen(
-		devices = savedDevices,
-		isLoading = isLoading,
-		onEvent = viewModel::onEvent,
-		onNavigateToAdvertiseRoute = { backStack.add(RootNavGraph.AdvertiseDeviceRoute) },
-		onNavigateToAddDeviceRoute = { backStack.add(RootNavGraph.SearchDeviceRoute) },
-		onNavigateToRevokeDevicesRoute = { backStack.add(RootNavGraph.BlackListedDevicesRoute) }
-	)
+    ManageDevicesScreen(
+        devices = savedDevices,
+        isLoading = isLoading,
+        onEvent = viewModel::onEvent,
+        onNavigateToAdvertiseRoute = { backStack.add(RootNavGraph.AdvertiseDeviceRoute) },
+        onNavigateToAddDeviceRoute = { backStack.add(RootNavGraph.SearchDeviceRoute) },
+        onNavigateToRevokeDevicesRoute = { backStack.add(RootNavGraph.BlackListedDevicesRoute) },
+        onNavigateToSyncDeviceRoute = { backStack.add(RootNavGraph.SyncConnectorRoute(it)) }
+    )
 }

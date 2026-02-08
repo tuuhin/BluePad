@@ -30,7 +30,7 @@ private enum class ContentState {
 fun <T> ContentLoadingWrapper(
 	content: T?,
 	isLoading: Boolean,
-	onSuccess: @Composable () -> Unit,
+	onSuccess: @Composable (T) -> Unit,
 	onFailed: @Composable () -> Unit,
 	modifier: Modifier = Modifier,
 	isContentLoadFailed: Boolean = false,
@@ -67,7 +67,7 @@ fun <T> ContentLoadingWrapper(
 				}
 			}
 
-			ContentState.SUCCESS -> content?.let { onSuccess.invoke() }
+			ContentState.SUCCESS -> content?.let { onSuccess.invoke(it) }
 		}
 	}
 }

@@ -27,37 +27,37 @@ import com.sam.bluepad.presentation.navigation.utils.BottomSheetSceneStrategy
 @Composable
 fun AppRootNavHost(modifier: Modifier = Modifier) {
 
-	val backStack = rememberNavBackStack(
-		configuration = SavedStateConfiguration {
-			serializersModule = NavigationSerializers.rootNavGraphSerializer()
-		},
-		RootNavGraph.AssociatedNavGraphRoute,
-	)
+    val backStack = rememberNavBackStack(
+        configuration = SavedStateConfiguration {
+            serializersModule = NavigationSerializers.rootNavGraphSerializer()
+        },
+        RootNavGraph.AssociatedNavGraphRoute,
+    )
 
-	val sceneStrategy: SceneStrategy<NavKey> =
-		remember { BottomSheetSceneStrategy<NavKey>() then DialogSceneStrategy() }
+    val sceneStrategy: SceneStrategy<NavKey> =
+        remember { BottomSheetSceneStrategy<NavKey>() then DialogSceneStrategy() }
 
-	NavDisplay(
-		backStack = backStack,
-		modifier = modifier,
-		sceneStrategy = sceneStrategy,
-		entryDecorators = listOf(
-			rememberSaveableStateHolderNavEntryDecorator(),
-			rememberViewModelStoreNavEntryDecorator(),
-		),
-		entryProvider = entryProvider {
-			associatedNavGraphEntry(backStack, startDestination = AssociatedNavGraph.ListRoute)
-			createOrUpdateSketchesEntry(backStack)
+    NavDisplay(
+        backStack = backStack,
+        modifier = modifier,
+        sceneStrategy = sceneStrategy,
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator(),
+            rememberViewModelStoreNavEntryDecorator(),
+        ),
+        entryProvider = entryProvider {
+            associatedNavGraphEntry(backStack, startDestination = AssociatedNavGraph.ListRoute)
+            createOrUpdateSketchesEntry(backStack)
 
-			// devices route
-			advertiseDeviceEntry(backStack)
-			searchDevicesEntry(backStack)
-			connectDeviceEntry(backStack)
-			blackListedDevicesRoute(backStack)
+            // devices route
+            advertiseDeviceEntry(backStack)
+            searchDevicesEntry(backStack)
+            connectDeviceEntry(backStack)
+            blackListedDevicesRoute(backStack)
 
-			// sync routes
-			receiveSyncDataRouteEntry(backStack)
-			syncDeviceRouteEntry(backStack)
-		}
-	)
+            // sync routes
+            receiveSyncDataRouteEntry(backStack)
+            syncDeviceRouteEntry(backStack)
+        }
+    )
 }
