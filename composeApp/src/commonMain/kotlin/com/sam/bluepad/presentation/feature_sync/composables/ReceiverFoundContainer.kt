@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
@@ -51,11 +50,13 @@ fun ReceiverFoundContainer(
 
     val devicesContent = remember {
         movableContentOf {
+            // remote device
             ReceiverDeviceUICard(
                 device = externalDevice,
                 isRemoteDevice = true,
                 localDeviceContainerColor = MaterialTheme.colorScheme.primaryContainer,
             )
+            // current device
             currentDevice?.let { device ->
                 ReceiverDeviceUICard(
                     device = device,
@@ -67,7 +68,7 @@ fun ReceiverFoundContainer(
 
     Column(
         modifier = modifier.padding(contentPadding),
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (windowInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND))
@@ -78,8 +79,7 @@ fun ReceiverFoundContainer(
             devicesContent()
         }
 
-
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.weight(1f))
         // two action allow and reject
         SyncPermissionButtons(
             showOptions = !isSyncStarted,

@@ -15,8 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sam.bluepad.resources.Res
-import com.sam.bluepad.resources.sync_device_dialog_text
-import com.sam.bluepad.resources.sync_device_dialog_title
+import com.sam.bluepad.resources.sync_device_screen_subtitle
+import com.sam.bluepad.resources.sync_device_screen_title
 import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,38 +28,29 @@ fun ConnectorScreenTopAppBar(
     scrollBehaviour: TopAppBarScrollBehavior? = null,
     isReadyToSync: Boolean = false,
     onStopConnection: () -> Unit = {},
-    onStartConnection: () -> Unit = {},
 ) {
     MediumFlexibleTopAppBar(
-        title = { Text(text = stringResource(Res.string.sync_device_dialog_title)) },
-        subtitle = { Text(text = stringResource(Res.string.sync_device_dialog_text)) },
+        title = { Text(text = stringResource(Res.string.sync_device_screen_title)) },
+        subtitle = { Text(text = stringResource(Res.string.sync_device_screen_subtitle)) },
         actions = {
-            AnimatedVisibility(visible = !isReadyToSync) {
+            AnimatedVisibility(visible = !isReadyToSync && isConnectorRunning) {
                 Button(
-                    onClick = if (isConnectorRunning) onStopConnection else onStartConnection,
+                    onClick = onStopConnection,
                     shapes = ButtonDefaults.shapes(
                         shape = ButtonDefaults.shape,
                         pressedShape = ButtonDefaults.mediumPressedShape
                     ),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isConnectorRunning) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = if (isConnectorRunning) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
                     ),
                     contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.ExtraSmallContainerHeight),
                 ) {
-                    if (isConnectorRunning) {
-                        Text(
-                            text = "Stop Connection",
-                            style = MaterialTheme.typography.bodyMediumEmphasized,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    } else {
-                        Text(
-                            text = "Start Connection",
-                            style = MaterialTheme.typography.bodyMediumEmphasized,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
+                    Text(
+                        text = "Stop Connection",
+                        style = MaterialTheme.typography.bodyMediumEmphasized,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 }
             }
             Spacer(modifier = Modifier.width(4.dp))

@@ -65,7 +65,9 @@ class SyncReceiverViewmodel(
         }
     }
 
-    private fun onStartSync() {}
+    private fun onStartSync() = viewModelScope.launch {
+        _uiEvents.emit(UIEvents.ShowSnackBar("Feature unavailable"))
+    }
 
     private fun onRejectSyncConnection() {
         _foreignDevice.update { null }
@@ -85,7 +87,7 @@ class SyncReceiverViewmodel(
     private fun readSyncProximityEvents() = advertiser.serverSyncEvents
         .onEach { event ->
             when (event) {
-                is BLEServerSyncEvent.ConnectionRequest -> {
+                is BLEServerSyncEvent.SyncRequest -> {
                     _foreignDevice.update { event.device }
                     advertiser.stopAdvertising()
                 }

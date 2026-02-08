@@ -6,4 +6,5 @@ data class SyncReceiverScreenState(
     val currentDevice: ExternalDeviceModel? = null,
     val foreignDevice: ExternalDeviceModel? = null,
     val isReceiverRunning: Boolean = false,
+    val isSyncRunning: Boolean = false,
 )

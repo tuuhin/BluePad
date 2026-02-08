@@ -30,7 +30,7 @@ class SyncConnectorViewModel(
     private val _isConnectorRunning = MutableStateFlow(false)
     private val _foreignDevice = MutableStateFlow<ExternalDeviceModel?>(null)
     private val _isAckReceived = MutableStateFlow(false)
-    private val _discoveryState = MutableStateFlow(ConnectorDiscoveryState.DISCONNECTED)
+    private val _discoveryState = MutableStateFlow(ConnectorDiscoveryState.NOT_STARTED)
 
     val screenState = combine(
         _isConnectorRunning,
@@ -41,7 +41,7 @@ class SyncConnectorViewModel(
         SyncConnectorScreenState(
             isConnectorRunning = running,
             syncDevice = device,
-            deviceDiscoveryState = discovery,
+            discoveryState = discovery,
             isConnAckReceived = isAckReceived,
         )
     }.stateIn(
@@ -69,7 +69,10 @@ class SyncConnectorViewModel(
         _connectionJob?.cancel()
         _connectionJob = connectionManager.discoverAndConnect()
             .onStart { _isConnectorRunning.value = true }
-            .onCompletion { _isConnectorRunning.value = false }
+            .onCompletion {
+                _isConnectorRunning.value = false
+                _discoveryState.update { ConnectorDiscoveryState.NOT_STARTED }
+            }
             .onEach(::handleConnEvents)
             .launchIn(viewModelScope)
     }
@@ -106,6 +109,7 @@ class SyncConnectorViewModel(
 
 
     override fun onCleared() {
+        connectionManager.close()
         stopConnection()
     }
 }

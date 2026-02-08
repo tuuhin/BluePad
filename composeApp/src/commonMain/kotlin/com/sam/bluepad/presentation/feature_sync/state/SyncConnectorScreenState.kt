@@ -8,7 +8,7 @@ data class SyncConnectorScreenState(
     val isConnectorRunning: Boolean = false,
     val syncDevice: ExternalDeviceModel? = null,
     val isConnAckReceived: Boolean = false,
-    val deviceDiscoveryState: ConnectorDiscoveryState = ConnectorDiscoveryState.DISCONNECTED,
+    val discoveryState: ConnectorDiscoveryState = ConnectorDiscoveryState.DISCONNECTED,
 ) {
     val isReadyToSync: Boolean
         get() = syncDevice != null && isConnAckReceived

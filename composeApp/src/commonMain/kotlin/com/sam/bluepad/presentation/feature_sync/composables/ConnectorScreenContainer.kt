@@ -10,10 +10,15 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,12 +30,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.presentation.feature_sync.state.ConnectorDiscoveryState
 import com.sam.bluepad.presentation.feature_sync.state.ConnectorUIState
 import com.sam.bluepad.resources.Res
+import com.sam.bluepad.resources.action_start_sync
 import com.sam.bluepad.resources.connector_discovery_connected_without_data_text
 import com.sam.bluepad.resources.connector_discovery_connected_without_data_title
 import com.sam.bluepad.resources.connector_discovery_running_text
@@ -38,7 +45,9 @@ import com.sam.bluepad.resources.connector_discovery_running_title
 import com.sam.bluepad.resources.connector_discovery_timeout_text
 import com.sam.bluepad.resources.connector_discovery_timeout_title
 import com.sam.bluepad.resources.ic_connection_cable
+import com.sam.bluepad.resources.ic_disconnected
 import com.sam.bluepad.resources.ic_discovery_timeout
+import com.sam.bluepad.resources.ic_sync_start
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -46,6 +55,7 @@ import org.jetbrains.compose.resources.stringResource
 fun ConnectorScreenContainer(
     discoveryState: ConnectorDiscoveryState,
     device: ExternalDeviceModel?,
+    onStartConnector: () -> Unit,
     modifier: Modifier = Modifier,
     isAckReceived: Boolean = false,
     contentPadding: PaddingValues = PaddingValues.Zero
@@ -63,18 +73,25 @@ fun ConnectorScreenContainer(
 
                 ConnectorDiscoveryState.DISCOVERED -> ConnectorUIState.ConnectedWithoutData
                 ConnectorDiscoveryState.DISCONNECTED -> ConnectorUIState.DisconnectedWithoutData
+                ConnectorDiscoveryState.NOT_STARTED -> ConnectorUIState.Idle
             }
         }
     }
-
 
     Column(
         modifier = modifier.padding(contentPadding),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        SyncUIStateContainer(connectorState = connectorState) { device ->
-            Column {
+        SyncUIStateContainer(
+            onStartConnector = onStartConnector,
+            connectorState = connectorState,
+        ) { device ->
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 ReceiverDeviceUICard(device = device)
             }
         }
@@ -83,8 +100,9 @@ fun ConnectorScreenContainer(
 
 @Composable
 private fun SyncUIStateContainer(
+    connectorState: ConnectorUIState,
+    onStartConnector: () -> Unit,
     modifier: Modifier = Modifier,
-    connectorState: ConnectorUIState = ConnectorUIState.Idle,
     onDeviceData: @Composable (ExternalDeviceModel) -> Unit,
 ) {
     val motionScheme = MaterialTheme.LocalMotionScheme.current
@@ -104,7 +122,8 @@ private fun SyncUIStateContainer(
             ConnectorUIState.Scanning -> DeviceDiscoveryRunning()
             ConnectorUIState.ScanTimeout -> DeviceDiscoveryTimeout()
             ConnectorUIState.ConnectedWithoutData -> DeviceConnected()
-            ConnectorUIState.Idle, ConnectorUIState.DisconnectedWithoutData -> DeviceDisconnectedOrIdle()
+            ConnectorUIState.DisconnectedWithoutData -> DeviceDisconnected()
+            ConnectorUIState.Idle -> DeviceSyncStateIdle(onStart = onStartConnector)
             is ConnectorUIState.DeviceDataRead -> onDeviceData(state.device)
         }
     }
@@ -113,8 +132,8 @@ private fun SyncUIStateContainer(
 @Composable
 private fun DeviceDiscoveryRunning(
     modifier: Modifier = Modifier,
-    titleStyle: TextStyle = MaterialTheme.typography.bodyMediumEmphasized,
-    textStyle: TextStyle = MaterialTheme.typography.labelLargeEmphasized,
+    titleStyle: TextStyle = MaterialTheme.typography.titleMediumEmphasized,
+    textStyle: TextStyle = MaterialTheme.typography.bodyMediumEmphasized,
     titleColor: Color = MaterialTheme.colorScheme.onSurface,
     textColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
@@ -123,7 +142,12 @@ private fun DeviceDiscoveryRunning(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        LoadingIndicator()
+        ContainedLoadingIndicator(
+            modifier = Modifier.size(80.dp),
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            indicatorColor = MaterialTheme.colorScheme.onTertiaryContainer
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = stringResource(Res.string.connector_discovery_running_title),
             style = titleStyle,
@@ -139,11 +163,50 @@ private fun DeviceDiscoveryRunning(
 }
 
 @Composable
+private fun DeviceSyncStateIdle(
+    onStart: () -> Unit,
+    modifier: Modifier = Modifier,
+    actionEnabled: Boolean = true,
+    iconColor: Color = MaterialTheme.colorScheme.tertiary,
+) {
+    Column(
+        modifier = modifier.wrapContentSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Image(
+            painter = painterResource(Res.drawable.ic_sync_start),
+            contentDescription = "Device timeout",
+            modifier = Modifier.size(160.dp),
+            colorFilter = ColorFilter.tint(iconColor)
+        )
+        Button(
+            onClick = onStart,
+            enabled = actionEnabled,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ),
+            contentPadding = ButtonDefaults.MediumContentPadding,
+            shapes = ButtonDefaults.shapes(
+                shape = ButtonDefaults.shape,
+                pressedShape = ButtonDefaults.pressedShape
+            )
+        ) {
+            Text(
+                text = stringResource(Res.string.action_start_sync),
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+@Composable
 private fun DeviceDiscoveryTimeout(
     modifier: Modifier = Modifier,
     iconColor: Color = MaterialTheme.colorScheme.tertiary,
-    titleStyle: TextStyle = MaterialTheme.typography.bodyMediumEmphasized,
-    textStyle: TextStyle = MaterialTheme.typography.labelLargeEmphasized,
+    titleStyle: TextStyle = MaterialTheme.typography.titleMediumEmphasized,
+    textStyle: TextStyle = MaterialTheme.typography.bodySmallEmphasized,
     titleColor: Color = MaterialTheme.colorScheme.onSurface,
     textColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
@@ -155,7 +218,8 @@ private fun DeviceDiscoveryTimeout(
         Image(
             painter = painterResource(Res.drawable.ic_discovery_timeout),
             contentDescription = "Device timeout",
-            colorFilter = ColorFilter.tint(iconColor)
+            colorFilter = ColorFilter.tint(iconColor),
+            modifier = Modifier.size(128.dp),
         )
         Text(
             text = stringResource(Res.string.connector_discovery_timeout_title),
@@ -172,11 +236,11 @@ private fun DeviceDiscoveryTimeout(
 }
 
 @Composable
-private fun DeviceDisconnectedOrIdle(
+private fun DeviceDisconnected(
     modifier: Modifier = Modifier,
     iconColor: Color = MaterialTheme.colorScheme.tertiary,
-    titleStyle: TextStyle = MaterialTheme.typography.bodyMediumEmphasized,
-    textStyle: TextStyle = MaterialTheme.typography.labelLargeEmphasized,
+    titleStyle: TextStyle = MaterialTheme.typography.titleMediumEmphasized,
+    textStyle: TextStyle = MaterialTheme.typography.bodyMediumEmphasized,
     titleColor: Color = MaterialTheme.colorScheme.onSurface,
     textColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
@@ -186,11 +250,12 @@ private fun DeviceDisconnectedOrIdle(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Image(
-            painter = painterResource(Res.drawable.ic_discovery_timeout),
+            painter = painterResource(Res.drawable.ic_disconnected),
             contentDescription = "Device timeout",
-            modifier = Modifier.size(80.dp),
+            modifier = Modifier.size(128.dp),
             colorFilter = ColorFilter.tint(iconColor)
         )
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = stringResource(Res.string.connector_discovery_timeout_title),
             style = titleStyle,
@@ -209,8 +274,8 @@ private fun DeviceDisconnectedOrIdle(
 private fun DeviceConnected(
     modifier: Modifier = Modifier,
     iconColor: Color = MaterialTheme.colorScheme.tertiary,
-    titleStyle: TextStyle = MaterialTheme.typography.bodyMediumEmphasized,
-    textStyle: TextStyle = MaterialTheme.typography.labelLargeEmphasized,
+    titleStyle: TextStyle = MaterialTheme.typography.titleMediumEmphasized,
+    textStyle: TextStyle = MaterialTheme.typography.bodyMediumEmphasized,
     titleColor: Color = MaterialTheme.colorScheme.onSurface,
     textColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
@@ -222,8 +287,10 @@ private fun DeviceConnected(
         Image(
             painter = painterResource(Res.drawable.ic_connection_cable),
             contentDescription = "Device connected",
-            colorFilter = ColorFilter.tint(iconColor)
+            colorFilter = ColorFilter.tint(iconColor),
+            modifier = Modifier.size(128.dp),
         )
+        Spacer(modifier = Modifier.size(4.dp))
         Text(
             text = stringResource(Res.string.connector_discovery_connected_without_data_title),
             style = titleStyle,

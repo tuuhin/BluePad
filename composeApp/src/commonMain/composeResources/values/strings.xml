@@ -87,9 +87,10 @@
     <string name="menu_action_delete">Delete</string>
     <string name="menu_action_share">Share</string>
     <!--  Sync -->
-    <string name="sync_device_dialog_title">Searching device</string>
-    <string name="sync_device_dialog_text">Finding your associated device, keep it close to your device</string>
+    <string name="sync_device_screen_title">Ready to sync</string>
+    <string name="sync_device_screen_subtitle">Start a connection to sync data with this device</string>
     <string name="action_receive">Receive</string>
+    <string name="action_start_sync">Start Sync</string>
     <string name="action_continue">Continue</string>
     <string name="receive_sync_devices_list_screen_title">Ready to receive</string>
     <string name="receive_sync_devices_list_screen_subtitle">Looking for nearby devices that want to sync</string>

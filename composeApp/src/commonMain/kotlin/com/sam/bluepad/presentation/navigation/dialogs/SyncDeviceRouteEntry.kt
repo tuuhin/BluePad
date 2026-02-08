@@ -10,6 +10,7 @@ import androidx.navigation3.runtime.NavKey
 import com.sam.bluepad.presentation.feature_sync.SyncConnectorScreen
 import com.sam.bluepad.presentation.feature_sync.viewmodel.SyncConnectorViewModel
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
+import com.sam.bluepad.presentation.utils.UiEventsHandler
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_back
 import com.sam.bluepad.resources.ic_back
@@ -23,6 +24,8 @@ fun EntryProviderScope<NavKey>.syncDeviceRouteEntry(
 
     val viewModel = koinViewModel<SyncConnectorViewModel>()
     val screenState by viewModel.screenState.collectAsStateWithLifecycle()
+
+    UiEventsHandler(eventsFlow = viewModel::uiEvent)
 
     SyncConnectorScreen(
         state = screenState,
