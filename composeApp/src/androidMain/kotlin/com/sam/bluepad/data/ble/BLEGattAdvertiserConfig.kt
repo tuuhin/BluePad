@@ -9,6 +9,7 @@ import android.content.Context
 import android.os.ParcelUuid
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.data.ble.callbacks.BLEGattAdvertisementCallback
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.uuid.Uuid

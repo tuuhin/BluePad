@@ -12,13 +12,15 @@ import android.os.Build
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.BuildKonfig
+import com.sam.bluepad.data.ble.callbacks.ServerConnectionCallback
+import com.sam.bluepad.data.ble.utils.BLEServiceToGatt
 import com.sam.bluepad.data.utils.hasAdvertisePermission
 import com.sam.bluepad.data.utils.hasConnectPermission
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConnectionType
 import com.sam.bluepad.domain.ble.BLEConstants
+import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.ble.models.BLEPeerData
-import com.sam.bluepad.domain.ble.models.BLEServerSyncEvent
 import com.sam.bluepad.domain.exceptions.BLEAdvertisePermissionException
 import com.sam.bluepad.domain.exceptions.BLEAdvertiseUnsupportedException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
@@ -48,7 +50,7 @@ actual class BLEAdvertisementImpl(
     override val peerSaveDevices: Flow<List<BLEPeerData>>
         get() = connectionCallback.incomingPeerData
 
-    override val serverSyncEvents: Flow<BLEServerSyncEvent>
+    override val serverSyncEvents: Flow<AdvertiserSyncEvent>
         get() = connectionCallback.syncRequestEvents
 
     private var _bleServer: BluetoothGattServer? = null

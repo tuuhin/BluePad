@@ -1,5 +1,7 @@
 package com.sam.bluepad.domain.ble.models
 
+import com.sam.bluepad.domain.ble.enums.BLEPeerSignalStrength
+
 data class BLEPeerDevice(
 	val deviceAddress: String,
 	val bleDeviceName: String? = null,

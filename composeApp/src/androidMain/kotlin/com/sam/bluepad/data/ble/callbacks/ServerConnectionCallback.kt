@@ -1,4 +1,4 @@
-package com.sam.bluepad.data.ble
+package com.sam.bluepad.data.ble.callbacks
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
@@ -9,12 +9,12 @@ import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.data.sync.dto.BLESyncACKFailedReason
+import com.sam.bluepad.data.sync.dto.BLESyncData
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
+import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.ble.models.BLEPeerData
-import com.sam.bluepad.domain.ble.models.BLEServerSyncEvent
-import com.sam.bluepad.domain.ble.models.BLESyncACKFailedReason
-import com.sam.bluepad.domain.ble.models.BLESyncData
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
@@ -40,7 +40,6 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.uuid.Uuid
 import kotlin.uuid.toKotlinUuid
 
 private const val TAG = "SERVER_CALLBACK"
@@ -95,8 +94,8 @@ class ServerConnectionCallback(
     val incomingPeerData: Flow<List<BLEPeerData>>
         get() = _incomingPeerData.asStateFlow()
 
-    private val _incomingSyncRequest = Channel<BLEServerSyncEvent>(Channel.CONFLATED)
-    val syncRequestEvents: Flow<BLEServerSyncEvent>
+    private val _incomingSyncRequest = Channel<AdvertiserSyncEvent>(Channel.CONFLATED)
+    val syncRequestEvents: Flow<AdvertiserSyncEvent>
         get() = _incomingSyncRequest.consumeAsFlow()
 
     override fun onConnectionStateChange(device: BluetoothDevice?, status: Int, newState: Int) {
@@ -189,7 +188,7 @@ class ServerConnectionCallback(
 
         // handle the sync service here
         if (characteristic.service.uuid.toKotlinUuid() == BLEConstants.SYNC_SERVICE_ID) {
-            if (characteristic.uuid.toKotlinUuid() != BLEConstants.SYNC_CHARACTERISTICS_ID) {
+            if (characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
                 Logger.w(TAG) { "CANNOT FIND ANY CHARACTERISTICS:${characteristic.uuid} WITH SERVICE:${characteristic.service.uuid}" }
                 sendFailedResponse(device, requestId, offset)
                 return
@@ -264,7 +263,7 @@ class ServerConnectionCallback(
         }
         // handle the sync service here
         if (characteristic.service.uuid.toKotlinUuid() == BLEConstants.SYNC_SERVICE_ID) {
-            if (characteristic.uuid.toKotlinUuid() != BLEConstants.SYNC_CHARACTERISTICS_ID) {
+            if (characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
                 Logger.w(TAG) { "CANNOT FIND ANY CHARACTERISTICS:${characteristic.uuid} WITH SERVICE:${characteristic.service.uuid}" }
                 sendFailedResponse(device, requestId, offset)
                 return
@@ -277,7 +276,6 @@ class ServerConnectionCallback(
 
                 val savedNonce = _localNonceMap[device.address]
                 val externalDevice = _savedDevices.value.find { it.id == response.senderID }
-                val connectionId = Uuid.random()
 
                 val data = when {
                     savedNonce == null -> BLESyncData.BLESyncACKFailed(reason = BLESyncACKFailedReason.INVALID_INCOMING_DATA)
@@ -289,7 +287,6 @@ class ServerConnectionCallback(
 
                     externalDevice == null -> BLESyncData.BLESyncACKFailed(BLESyncACKFailedReason.UNKNOWN_SENDER)
                     else -> BLESyncData.BLESyncACKSuccess(
-                        serverID = connectionId,
                         nonce = response.nonce,
                         deviceAddress = device.address
                     )
@@ -308,7 +305,7 @@ class ServerConnectionCallback(
                     sendFailedResponse(device, requestId, offset, responseNeeded)
                     return
                 }
-                val event = BLEServerSyncEvent.SyncRequest(externalDevice, connectionId)
+                val event = AdvertiserSyncEvent.ForeignSyncRequest(externalDevice)
                 _incomingSyncRequest.trySend(event)
                 when (data) {
                     is BLESyncData.BLESyncACKSuccess -> Logger.d(TAG) { "NOTIFICATION ON CHARACTERISTIC : ${characteristic.uuid} SEND SUCCESS" }
@@ -342,7 +339,7 @@ class ServerConnectionCallback(
         }
         Logger.i(TAG) { "READ REQUEST DESCRIPTOR ID ${descriptor.uuid} CHARACTERISTIC ID : ${descriptor.characteristic.uuid}" }
 
-        if (descriptor.characteristic.uuid.toKotlinUuid() != BLEConstants.SYNC_CHARACTERISTICS_ID) {
+        if (descriptor.characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
             Logger.d(TAG) { "INVALID CHARACTERISTICS PROVIDED :${descriptor.characteristic.uuid}" }
             sendFailedResponse(device, requestId, offset, false)
             return
@@ -382,7 +379,7 @@ class ServerConnectionCallback(
         }
         Logger.i(TAG) { "WRITE REQUEST DESCRIPTOR ID ${descriptor.uuid} CHARACTERISTIC ID : ${descriptor.characteristic.uuid}" }
 
-        if (descriptor.characteristic.uuid.toKotlinUuid() != BLEConstants.SYNC_CHARACTERISTICS_ID) {
+        if (descriptor.characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
             sendFailedResponse(device, requestId, offset, false)
             return
         }
@@ -402,7 +399,7 @@ class ServerConnectionCallback(
             }
         }
 
-        if (descriptor.characteristic.uuid.toKotlinUuid() != BLEConstants.SYNC_CHARACTERISTICS_ID) {
+        if (descriptor.characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
             Logger.d(TAG) { "INVALID CHARACTERISTICS PROVIDED :${descriptor.characteristic.uuid}" }
             sendFailedResponse(device, requestId, offset, responseNeeded)
             return

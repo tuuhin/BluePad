@@ -1,4 +1,4 @@
-package com.sam.bluepad.data.ble
+package com.sam.bluepad.data.ble.utils
 
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor

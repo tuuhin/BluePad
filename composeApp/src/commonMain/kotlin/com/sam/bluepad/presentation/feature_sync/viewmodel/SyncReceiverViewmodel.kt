@@ -4,7 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConnectionType
-import com.sam.bluepad.domain.ble.models.BLEServerSyncEvent
+import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.presentation.feature_sync.event.SyncReceiverScreenEvent
@@ -87,7 +87,7 @@ class SyncReceiverViewmodel(
     private fun readSyncProximityEvents() = advertiser.serverSyncEvents
         .onEach { event ->
             when (event) {
-                is BLEServerSyncEvent.SyncRequest -> {
+                is AdvertiserSyncEvent.ForeignSyncRequest -> {
                     _foreignDevice.update { event.device }
                     advertiser.stopAdvertising()
                 }

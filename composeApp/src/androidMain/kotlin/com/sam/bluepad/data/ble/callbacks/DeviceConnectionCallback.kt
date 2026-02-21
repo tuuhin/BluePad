@@ -1,4 +1,4 @@
-package com.sam.bluepad.data.ble
+package com.sam.bluepad.data.ble.callbacks
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothGatt
@@ -7,7 +7,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.os.Build
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.domain.ble.BLEConstants
-import com.sam.bluepad.domain.ble.models.BLEConnectionState
+import com.sam.bluepad.domain.ble.enums.BLEConnectionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

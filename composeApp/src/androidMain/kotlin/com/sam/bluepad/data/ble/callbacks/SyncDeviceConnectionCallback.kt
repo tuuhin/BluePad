@@ -1,4 +1,4 @@
-package com.sam.bluepad.data.ble
+package com.sam.bluepad.data.ble.callbacks
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothGatt
@@ -8,11 +8,11 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothStatusCodes
 import android.os.Build
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.data.sync.dto.BLESyncACKFailedReason
+import com.sam.bluepad.data.sync.dto.BLESyncData
 import com.sam.bluepad.domain.ble.BLEConstants
-import com.sam.bluepad.domain.ble.models.BLEConnectionState
-import com.sam.bluepad.domain.ble.models.BLEDeviceSyncEvent
-import com.sam.bluepad.domain.ble.models.BLESyncACKFailedReason
-import com.sam.bluepad.domain.ble.models.BLESyncData
+import com.sam.bluepad.domain.ble.enums.BLEConnectionState
+import com.sam.bluepad.domain.ble.events.ConnectorSyncEvent
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
@@ -47,10 +47,10 @@ class SyncDeviceConnectionCallback(
 
     private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private var _onEvents: ((BLEDeviceSyncEvent) -> Unit)? = null
+    private var _onEvents: ((ConnectorSyncEvent) -> Unit)? = null
     private var _onError: ((Exception) -> Unit)? = null
 
-    fun onEvents(callback: (BLEDeviceSyncEvent) -> Unit) {
+    fun onEvents(callback: (ConnectorSyncEvent) -> Unit) {
         _onEvents = callback
     }
 
@@ -93,14 +93,14 @@ class SyncDeviceConnectionCallback(
         when (newState) {
             BluetoothGatt.STATE_CONNECTED -> {
                 // device connected
-                _onEvents?.invoke(BLEDeviceSyncEvent.ConnectionSuccess)
+                _onEvents?.invoke(ConnectorSyncEvent.ConnectionSuccess)
                 gatt?.requestMtu(BLEConstants.REQUESTED_MTU)
                 Logger.d(TAG) { "REQUESTING HIGHER MTU: ${BLEConstants.REQUESTED_MTU}" }
             }
 
             BluetoothGatt.STATE_DISCONNECTED -> {
                 // device disconnected
-                _onEvents?.invoke(BLEDeviceSyncEvent.DeviceDisconnected)
+                _onEvents?.invoke(ConnectorSyncEvent.DeviceDisconnected)
             }
 
             else -> {}
@@ -119,13 +119,13 @@ class SyncDeviceConnectionCallback(
             return
         }
         val characteristic = syncService.characteristics
-            .find { it.uuid.toKotlinUuid() == BLEConstants.SYNC_CHARACTERISTICS_ID }
+            .find { it.uuid.toKotlinUuid() == BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID }
             ?: run {
                 Logger.w(TAG) { "SYNC CHARACTERISTICS FOUND" }
                 return
             }
         // services discovered
-        _onEvents?.invoke(BLEDeviceSyncEvent.ServicesDiscovered)
+        _onEvents?.invoke(ConnectorSyncEvent.ServicesDiscovered)
         gatt.readCharacteristic(characteristic)
     }
 
@@ -167,7 +167,7 @@ class SyncDeviceConnectionCallback(
             _onError?.invoke(Exception("Cannot read characteristics"))
             return
         }
-        if (characteristic.uuid.toKotlinUuid() != BLEConstants.SYNC_CHARACTERISTICS_ID) {
+        if (characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
             Logger.w(TAG) { "INVALID CHARACTERISTICS ID" }
             return
         }
@@ -185,8 +185,7 @@ class SyncDeviceConnectionCallback(
                 return
             }
             _onEvents?.invoke(
-                BLEDeviceSyncEvent.AdvertisingDataRead(
-                    characteristicsId = characteristic.uuid.toKotlinUuid(),
+                ConnectorSyncEvent.AdvertisingDeviceRead(
                     device = externalDevice
                 )
             )
@@ -231,9 +230,9 @@ class SyncDeviceConnectionCallback(
             _onError?.invoke(Exception("Cannot send write to characteristics"))
             return
         }
-        if (characteristic?.uuid?.toKotlinUuid() != BLEConstants.SYNC_CHARACTERISTICS_ID) return
+        if (characteristic?.uuid?.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) return
         Logger.d(TAG) { "WRITING ADVERTISING RESPONSE CHARACTERISTICS DONE" }
-        _onEvents?.invoke(BLEDeviceSyncEvent.AdvertisingResponseSend)
+        _onEvents?.invoke(ConnectorSyncEvent.ConnectorDeviceDataResponseSend)
     }
 
 
@@ -248,7 +247,7 @@ class SyncDeviceConnectionCallback(
             return
         }
 
-        if (descriptor?.characteristic?.uuid?.toKotlinUuid() == BLEConstants.SYNC_CHARACTERISTICS_ID) {
+        if (descriptor?.characteristic?.uuid?.toKotlinUuid() == BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
             if (descriptor.uuid.toKotlinUuid() != BLEConstants.CCC_DESCRIPTOR) return
             Logger.d(TAG) { "WRITE CCC DESCRIPTOR ENABLE SUCCEED" }
 
@@ -296,7 +295,7 @@ class SyncDeviceConnectionCallback(
         characteristic: BluetoothGattCharacteristic,
         value: ByteArray
     ) {
-        if (characteristic.uuid.toKotlinUuid() != BLEConstants.SYNC_CHARACTERISTICS_ID) return
+        if (characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) return
         try {
             val result = protoBuf.decodeFromByteArray<BLESyncData>(value)
             Logger.i(TAG) { "SYNC ACK DATA FOUND" }
@@ -308,9 +307,8 @@ class SyncDeviceConnectionCallback(
                 }
 
                 is BLESyncData.BLESyncACKSuccess -> {
-                    Logger.i(TAG) { "ACK FOUND" }
-                    val ack = BLEDeviceSyncEvent.AdvertisingAcknowledgmentReceived(result)
-                    _onEvents?.invoke(ack)
+                    Logger.i(TAG) { "ACK FOUND :${result.deviceAddress}" }
+                    _onEvents?.invoke(ConnectorSyncEvent.AdvertisingAcknowledgmentReceived)
                 }
 
                 else -> {}

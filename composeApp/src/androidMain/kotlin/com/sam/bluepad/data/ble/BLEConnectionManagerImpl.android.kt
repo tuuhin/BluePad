@@ -12,11 +12,12 @@ import android.content.Context
 import android.os.Build
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.data.ble.callbacks.DeviceConnectionCallback
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.data.utils.hasBLEScanPermission
 import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.BLEConstants
-import com.sam.bluepad.domain.ble.models.BLEConnectionState
+import com.sam.bluepad.domain.ble.enums.BLEConnectionState
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.exceptions.BLEConnectionFailedException
 import com.sam.bluepad.domain.exceptions.BluetoothInvalidAddressException

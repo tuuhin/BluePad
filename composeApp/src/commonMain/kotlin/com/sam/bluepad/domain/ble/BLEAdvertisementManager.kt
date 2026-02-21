@@ -1,7 +1,7 @@
 package com.sam.bluepad.domain.ble
 
+import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.ble.models.BLEPeerData
-import com.sam.bluepad.domain.ble.models.BLEServerSyncEvent
 import kotlinx.coroutines.flow.Flow
 
 interface BLEAdvertisementManager {
@@ -12,7 +12,7 @@ interface BLEAdvertisementManager {
 
     val peerSaveDevices: Flow<List<BLEPeerData>>
 
-    val serverSyncEvents: Flow<BLEServerSyncEvent>
+    val serverSyncEvents: Flow<AdvertiserSyncEvent>
 
     suspend fun startAdvertising(type: BLEConnectionType = BLEConnectionType.DEVICE_DISCOVERY): Result<Unit>
 

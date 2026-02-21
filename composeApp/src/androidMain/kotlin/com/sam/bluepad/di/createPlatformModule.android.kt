@@ -3,12 +3,12 @@ package com.sam.bluepad.di
 import com.sam.bluepad.data.ble.BLEAdvertisementImpl
 import com.sam.bluepad.data.ble.BLEConnectionManagerImpl
 import com.sam.bluepad.data.ble.BLEDiscoveryImpl
-import com.sam.bluepad.data.ble.BLEGattAdvertisementCallback
 import com.sam.bluepad.data.ble.BLEGattAdvertiserConfig
 import com.sam.bluepad.data.ble.BLESyncConnectionManagerImpl
-import com.sam.bluepad.data.ble.ServerConnectionCallback
-import com.sam.bluepad.data.ble.SyncDeviceConnectionCallback
-import com.sam.bluepad.data.ble.SyncDeviceDiscoveryCallback
+import com.sam.bluepad.data.ble.callbacks.BLEGattAdvertisementCallback
+import com.sam.bluepad.data.ble.callbacks.ServerConnectionCallback
+import com.sam.bluepad.data.ble.callbacks.SyncDeviceConnectionCallback
+import com.sam.bluepad.data.ble.callbacks.SyncDeviceDiscoveryCallback
 import com.sam.bluepad.data.bluetooth.BluetoothStateProviderImpl
 import com.sam.bluepad.data.database.AppDBBuilder
 import com.sam.bluepad.data.datastore.DataStoreProvider

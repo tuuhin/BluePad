@@ -30,7 +30,7 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.sam.bluepad.domain.ble.models.BLEConnectionState
+import com.sam.bluepad.domain.ble.enums.BLEConnectionState
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.presentation.feature_devices.composables.ConnectDeviceDialogActions
 import com.sam.bluepad.presentation.feature_devices.composables.ConnectionStateContent

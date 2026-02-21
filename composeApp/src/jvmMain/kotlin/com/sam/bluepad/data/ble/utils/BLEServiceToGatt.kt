@@ -1,4 +1,4 @@
-package com.sam.bluepad.data.ble
+package com.sam.bluepad.data.ble.utils
 
 import com.sam.ble_common.Characteristic
 import com.sam.ble_common.Service
@@ -19,11 +19,17 @@ object BLEServiceToGatt {
     val deviceSyncService: Service =
         Service.builder(BLEConstants.SYNC_SERVICE_ID.toHexDashString())
             .addCharacteristic(
-                Characteristic.builder(BLEConstants.SYNC_CHARACTERISTICS_ID.toHexDashString())
+                Characteristic.builder(BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID.toHexDashString())
                     .canRead(true)
                     .canWriteCommand(true)
                     .canNotify(true)
                     .build(),
+            )
+            .addCharacteristic(
+                Characteristic.builder(BLEConstants.SYNC_DATA_CHARACTERISTICS_ID.toHexDashString())
+                    .canWriteCommand(true)
+                    .canNotify(true)
+                    .build()
             )
             .build()
 }

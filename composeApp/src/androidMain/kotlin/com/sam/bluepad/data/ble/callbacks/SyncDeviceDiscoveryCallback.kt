@@ -1,4 +1,4 @@
-package com.sam.bluepad.data.ble
+package com.sam.bluepad.data.ble.callbacks
 
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.ScanCallback

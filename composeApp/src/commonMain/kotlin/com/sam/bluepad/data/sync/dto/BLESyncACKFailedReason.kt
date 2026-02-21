@@ -1,4 +1,4 @@
-package com.sam.bluepad.domain.ble.models
+package com.sam.bluepad.data.sync.dto
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber

@@ -14,13 +14,15 @@ import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.data.ble.callbacks.SyncDeviceConnectionCallback
+import com.sam.bluepad.data.ble.callbacks.SyncDeviceDiscoveryCallback
 import com.sam.bluepad.data.utils.hasBLEScanPermission
 import com.sam.bluepad.data.utils.hasCoarseLocationPermission
 import com.sam.bluepad.data.utils.hasFineLocationPermission
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLESyncConnectionManager
 import com.sam.bluepad.domain.ble.ResourcesSyncDataEvents
-import com.sam.bluepad.domain.ble.models.BLEDeviceSyncEvent
+import com.sam.bluepad.domain.ble.events.ConnectorSyncEvent
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.exceptions.BluetoothPermissionException
 import com.sam.bluepad.domain.exceptions.LocationDisabledException
@@ -79,20 +81,20 @@ actual class BLESyncConnectionManagerImpl(
         if (_btAdapter?.isDiscovering == true) _btAdapter?.cancelDiscovery()
 
         try {
-            emit(Resource.Success(BLEDeviceSyncEvent.DiscoveryStarted))
+            emit(Resource.Success(ConnectorSyncEvent.DiscoveryStarted))
             Logger.i(TAG) { "SCANNING FOR DEVICES STATED" }
             val btDevice = withTimeout(timeout) {
                 runBLEDiscovery().first()
             }
             Logger.i(TAG) { "SCAN RESULT FOUND" }
             val identifier = btDevice.address.toString()
-            emit(Resource.Success(BLEDeviceSyncEvent.DeviceFound(identifier)))
+            emit(Resource.Success(ConnectorSyncEvent.DeviceFound(identifier)))
             // deals with the connection
             val connectionFlow = handleConnection(btDevice)
             emitAll(connectionFlow.map { Resource.Success(it) })
         } catch (_: TimeoutCancellationException) {
             Logger.w(TAG) { "SCAN TIMEOUT ADVERTISEMENT NOT FOUND FOR TIMEOUT: $timeout" }
-            emit(Resource.Success(BLEDeviceSyncEvent.DeviceScanTimeout))
+            emit(Resource.Success(ConnectorSyncEvent.DeviceScanTimeout))
         } catch (e: Exception) {
             if (e is CancellationException) {
                 Logger.d(TAG) { "CONNECTION JOB CANCELLED" }
@@ -131,7 +133,7 @@ actual class BLESyncConnectionManagerImpl(
         }
     }
 
-    private fun handleConnection(device: BluetoothDevice) = channelFlow<BLEDeviceSyncEvent> {
+    private fun handleConnection(device: BluetoothDevice) = channelFlow<ConnectorSyncEvent> {
 
         // callbacks
         connectionCallback.onEvents { event -> trySend(event) }

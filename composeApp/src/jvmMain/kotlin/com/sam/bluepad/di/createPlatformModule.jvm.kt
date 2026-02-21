@@ -1,10 +1,10 @@
 package com.sam.bluepad.di
 
-import com.sam.bluepad.data.ble.BLEAdvertisementCallback
 import com.sam.bluepad.data.ble.BLEAdvertisementImpl
 import com.sam.bluepad.data.ble.BLEConnectionManagerImpl
 import com.sam.bluepad.data.ble.BLEDiscoveryImpl
 import com.sam.bluepad.data.ble.BLESyncConnectionManagerImpl
+import com.sam.bluepad.data.ble.callbacks.BLEAdvertisementCallback
 import com.sam.bluepad.data.bluetooth.BluetoothStateProviderImpl
 import com.sam.bluepad.data.database.AppDBBuilder
 import com.sam.bluepad.data.datastore.DataStoreProvider

@@ -5,10 +5,12 @@ import com.sam.ble_common.BluetoothInfoProvider
 import com.sam.blejavaadvertise.BLEAdvertiser
 import com.sam.blejavaadvertise.models.GattAdvertisementConfig
 import com.sam.bluepad.BuildKonfig
+import com.sam.bluepad.data.ble.callbacks.BLEAdvertisementCallback
+import com.sam.bluepad.data.ble.utils.BLEServiceToGatt
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConnectionType
+import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.ble.models.BLEPeerData
-import com.sam.bluepad.domain.ble.models.BLEServerSyncEvent
 import com.sam.bluepad.domain.exceptions.BLEAdvertiseUnsupportedException
 import com.sam.bluepad.domain.exceptions.BLENotSupportedException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
@@ -35,7 +37,7 @@ actual class BLEAdvertisementImpl(
     override val peerSaveDevices: Flow<List<BLEPeerData>>
         get() = callback.incomingDeviceData
 
-    override val serverSyncEvents: Flow<BLEServerSyncEvent>
+    override val serverSyncEvents: Flow<AdvertiserSyncEvent>
         get() = callback.syncRequestEvents
 
     override suspend fun startAdvertising(type: BLEConnectionType): Result<Unit> {

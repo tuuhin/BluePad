@@ -1,4 +1,4 @@
-package com.sam.bluepad.domain.ble.models
+package com.sam.bluepad.domain.ble.enums
 
 enum class BLEConnectionState {
 	CONNECTING,

@@ -6,12 +6,12 @@ import com.juul.kable.Peripheral
 import com.juul.kable.Scanner
 import com.juul.kable.logs.Logging
 import com.sam.ble_common.BluetoothInfoProvider
+import com.sam.bluepad.data.sync.dto.BLESyncACKFailedReason
+import com.sam.bluepad.data.sync.dto.BLESyncData
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLESyncConnectionManager
 import com.sam.bluepad.domain.ble.ResourcesSyncDataEvents
-import com.sam.bluepad.domain.ble.models.BLEDeviceSyncEvent
-import com.sam.bluepad.domain.ble.models.BLESyncACKFailedReason
-import com.sam.bluepad.domain.ble.models.BLESyncData
+import com.sam.bluepad.domain.ble.events.ConnectorSyncEvent
 import com.sam.bluepad.domain.exceptions.BLENotSupportedException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
@@ -74,7 +74,7 @@ actual class BLESyncConnectionManagerImpl(
             }
 
             try {
-                emit(Resource.Success(BLEDeviceSyncEvent.DiscoveryStarted))
+                emit(Resource.Success(ConnectorSyncEvent.DiscoveryStarted))
                 Logger.i(TAG) { "SCANNING FOR DEVICES STATED" }
                 val firstAdvertisement = withTimeout(timeout) {
                     _scanner.advertisements
@@ -84,13 +84,13 @@ actual class BLESyncConnectionManagerImpl(
                 }
                 Logger.i(TAG) { "SCAN RESULT FOUND" }
                 val identifier = firstAdvertisement.identifier.toString()
-                emit(Resource.Success(BLEDeviceSyncEvent.DeviceFound(identifier)))
+                emit(Resource.Success(ConnectorSyncEvent.DeviceFound(identifier)))
                 // deals with the connection
                 val connectionFlow = handleConnection(firstAdvertisement)
                 emitAll(connectionFlow.map { Resource.Success(it) })
             } catch (_: TimeoutCancellationException) {
                 Logger.w(TAG) { "SCAN TIMEOUT ADVERTISEMENT NOT FOUND FOR TIMEOUT: $timeout" }
-                emit(Resource.Success(BLEDeviceSyncEvent.DeviceScanTimeout))
+                emit(Resource.Success(ConnectorSyncEvent.DeviceScanTimeout))
             } catch (e: Exception) {
                 if (e is CancellationException) {
                     Logger.d(TAG) { "CONNECTION JOB CANCELLED" }
@@ -105,7 +105,7 @@ actual class BLESyncConnectionManagerImpl(
     private fun handleConnection(
         advertisement: Advertisement,
         connectionTimeout: Duration = 20.seconds
-    ): Flow<BLEDeviceSyncEvent> {
+    ): Flow<ConnectorSyncEvent> {
 
         val peripheral = Peripheral(advertisement) {
             this.disconnectTimeout = 10.seconds
@@ -128,7 +128,7 @@ actual class BLESyncConnectionManagerImpl(
             try {
                 withTimeout(connectionTimeout) {
                     peripheral.connect()
-                    send(BLEDeviceSyncEvent.ConnectionSuccess)
+                    send(ConnectorSyncEvent.ConnectionSuccess)
                     Logger.i(TAG) { "PERIPHERAL CONNECTION ESTABLISHED" }
                 }
                 // read the required characteristic
@@ -136,7 +136,7 @@ actual class BLESyncConnectionManagerImpl(
                 val syncCharacteristics = services
                     .find { it.serviceUuid == BLEConstants.SYNC_SERVICE_ID }
                     ?.characteristics
-                    ?.find { it.characteristicUuid == BLEConstants.SYNC_CHARACTERISTICS_ID }
+                    ?.find { it.characteristicUuid == BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID }
 
                 if (syncCharacteristics == null) {
                     Logger.w(TAG) { "REQUIRED CHARACTERISTIC MISSING" }
@@ -162,8 +162,8 @@ actual class BLESyncConnectionManagerImpl(
                         }
 
                         is BLESyncData.BLESyncACKSuccess -> {
-                            Logger.i(TAG) { "ACK FOUND" }
-                            send(BLEDeviceSyncEvent.AdvertisingAcknowledgmentReceived(result))
+                            Logger.i(TAG) { "ACK FOUND DEVICE ADDRESS: ${result.deviceAddress}" }
+                            send(ConnectorSyncEvent.AdvertisingAcknowledgmentReceived)
                         }
 
                         else -> {}
@@ -187,10 +187,7 @@ actual class BLESyncConnectionManagerImpl(
                     return@channelFlow
                 }
 
-                val event = BLEDeviceSyncEvent.AdvertisingDataRead(
-                    characteristicsId = syncCharacteristics.characteristicUuid,
-                    device = deviceResult.getOrThrow()
-                )
+                val event = ConnectorSyncEvent.AdvertisingDeviceRead(device = deviceResult.getOrThrow())
                 send(event)
 
                 val currentDeviceInfo = localDeviceProvider.readDeviceInfo.first()
@@ -202,11 +199,11 @@ actual class BLESyncConnectionManagerImpl(
                 val syncWrite = protoBuf.encodeToByteArray(outgoingData)
 
                 peripheral.write(syncCharacteristics, syncWrite)
-                send(BLEDeviceSyncEvent.AdvertisingResponseSend)
+                send(ConnectorSyncEvent.ConnectorDeviceDataResponseSend)
                 Logger.i(TAG) { "DEVICE INFO WRITE" }
 
             } catch (_: TimeoutCancellationException) {
-                send(BLEDeviceSyncEvent.DeviceScanTimeout)
+                send(ConnectorSyncEvent.DeviceScanTimeout)
                 Logger.i(TAG) { "FAILED TO CONNECT TO THE DEVICE TIMEOUT OCCURRED" }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e

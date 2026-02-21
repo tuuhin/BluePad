@@ -10,7 +10,8 @@ object BLEConstants {
 
     // device sync and proximity check
     val SYNC_SERVICE_ID = Uuid.parse("a09b1351-a163-479e-ad1c-c860b6ad0f53")
-    val SYNC_CHARACTERISTICS_ID = Uuid.parse("049d551a-572a-49a4-b72b-feed8028336c")
+    val PROXIMITY_SYNC_CHARACTERISTICS_ID = Uuid.parse("049d551a-572a-49a4-b72b-feed8028336c")
+    val SYNC_DATA_CHARACTERISTICS_ID = Uuid.parse("9843c95e-db7f-45b8-b876-189ff6142126")
 
     // connection mtu
     const val REQUESTED_MTU = 512 + 3

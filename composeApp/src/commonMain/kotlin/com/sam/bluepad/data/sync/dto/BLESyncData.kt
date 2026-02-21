@@ -1,4 +1,4 @@
-package com.sam.bluepad.domain.ble.models
+package com.sam.bluepad.data.sync.dto
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
@@ -23,7 +23,6 @@ sealed class BLESyncData {
 
     @Serializable
     data class BLESyncACKSuccess(
-        @ProtoNumber(1) val serverID: Uuid,
         @ProtoNumber(2) val nonce: String,
         @ProtoNumber(3) val deviceAddress: String
     ) : BLESyncData()

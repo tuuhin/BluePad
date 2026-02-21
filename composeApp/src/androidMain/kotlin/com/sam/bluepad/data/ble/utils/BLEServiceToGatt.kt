@@ -1,4 +1,4 @@
-package com.sam.bluepad.data.ble
+package com.sam.bluepad.data.ble.utils
 
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLEPermission
@@ -30,17 +30,30 @@ object BLEServiceToGatt {
         serviceType = BLEServiceType.PRIMARY,
         characteristics = listOf(
             bleCharacteristicsOf(
-                uuid = BLEConstants.SYNC_CHARACTERISTICS_ID,
+                uuid = BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID,
                 properties = listOf(
                     BLEPropertyType.PROPERTY_READ,
                     BLEPropertyType.PROPERTY_WRITE,
                     BLEPropertyType.PROPERTY_NOTIFY
                 ),
-                permissions = listOf(
-                    BLEPermission.PERMISSION_READ,
-                    BLEPermission.PERMISSION_WRITE,
-
+                permissions = listOf(BLEPermission.PERMISSION_READ, BLEPermission.PERMISSION_WRITE)
+            ).apply {
+                val descriptor = bleDescriptorOf(
+                    uuid = BLEConstants.CCC_DESCRIPTOR,
+                    permissions = listOf(
+                        BLEPermission.PERMISSION_READ,
+                        BLEPermission.PERMISSION_WRITE
+                    )
                 )
+                addDescriptor(descriptor)
+            },
+            bleCharacteristicsOf(
+                uuid = BLEConstants.SYNC_DATA_CHARACTERISTICS_ID,
+                properties = listOf(
+                    BLEPropertyType.PROPERTY_WRITE,
+                    BLEPropertyType.PROPERTY_INDICATE
+                ),
+                permissions = listOf(BLEPermission.PERMISSION_READ, BLEPermission.PERMISSION_WRITE)
             ).apply {
                 val descriptor = bleDescriptorOf(
                     uuid = BLEConstants.CCC_DESCRIPTOR,

@@ -2,7 +2,7 @@ package com.sam.bluepad.presentation.feature_sync.viewmodel
 
 import androidx.lifecycle.viewModelScope
 import com.sam.bluepad.domain.ble.BLESyncConnectionManager
-import com.sam.bluepad.domain.ble.models.BLEDeviceSyncEvent
+import com.sam.bluepad.domain.ble.events.ConnectorSyncEvent
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.utils.Resource
 import com.sam.bluepad.presentation.feature_sync.event.SyncConnectorScreenEvent
@@ -82,7 +82,7 @@ class SyncConnectorViewModel(
         _connectionJob = null
     }
 
-    private suspend fun handleConnEvents(res: Resource<BLEDeviceSyncEvent, Exception>) {
+    private suspend fun handleConnEvents(res: Resource<ConnectorSyncEvent, Exception>) {
         when (res) {
             is Resource.Error -> {
                 // clear the fields
@@ -94,12 +94,12 @@ class SyncConnectorViewModel(
             }
 
             is Resource.Success -> when (res.data) {
-                is BLEDeviceSyncEvent.AdvertisingAcknowledgmentReceived -> _isAckReceived.update { true }
-                is BLEDeviceSyncEvent.AdvertisingDataRead -> _foreignDevice.update { res.data.device }
-                BLEDeviceSyncEvent.ConnectionSuccess -> _discoveryState.update { ConnectorDiscoveryState.DISCOVERED }
-                BLEDeviceSyncEvent.DeviceDisconnected -> _discoveryState.update { ConnectorDiscoveryState.DISCONNECTED }
-                BLEDeviceSyncEvent.DeviceScanTimeout -> _discoveryState.update { ConnectorDiscoveryState.TIMEOUT }
-                BLEDeviceSyncEvent.DiscoveryStarted -> _discoveryState.update { ConnectorDiscoveryState.DISCOVERING }
+                is ConnectorSyncEvent.AdvertisingAcknowledgmentReceived -> _isAckReceived.update { true }
+                is ConnectorSyncEvent.AdvertisingDeviceRead -> _foreignDevice.update { res.data.device }
+                ConnectorSyncEvent.ConnectionSuccess -> _discoveryState.update { ConnectorDiscoveryState.DISCOVERED }
+                ConnectorSyncEvent.DeviceDisconnected -> _discoveryState.update { ConnectorDiscoveryState.DISCONNECTED }
+                ConnectorSyncEvent.DeviceScanTimeout -> _discoveryState.update { ConnectorDiscoveryState.TIMEOUT }
+                ConnectorSyncEvent.DiscoveryStarted -> _discoveryState.update { ConnectorDiscoveryState.DISCOVERING }
                 else -> {}
             }
 

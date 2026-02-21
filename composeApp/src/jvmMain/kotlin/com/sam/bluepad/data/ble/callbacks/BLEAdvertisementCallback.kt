@@ -1,15 +1,15 @@
-package com.sam.bluepad.data.ble
+package com.sam.bluepad.data.ble.callbacks
 
 import co.touchlab.kermit.Logger
 import com.sam.blejavaadvertise.callbacks.GATTServerCallback
 import com.sam.blejavaadvertise.models.GATTBluetoothError
 import com.sam.blejavaadvertise.models.GATTServiceAdvertisementStatus
+import com.sam.bluepad.data.sync.dto.BLESyncACKFailedReason
+import com.sam.bluepad.data.sync.dto.BLESyncData
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
+import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.ble.models.BLEPeerData
-import com.sam.bluepad.domain.ble.models.BLEServerSyncEvent
-import com.sam.bluepad.domain.ble.models.BLESyncACKFailedReason
-import com.sam.bluepad.domain.ble.models.BLESyncData
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
@@ -76,8 +76,8 @@ class BLEAdvertisementCallback(
     val incomingDeviceData: Flow<List<BLEPeerData>>
         get() = _incomingDeviceData.asStateFlow()
 
-    private val _incomingSyncRequest = Channel<BLEServerSyncEvent>(Channel.CONFLATED)
-    val syncRequestEvents: Flow<BLEServerSyncEvent>
+    private val _incomingSyncRequest = Channel<AdvertiserSyncEvent>(Channel.CONFLATED)
+    val syncRequestEvents: Flow<AdvertiserSyncEvent>
         get() = _incomingSyncRequest.receiveAsFlow()
 
     private var _notifyCharacteristicsChanged: NotifyCharacteristicsChanged? = null
@@ -142,7 +142,7 @@ class BLEAdvertisementCallback(
         }
         // handle the sync service here
         if (serviceUUID == BLEConstants.SYNC_SERVICE_ID) {
-            if (characteristicsUUID != BLEConstants.SYNC_CHARACTERISTICS_ID) return null
+            if (characteristicsUUID != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) return null
 
             Logger.d(TAG) { "READ REQUEST FOR SYNC DEVICE CHARACTERISTICS_ID: $characteristicUuid" }
             val deviceInfo = _deviceInfo.value ?: run {
@@ -200,7 +200,7 @@ class BLEAdvertisementCallback(
 
         // HANDLE SYNC SERVICE ID
         if (serviceUUID == BLEConstants.SYNC_SERVICE_ID) {
-            if (characteristicsUUID != BLEConstants.SYNC_CHARACTERISTICS_ID) return
+            if (characteristicsUUID != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) return
             Logger.d(TAG) { "WRITE REQUEST FOR SYNC SERVICE CHARACTERISTIC_ID : $characteristicUuid" }
             try {
                 val response = protoBuf.decodeFromByteArray<BLESyncData.BLEAdvertiseResponse>(value)
@@ -208,7 +208,6 @@ class BLEAdvertisementCallback(
 
                 val savedNonce = _localNonceMap[deviceAddress]
                 val externalDevice = _savedDevices.value.find { it.id == response.senderID }
-                val connectionId = Uuid.random()
 
                 val data = when {
                     savedNonce == null -> BLESyncData.BLESyncACKFailed(reason = BLESyncACKFailedReason.INVALID_INCOMING_DATA)
@@ -220,7 +219,6 @@ class BLEAdvertisementCallback(
 
                     externalDevice == null -> BLESyncData.BLESyncACKFailed(BLESyncACKFailedReason.UNKNOWN_SENDER)
                     else -> BLESyncData.BLESyncACKSuccess(
-                        serverID = connectionId,
                         nonce = response.nonce,
                         deviceAddress = deviceAddress
                     )
@@ -235,7 +233,7 @@ class BLEAdvertisementCallback(
                 )
 
                 if (externalDevice == null) return
-                val event = BLEServerSyncEvent.SyncRequest(externalDevice, connectionId)
+                val event = AdvertiserSyncEvent.ForeignSyncRequest(externalDevice)
                 _incomingSyncRequest.trySend(event)
                 when (data) {
                     is BLESyncData.BLESyncACKSuccess -> Logger.d(TAG) { "NOTIFICATION ON CHARACTERISTIC : $characteristicUuid SEND IS_SUCCESS:UNKOWN" }
@@ -268,7 +266,7 @@ class BLEAdvertisementCallback(
             Logger.d(TAG) { "INVALID DESCRIPTOR PROVIDED ONLY CCC DESCRIPTOR ALLOWED" }
             return null
         }
-        if (parsedCharacteristicsUUID != BLEConstants.SYNC_CHARACTERISTICS_ID) {
+        if (parsedCharacteristicsUUID != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
             Logger.d(TAG) { "INVALID CHARACTERISTICS PROVIDED :${characteristicsUuid}" }
             return null
         }
@@ -300,7 +298,7 @@ class BLEAdvertisementCallback(
             Logger.d(TAG) { "INVALID DESCRIPTOR PROVIDED ONLY CCC DESCRIPTOR ALLOWED" }
             return
         }
-        if (parsedCharacteristicsUUID != BLEConstants.SYNC_CHARACTERISTICS_ID) {
+        if (parsedCharacteristicsUUID != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
             Logger.d(TAG) { "INVALID CHARACTERISTICS PROVIDED :${characteristicsUuid}" }
             return
         }
@@ -308,7 +306,7 @@ class BLEAdvertisementCallback(
             value.contentEquals(BLEConstants.BLE_DESCRIPTOR_ENABLE_NOTIFICATION) ||
                     value.contentEquals(BLEConstants.BLE_DESCRIPTOR_ENABLE_INDICATION)
 
-        if (parsedCharacteristicsUUID != BLEConstants.SYNC_CHARACTERISTICS_ID) {
+        if (parsedCharacteristicsUUID != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
             Logger.d(TAG) { "INVALID CHARACTERISTICS PROVIDED :$characteristicsUuid" }
             return
         }

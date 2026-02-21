@@ -1,7 +1,7 @@
 package com.sam.bluepad.presentation.feature_devices.composables
 
 import androidx.compose.runtime.Composable
-import com.sam.bluepad.domain.ble.models.BLEConnectionState
+import com.sam.bluepad.domain.ble.enums.BLEConnectionState
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.external_device_conn_state_connected
 import com.sam.bluepad.resources.external_device_conn_state_connecting

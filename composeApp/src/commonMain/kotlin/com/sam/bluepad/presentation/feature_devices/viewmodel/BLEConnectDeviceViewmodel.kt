@@ -3,7 +3,7 @@ package com.sam.bluepad.presentation.feature_devices.viewmodel
 import androidx.lifecycle.viewModelScope
 import com.sam.bluepad.data.mappers.toExternalDevice
 import com.sam.bluepad.domain.ble.BLEConnectionManager
-import com.sam.bluepad.domain.ble.models.BLEConnectionState
+import com.sam.bluepad.domain.ble.enums.BLEConnectionState
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.utils.Resource
