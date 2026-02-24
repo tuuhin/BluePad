@@ -1,6 +1,6 @@
 package com.sam.bluepad.domain.ble.events
 
-import com.sam.bluepad.data.sync.dto.BLESyncData.BLEAdvertiseData
+import com.sam.bluepad.data.sync.dto.BLESyncHandshakeData.AdvertiseDeviceData
 import com.sam.bluepad.domain.ble.models.SyncDataExchangeStage
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 
@@ -42,7 +42,7 @@ sealed interface ConnectorSyncEvent {
      * BLE characteristic.
      *
      * @property device The parsed advertising data payload.
-     * @see BLEAdvertiseData
+     * @see AdvertiseDeviceData
      */
     data class AdvertisingDeviceRead(val device: ExternalDeviceModel) : ConnectorSyncEvent
 

@@ -6,8 +6,8 @@ import com.juul.kable.Peripheral
 import com.juul.kable.Scanner
 import com.juul.kable.logs.Logging
 import com.sam.ble_common.BluetoothInfoProvider
-import com.sam.bluepad.data.sync.dto.BLESyncACKFailedReason
-import com.sam.bluepad.data.sync.dto.BLESyncData
+import com.sam.bluepad.data.sync.dto.BLEHandshakeFailedReason
+import com.sam.bluepad.data.sync.dto.BLESyncHandshakeData
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLESyncConnectionManager
 import com.sam.bluepad.domain.ble.ResourcesSyncDataEvents
@@ -147,7 +147,7 @@ actual class BLESyncConnectionManagerImpl(
                 // handle the notifications
                 peripheral.observe(syncCharacteristics).onEach { bytes ->
                     val result = try {
-                        protoBuf.decodeFromByteArray<BLESyncData>(bytes)
+                        protoBuf.decodeFromByteArray<BLESyncHandshakeData>(bytes)
                     } catch (e: SerializationException) {
                         Logger.e(TAG, e) { "CANNOT SERIALIZE THE DATA" }
                         null
@@ -156,13 +156,13 @@ actual class BLESyncConnectionManagerImpl(
                         null
                     }
                     when (result) {
-                        is BLESyncData.BLESyncACKFailed -> {
+                        is BLESyncHandshakeData.HandshakeACKFailed -> {
                             Logger.d(TAG) { "FAILED ACKNOWLEDGEMENT FOUND REASON:${result.reason}" }
                             close(InvalidAcknowledgementException(result.reason))
                         }
 
-                        is BLESyncData.BLESyncACKSuccess -> {
-                            Logger.i(TAG) { "ACK FOUND DEVICE ADDRESS: ${result.deviceAddress}" }
+                        is BLESyncHandshakeData.HandshakeACKSuccess -> {
+                            Logger.i(TAG) { "ACK FOUND DEVICE ADDRESS: $result" }
                             send(ConnectorSyncEvent.AdvertisingAcknowledgmentReceived)
                         }
 
@@ -171,7 +171,7 @@ actual class BLESyncConnectionManagerImpl(
                 }.launchIn(peripheral.scope)
 
                 val bytes = peripheral.read(syncCharacteristics)
-                val syncData = protoBuf.decodeFromByteArray<BLESyncData.BLEAdvertiseData>(bytes)
+                val syncData = protoBuf.decodeFromByteArray<BLESyncHandshakeData.AdvertiseDeviceData>(bytes)
 
                 if (!syncData.allowSync) {
                     close(SyncFlagMissingException())
@@ -191,7 +191,7 @@ actual class BLESyncConnectionManagerImpl(
                 send(event)
 
                 val currentDeviceInfo = localDeviceProvider.readDeviceInfo.first()
-                val outgoingData = BLESyncData.BLEAdvertiseResponse(
+                val outgoingData = BLESyncHandshakeData.AdvertiseResponseData(
                     nonce = syncData.nonce,
                     receiverID = syncData.deviceId,
                     senderID = currentDeviceInfo.deviceId
@@ -227,7 +227,7 @@ actual class BLESyncConnectionManagerImpl(
 
     private class MissingSyncCharacteristicsException : Exception("Missing advertisement data")
     private class InvalidReceiverIdException : Exception("Invalid receiver id provided")
-    private class InvalidAcknowledgementException(reason: BLESyncACKFailedReason) :
+    private class InvalidAcknowledgementException(reason: BLEHandshakeFailedReason) :
         Exception("Invalid Acknowledgement :${reason.name}")
 
     private class SyncFlagMissingException : Exception("No sync flag found in the read response")

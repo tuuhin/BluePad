@@ -4,8 +4,8 @@ import co.touchlab.kermit.Logger
 import com.sam.blejavaadvertise.callbacks.GATTServerCallback
 import com.sam.blejavaadvertise.models.GATTBluetoothError
 import com.sam.blejavaadvertise.models.GATTServiceAdvertisementStatus
-import com.sam.bluepad.data.sync.dto.BLESyncACKFailedReason
-import com.sam.bluepad.data.sync.dto.BLESyncData
+import com.sam.bluepad.data.sync.dto.BLEHandshakeFailedReason
+import com.sam.bluepad.data.sync.dto.BLESyncHandshakeData
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
@@ -155,12 +155,12 @@ class BLEAdvertisementCallback(
                     .let { nonceBytes -> encoder.encodeBytes(nonceBytes) }
                     .apply { _localNonceMap[deviceAddress] = this }
 
-                val peerData = BLESyncData.BLEAdvertiseData(
+                val peerData = BLESyncHandshakeData.AdvertiseDeviceData(
                     deviceId = deviceInfo.deviceId,
                     nonce = nonce,
                     allowSync = true
                 )
-                val bytes = protoBuf.encodeToByteArray<BLESyncData.BLEAdvertiseData>(peerData)
+                val bytes = protoBuf.encodeToByteArray<BLESyncHandshakeData.AdvertiseDeviceData>(peerData)
                 Logger.d(TAG) { "SENDING READ RESPONSE FOR CHARACTERISTICS_ID :${characteristicUuid}" }
                 bytes
             } catch (e: Exception) {
@@ -203,28 +203,25 @@ class BLEAdvertisementCallback(
             if (characteristicsUUID != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) return
             Logger.d(TAG) { "WRITE REQUEST FOR SYNC SERVICE CHARACTERISTIC_ID : $characteristicUuid" }
             try {
-                val response = protoBuf.decodeFromByteArray<BLESyncData.BLEAdvertiseResponse>(value)
+                val response = protoBuf.decodeFromByteArray<BLESyncHandshakeData.AdvertiseResponseData>(value)
                 Logger.d(TAG) { "WRITE REQUESTED ACCEPTED CHARACTERISTIC ID: $characteristicUuid" }
 
                 val savedNonce = _localNonceMap[deviceAddress]
                 val externalDevice = _savedDevices.value.find { it.id == response.senderID }
 
                 val data = when {
-                    savedNonce == null -> BLESyncData.BLESyncACKFailed(reason = BLESyncACKFailedReason.INVALID_INCOMING_DATA)
+                    savedNonce == null -> BLESyncHandshakeData.HandshakeACKFailed(reason = BLEHandshakeFailedReason.INVALID_INCOMING_DATA)
                     savedNonce != response.nonce ->
-                        BLESyncData.BLESyncACKFailed(BLESyncACKFailedReason.TAMPERED_DATA)
+                        BLESyncHandshakeData.HandshakeACKFailed(BLEHandshakeFailedReason.TAMPERED_DATA)
 
                     response.receiverID != _deviceInfo.value?.deviceId ->
-                        BLESyncData.BLESyncACKFailed(reason = BLESyncACKFailedReason.INVALID_RECEIVER)
+                        BLESyncHandshakeData.HandshakeACKFailed(reason = BLEHandshakeFailedReason.INVALID_RECEIVER)
 
-                    externalDevice == null -> BLESyncData.BLESyncACKFailed(BLESyncACKFailedReason.UNKNOWN_SENDER)
-                    else -> BLESyncData.BLESyncACKSuccess(
-                        nonce = response.nonce,
-                        deviceAddress = deviceAddress
-                    )
+                    externalDevice == null -> BLESyncHandshakeData.HandshakeACKFailed(BLEHandshakeFailedReason.UNKNOWN_SENDER)
+                    else -> BLESyncHandshakeData.HandshakeACKSuccess(nonce = response.nonce,)
                 }
 
-                val bytes = protoBuf.encodeToByteArray<BLESyncData>(data)
+                val bytes = protoBuf.encodeToByteArray<BLESyncHandshakeData>(data)
                 _notifyCharacteristicsChanged?.invoke(
                     deviceAddress,
                     characteristicUuid,
@@ -236,8 +233,8 @@ class BLEAdvertisementCallback(
                 val event = AdvertiserSyncEvent.ForeignSyncRequest(externalDevice)
                 _incomingSyncRequest.trySend(event)
                 when (data) {
-                    is BLESyncData.BLESyncACKSuccess -> Logger.d(TAG) { "NOTIFICATION ON CHARACTERISTIC : $characteristicUuid SEND IS_SUCCESS:UNKOWN" }
-                    is BLESyncData.BLESyncACKFailed -> Logger.d(TAG) { "NOTIFICATION ON CHARACTERISTIC : $characteristicUuid FAILED REASON :${data.reason}" }
+                    is BLESyncHandshakeData.HandshakeACKSuccess -> Logger.d(TAG) { "NOTIFICATION ON CHARACTERISTIC : $characteristicUuid SEND IS_SUCCESS:UNKOWN" }
+                    is BLESyncHandshakeData.HandshakeACKFailed -> Logger.d(TAG) { "NOTIFICATION ON CHARACTERISTIC : $characteristicUuid FAILED REASON :${data.reason}" }
                     else -> {}
                 }
             } catch (e: Exception) {

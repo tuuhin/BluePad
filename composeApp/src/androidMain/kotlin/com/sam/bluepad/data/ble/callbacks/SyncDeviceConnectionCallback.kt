@@ -8,8 +8,8 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothStatusCodes
 import android.os.Build
 import co.touchlab.kermit.Logger
-import com.sam.bluepad.data.sync.dto.BLESyncACKFailedReason
-import com.sam.bluepad.data.sync.dto.BLESyncData
+import com.sam.bluepad.data.sync.dto.BLEHandshakeFailedReason
+import com.sam.bluepad.data.sync.dto.BLESyncHandshakeData
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.enums.BLEConnectionState
 import com.sam.bluepad.domain.ble.events.ConnectorSyncEvent
@@ -58,7 +58,7 @@ class SyncDeviceConnectionCallback(
         _onError = callback
     }
 
-    private val _advertiseDataCache = ConcurrentHashMap<String, BLESyncData.BLEAdvertiseData>()
+    private val _advertiseDataCache = ConcurrentHashMap<String, BLESyncHandshakeData.AdvertiseDeviceData>()
 
     private val deviceInfo = deviceInfoProvider.readDeviceInfo.stateIn(
         scope = _scope,
@@ -172,7 +172,7 @@ class SyncDeviceConnectionCallback(
             return
         }
         try {
-            val syncData = protoBuf.decodeFromByteArray<BLESyncData.BLEAdvertiseData>(value)
+            val syncData = protoBuf.decodeFromByteArray<BLESyncHandshakeData.AdvertiseDeviceData>(value)
 
             if (!syncData.allowSync) {
                 Logger.e(TAG) { "SYNC FLAG MISSING" }
@@ -257,13 +257,13 @@ class SyncDeviceConnectionCallback(
                 _advertiseDataCache.getOrDefault(it.address, null)
             } ?: return
             // characteristics to write
-            val outgoingData = BLESyncData.BLEAdvertiseResponse(
+            val outgoingData = BLESyncHandshakeData.AdvertiseResponseData(
                 nonce = advertiseData.nonce,
                 receiverID = advertiseData.deviceId,
                 senderID = currentDeviceInfo.deviceId
             )
             val syncWrite =
-                protoBuf.encodeToByteArray<BLESyncData.BLEAdvertiseResponse>(outgoingData)
+                protoBuf.encodeToByteArray<BLESyncHandshakeData.AdvertiseResponseData>(outgoingData)
             val response = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 gatt.writeCharacteristic(
                     descriptor.characteristic,
@@ -297,17 +297,17 @@ class SyncDeviceConnectionCallback(
     ) {
         if (characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) return
         try {
-            val result = protoBuf.decodeFromByteArray<BLESyncData>(value)
+            val result = protoBuf.decodeFromByteArray<BLESyncHandshakeData>(value)
             Logger.i(TAG) { "SYNC ACK DATA FOUND" }
             when (result) {
-                is BLESyncData.BLESyncACKFailed -> {
+                is BLESyncHandshakeData.HandshakeACKFailed -> {
                     val error = InvalidAcknowledgementException(result.reason)
                     Logger.d(TAG, error) { "FAILED ACKNOWLEDGEMENT FOUND REASON:${result.reason}" }
                     _onError?.invoke(error)
                 }
 
-                is BLESyncData.BLESyncACKSuccess -> {
-                    Logger.i(TAG) { "ACK FOUND :${result.deviceAddress}" }
+                is BLESyncHandshakeData.HandshakeACKSuccess -> {
+                    Logger.i(TAG) { "ACK FOUND :${result}" }
                     _onEvents?.invoke(ConnectorSyncEvent.AdvertisingAcknowledgmentReceived)
                 }
 
@@ -344,7 +344,7 @@ class SyncDeviceConnectionCallback(
     }
 
     private class InvalidReceiverIdException : Exception("Invalid receiver id provided")
-    private class InvalidAcknowledgementException(reason: BLESyncACKFailedReason) :
+    private class InvalidAcknowledgementException(reason: BLEHandshakeFailedReason) :
         Exception("Invalid Acknowledgement :${reason.name}")
 
     private class SyncFlagMissingException : Exception("No sync flag found in the read response")

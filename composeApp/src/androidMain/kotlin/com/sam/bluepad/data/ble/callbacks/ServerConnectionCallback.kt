@@ -9,17 +9,14 @@ import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
 import co.touchlab.kermit.Logger
-import com.sam.bluepad.data.sync.dto.BLESyncACKFailedReason
-import com.sam.bluepad.data.sync.dto.BLESyncData
-import com.sam.bluepad.data.utils.PlatformInfoProvider
+import com.sam.bluepad.data.sync.dto.BLESyncDataType
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
-import com.sam.bluepad.domain.use_cases.BytesEncoder
-import com.sam.bluepad.domain.use_cases.RandomGenerator
+import com.sam.bluepad.domain.sync.SyncInPayloadManager
 import com.sam.bluepad.domain.utils.Resource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,34 +31,24 @@ import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
-import kotlinx.serialization.decodeFromByteArray
-import kotlinx.serialization.encodeToByteArray
-import kotlinx.serialization.protobuf.ProtoBuf
-import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.launch
 import kotlin.uuid.toKotlinUuid
 
 private const val TAG = "SERVER_CALLBACK"
-private const val NONCE_SIZE = 8
 
-private typealias GATTSendResponse = (device: BluetoothDevice?, requestId: Int, status: Int, offset: Int, value: ByteArray?) -> Unit
-private typealias GATTNotifyCharacteristicsChanged = (device: BluetoothDevice, characteristics: BluetoothGattCharacteristic, confirm: Boolean, value: ByteArray) -> Boolean
+typealias GATTSendResponse = (device: BluetoothDevice?, requestId: Int, status: Int, offset: Int, value: ByteArray?) -> Unit
+typealias GATTNotifyCharacteristicsChanged = (device: BluetoothDevice, characteristics: BluetoothGattCharacteristic, confirm: Boolean, value: ByteArray) -> Boolean
 
 @SuppressLint("MissingPermission")
 class ServerConnectionCallback(
     provider: LocalDeviceInfoProvider,
     repository: ExternalDevicesRepository,
-    private val protoBuf: ProtoBuf,
-    private val encoder: BytesEncoder,
-    private val randomGenerator: RandomGenerator,
-    private val platformInfoProvider: PlatformInfoProvider,
+    private val methodHandler: ServerCallbackMethodHandler,
+    private val syncInManager: SyncInPayloadManager,
 ) : BluetoothGattServerCallback() {
 
     private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-    private val _localNonceMap = ConcurrentHashMap<String, String>()
-    private val _cccDescriptorMap = ConcurrentHashMap<String, Boolean>()
 
     private val _deviceInfo = provider.readDeviceInfo.stateIn(
         scope = _scope,
@@ -75,7 +62,6 @@ class ServerConnectionCallback(
         .stateIn(_scope, SharingStarted.Eagerly, emptyList())
 
     private var _sendResponse: GATTSendResponse? = null
-    private var _notifyCharacteristicsChanged: GATTNotifyCharacteristicsChanged? = null
     private var _onServiceAdded: (() -> Unit)? = null
 
     fun setOnSendResponse(callback: GATTSendResponse) {
@@ -83,7 +69,7 @@ class ServerConnectionCallback(
     }
 
     fun setNotifyCharacteristicsChanged(callback: GATTNotifyCharacteristicsChanged) {
-        _notifyCharacteristicsChanged = callback
+        methodHandler.notifyCharacteristicsChanged = callback
     }
 
     fun setOnServiceAdded(onServiceAdded: () -> Unit = {}) {
@@ -119,8 +105,7 @@ class ServerConnectionCallback(
             else -> null
         }
         if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-            _localNonceMap.remove(device.address)
-            _cccDescriptorMap.remove(device.address)
+            methodHandler.clearDeviceInfo(device.address)
         }
         Logger.d(TAG) { "DEVICE IDENTIFIER:${device.address} BOND STATE:$bondState CONNECTION STATE:$state" }
     }
@@ -150,78 +135,38 @@ class ServerConnectionCallback(
             sendFailedResponse(device, requestId, offset)
             return
         }
-        // handle discovery service here only
-        if (characteristic.service.uuid.toKotlinUuid() == BLEConstants.DEVICE_INFO_SERVICE_ID) {
-            if (characteristic.uuid.toKotlinUuid() != BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID) {
-                Logger.w(TAG) { "CANNOT FIND ANY CHARACTERISTICS:${characteristic.uuid} WITH SERVICE:${characteristic.service.uuid}" }
-                sendFailedResponse(device, requestId, offset)
-                return
-            }
-            Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM DISCOVERY SERVICE" }
+        val serviceId = characteristic.service.uuid.toKotlinUuid()
+        val characteristicsId = characteristic.uuid.toKotlinUuid()
 
-            val deviceInfo = _deviceInfo.value ?: run {
-                Logger.w(TAG) { "CANNOT READ DEVICE INFO" }
-                sendFailedResponse(device, requestId, offset)
-                return
-            }
-
-            val value = try {
-                val nonce = randomGenerator.generateRandomBytes(size = NONCE_SIZE)
-                val peerData = BLEPeerData(
-                    deviceId = deviceInfo.deviceId,
-                    deviceOs = platformInfoProvider.platformOS,
-                    deviceName = deviceInfo.name,
-                    nonce = nonce.decodeToString(),
-                )
-                val bytes = protoBuf.encodeToByteArray<BLEPeerData>(peerData)
-                Logger.d(TAG) { "RESPONDING WITH DATA SIZE:${bytes.size}" }
-                bytes
-            } catch (e: Exception) {
-                Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
-                sendFailedResponse(device, requestId, offset)
-                return
-            }
-            Logger.d(TAG) { "SENDING SUCCESS READ RESPONSE FOR CHARACTERISTICS :${characteristic.uuid}" }
-            _sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
-            return
-        }
-
-        // handle the sync service here
-        if (characteristic.service.uuid.toKotlinUuid() == BLEConstants.SYNC_SERVICE_ID) {
-            if (characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
-                Logger.w(TAG) { "CANNOT FIND ANY CHARACTERISTICS:${characteristic.uuid} WITH SERVICE:${characteristic.service.uuid}" }
-                sendFailedResponse(device, requestId, offset)
-                return
-            }
-
-            Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
-            val deviceInfo = _deviceInfo.value ?: run {
-                Logger.e(TAG) { "CANNOT READ DEVICE INFO" }
-                sendFailedResponse(device, requestId, offset)
-                return
-            }
-
-            val value = try {
-                val nonce = randomGenerator.generateRandomBytes(NONCE_SIZE).let { nonceBytes ->
-                    encoder.encodeBytes(nonceBytes).apply { _localNonceMap[device.address] = this }
+        val value = when (characteristicsId) {
+            // HANDLE DEVICE DISCOVERY ADVERTISEMENT HERE
+            BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID if (serviceId == BLEConstants.DEVICE_INFO_SERVICE_ID) -> {
+                Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM DISCOVERY SERVICE" }
+                methodHandler.handleDeviceReadRequest(_deviceInfo.value) { reason ->
+                    sendFailedResponse(device, requestId, offset, true, reason)
+                    return
                 }
-                val data = BLESyncData.BLEAdvertiseData(deviceInfo.deviceId, nonce, true)
-                val bytes = protoBuf.encodeToByteArray<BLESyncData.BLEAdvertiseData>(data)
-                Logger.d(TAG) { "RESPONDING WITH DATA SIZE:${bytes.size}" }
-                bytes
-            } catch (e: Exception) {
-                Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
-                sendFailedResponse(device, requestId, offset)
-                return
+            }
+            // HANDLE SYNC SERVICE PROXIMITY CHECK ADVERTISEMENT HERE
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
+                Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
+                methodHandler.handleProximityReadRequest(
+                    device = device,
+                    currentDeviceInfo = _deviceInfo.value
+                ) { reason ->
+                    sendFailedResponse(device, requestId, offset, true, reason)
+                    return
+                }
             }
 
-            Logger.d(TAG) { "SENDING SUCCESS READ RESPONSE FOR CHARACTERISTICS :${characteristic.uuid}" }
-            _sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
-            return
+            else -> {
+                Logger.w(TAG) { "CANNOT FIND ANY CHARACTERISTICS:${characteristic.uuid} WITH SERVICE:${characteristic.service.uuid}" }
+                sendFailedResponse(device, requestId, offset, true)
+                return
+            }
         }
-        // invalids
-        Logger.w(TAG) { "REQUESTING INVALID SERVICE" }
-        sendFailedResponse(device, requestId, offset)
+        // if all goes good send success
+        sendSuccessResponse(device, requestId, offset, true, value, "SENDING RESPONSE SUCCESS")
     }
 
     override fun onCharacteristicWriteRequest(
@@ -233,98 +178,85 @@ class ServerConnectionCallback(
         offset: Int,
         value: ByteArray?
     ) {
-        // ensure we have some data
+        // SOME DATA IS PRESENT
         if (device == null || characteristic == null || value == null) {
             sendFailedResponse(device, requestId, offset, responseNeeded)
             return
         }
 
-        if (characteristic.service.uuid.toKotlinUuid() == BLEConstants.DEVICE_INFO_SERVICE_ID) {
-            if (characteristic.uuid.toKotlinUuid() != BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID) {
-                Logger.w(TAG) { "CANNOT FIND ANY CHARACTERISTICS:${characteristic.uuid} WITH SERVICE:${characteristic.service.uuid}" }
-                sendFailedResponse(device, requestId, offset)
-                return
-            }
-            Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM DISCOVERY SERVICE" }
+        val characteristicId = characteristic.uuid.toKotlinUuid()
+        val serviceId = characteristic.service.uuid.toKotlinUuid()
 
-            try {
-                val peerData = protoBuf.decodeFromByteArray<BLEPeerData>(value)
-                _incomingPeerData.update { devices -> (devices + peerData).distinctBy { it.deviceId } }
-            } catch (e: Exception) {
-                Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
-                sendFailedResponse(device, requestId, offset, responseNeeded)
-                return
-            }
+        val message = "WRITE RESPONSE FOR CHARACTERISTICS :${characteristic.uuid}"
+        val invalidCharReason =
+            "NO ASSOCIATE CHARACTERISTICS:${characteristic.uuid} WITH SERVICE:${characteristic.service.uuid}"
 
-            if (!responseNeeded) return
-            Logger.d(TAG) { "SENDING SUCCESS WRITE RESPONSE FOR CHARACTERISTICS :${characteristic.uuid}" }
-            _sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
-            return
-        }
-        // handle the sync service here
-        if (characteristic.service.uuid.toKotlinUuid() == BLEConstants.SYNC_SERVICE_ID) {
-            if (characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
-                Logger.w(TAG) { "CANNOT FIND ANY CHARACTERISTICS:${characteristic.uuid} WITH SERVICE:${characteristic.service.uuid}" }
-                sendFailedResponse(device, requestId, offset)
-                return
-            }
-            Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
-
-            try {
-                val response = protoBuf.decodeFromByteArray<BLESyncData.BLEAdvertiseResponse>(value)
-                Logger.d(TAG) { "WRITE REQUESTED ACCEPTED CHARACTERISTIC ID: ${characteristic.uuid}" }
-
-                val savedNonce = _localNonceMap[device.address]
-                val externalDevice = _savedDevices.value.find { it.id == response.senderID }
-
-                val data = when {
-                    savedNonce == null -> BLESyncData.BLESyncACKFailed(reason = BLESyncACKFailedReason.INVALID_INCOMING_DATA)
-                    savedNonce != response.nonce ->
-                        BLESyncData.BLESyncACKFailed(BLESyncACKFailedReason.TAMPERED_DATA)
-
-                    response.receiverID != _deviceInfo.value?.deviceId ->
-                        BLESyncData.BLESyncACKFailed(reason = BLESyncACKFailedReason.INVALID_RECEIVER)
-
-                    externalDevice == null -> BLESyncData.BLESyncACKFailed(BLESyncACKFailedReason.UNKNOWN_SENDER)
-                    else -> BLESyncData.BLESyncACKSuccess(
-                        nonce = response.nonce,
-                        deviceAddress = device.address
-                    )
-                }
-
-                val bytes = protoBuf.encodeToByteArray<BLESyncData>(data)
-                _notifyCharacteristicsChanged?.invoke(
-                    device,
-                    characteristic,
-                    false,
-                    bytes
-                )
-
-                if (externalDevice == null) {
-                    Logger.d(TAG) { "RECEIVER DEVICE IS NOT KNOWN" }
-                    sendFailedResponse(device, requestId, offset, responseNeeded)
+        when (characteristicId) {
+            // HANDLE DEVICE DISCOVERY ADVERTISEMENT HERE
+            BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID if (serviceId == BLEConstants.DEVICE_INFO_SERVICE_ID) -> {
+                Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM DISCOVERY SERVICE" }
+                methodHandler.handleDeviceWriteRequest(value) { reason ->
+                    sendFailedResponse(device, requestId, offset, responseNeeded, reason)
                     return
                 }
-                val event = AdvertiserSyncEvent.ForeignSyncRequest(externalDevice)
-                _incomingSyncRequest.trySend(event)
-                when (data) {
-                    is BLESyncData.BLESyncACKSuccess -> Logger.d(TAG) { "NOTIFICATION ON CHARACTERISTIC : ${characteristic.uuid} SEND SUCCESS" }
-                    is BLESyncData.BLESyncACKFailed -> Logger.d(TAG) { "NOTIFICATION ON CHARACTERISTIC : ${characteristic.uuid} FAILED REASON :${data.reason}" }
-                    else -> {}
+            }
+
+            // HANDLE SYNC AND PROXIMITY SERVICE FROM HERE
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
+                Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
+                methodHandler.handleProximityWriteRequest(
+                    device = device,
+                    characteristic = characteristic,
+                    value = value,
+                    savedDevices = _savedDevices.value,
+                    currentDeviceInfo = _deviceInfo.value
+                ) { reason ->
+                    sendFailedResponse(device, requestId, offset, responseNeeded, reason)
+                    return
                 }
-            } catch (e: Exception) {
-                Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
-                sendFailedResponse(device, requestId, offset)
+            }
+
+            // HANDLE SYNC AND PROXIMITY SERVICE FROM HERE
+            BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
+                Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
+                methodHandler.handleDataWriteRequest(
+                    device = device,
+                    characteristic = characteristic,
+                    value = value,
+                    onSessionStart = {
+                        Logger.d(TAG) { "SYNC SESSION STARTING" }
+                        syncInManager.clearBuffer()
+                    },
+                    onReadPayload = { _, seq, payload ->
+                        syncInManager.addPayloadChunk(seq, payload)
+                    },
+                    onPayloadTypeChange = { type ->
+                        if (type == null) return
+                        when (type) {
+                            BLESyncDataType.REQUESTED_CONTENT_IDS -> {
+                                Logger.d(TAG) { "REQUESTING NOT_MATCHING_CONTENTS" }
+                                _scope.launch {
+                                    syncInManager.processMetadata()
+                                }
+                            }
+
+                            else -> {}
+                        }
+                    },
+                    onFailed = { reason ->
+                        sendFailedResponse(device, requestId, offset, responseNeeded, reason)
+                        return
+                    }
+                )
+            }
+
+            else -> {
+                sendFailedResponse(device, requestId, offset, responseNeeded, invalidCharReason)
                 return
             }
-            if (!responseNeeded) return
-            Logger.d(TAG) { "SENDING WRITE RESPONSE FOR CHARACTERISTICS :${characteristic.uuid}" }
-            _sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
-            return
         }
-        // invalids
-        Logger.w(TAG) { "REQUESTING INVALID SERVICE" }
-        sendFailedResponse(device, requestId, offset, responseNeeded)
+        // if all goes good send success
+        sendSuccessResponse(device, requestId, offset, responseNeeded, value, message)
     }
 
     override fun onDescriptorReadRequest(
@@ -334,34 +266,32 @@ class ServerConnectionCallback(
         descriptor: BluetoothGattDescriptor?
     ) {
         if (device == null || descriptor == null) {
-            sendFailedResponse(device, requestId, offset, false)
+            sendFailedResponse(device, requestId, offset, true)
             return
         }
         Logger.i(TAG) { "READ REQUEST DESCRIPTOR ID ${descriptor.uuid} CHARACTERISTIC ID : ${descriptor.characteristic.uuid}" }
 
-        if (descriptor.characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
-            Logger.d(TAG) { "INVALID CHARACTERISTICS PROVIDED :${descriptor.characteristic.uuid}" }
-            sendFailedResponse(device, requestId, offset, false)
+        // only handle sync service id
+        if (descriptor.characteristic.service.uuid != BLEConstants.SYNC_SERVICE_ID) {
+            sendFailedResponse(device, requestId, offset, true, "INVALID SERVICE")
             return
         }
 
-        if (descriptor.uuid.toKotlinUuid() != BLEConstants.CCC_DESCRIPTOR) {
-            Logger.d(TAG) { "INVALID DESCRIPTOR PROVIDED ONLY CCC DESCRIPTOR ALLOWED" }
-            sendFailedResponse(device, requestId, offset, false)
-            return
-        }
+        val bytes = when (descriptor.characteristic.uuid.toKotlinUuid()) {
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID ->
+                methodHandler.handleCCCReadRequest(device, descriptor) { reason ->
+                    sendFailedResponse(device, requestId, offset, true, reason)
+                }
 
-        val isEnabled = _cccDescriptorMap[device.address] ?: false
-        val isIndication =
-            descriptor.characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0
-        val bytes = when (isEnabled) {
-            true if (isIndication) -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
-            true -> BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-            false -> BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
+            else -> {
+                sendFailedResponse(device, requestId, offset, true, "Invalid")
+                return
+            }
         }
-        val bytesAsString = bytes.joinToString("-") { it.toHexString() }
-        Logger.d(TAG) { "DESCRIPTOR READ VALUE : $bytesAsString" }
-        _sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, bytes)
+        // send success if not failed send success message on done
+        sendSuccessResponse(device, requestId, offset, true, bytes, "Descriptor written")
+        return
+
     }
 
     override fun onDescriptorWriteRequest(
@@ -379,56 +309,59 @@ class ServerConnectionCallback(
         }
         Logger.i(TAG) { "WRITE REQUEST DESCRIPTOR ID ${descriptor.uuid} CHARACTERISTIC ID : ${descriptor.characteristic.uuid}" }
 
-        if (descriptor.characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
-            sendFailedResponse(device, requestId, offset, false)
+        // only handle sync service id
+        if (descriptor.characteristic.service.uuid != BLEConstants.SYNC_SERVICE_ID) {
+            sendFailedResponse(device, requestId, offset, false, "INVALID SERVICE")
             return
         }
 
-        if (descriptor.uuid.toKotlinUuid() != BLEConstants.CCC_DESCRIPTOR) {
-            Logger.d(TAG) { "INVALID DESCRIPTOR PROVIDED ONLY CCC DESCRIPTOR ALLOWED" }
-            sendFailedResponse(device, requestId, offset, responseNeeded)
-            return
-        }
-        val isNotifyEnabled = when {
-            value.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) -> true
-            value.contentEquals(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE) -> true
-            value.contentEquals(BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE) -> false
+        when (descriptor.characteristic.uuid.toKotlinUuid()) {
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID ->
+                methodHandler.handleCCCWriteRequest(device, descriptor, value) { reason ->
+                    sendFailedResponse(device, requestId, offset, responseNeeded, reason)
+                }
+
             else -> {
-                sendFailedResponse(device, requestId, offset, responseNeeded)
+                sendFailedResponse(device, requestId, offset, responseNeeded, "Invalid")
                 return
             }
         }
-
-        if (descriptor.characteristic.uuid.toKotlinUuid() != BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID) {
-            Logger.d(TAG) { "INVALID CHARACTERISTICS PROVIDED :${descriptor.characteristic.uuid}" }
-            sendFailedResponse(device, requestId, offset, responseNeeded)
-            return
-        }
-
-        _cccDescriptorMap[device.address] = isNotifyEnabled
-        val bytesAsString = value.joinToString("-") { it.toHexString() }
-        Logger.d(TAG) { "UPDATED DESCRIPTOR VALUE :$bytesAsString" }
-
-        if (!responseNeeded) return
-        _sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
+        // send success if not failed send success message on done
+        sendSuccessResponse(device, requestId, offset, responseNeeded, value, "Descriptor written")
+        return
     }
 
     private fun sendFailedResponse(
         device: BluetoothDevice?,
         requestId: Int,
         offset: Int,
-        responseNeeded: Boolean = true
+        responseNeeded: Boolean = true,
+        reason: String? = null,
     ) {
         if (!responseNeeded) return
+        reason?.let { Logger.w(TAG) { "SENDING GATT FAILURE REASON:$it" } }
         _sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_FAILURE, offset, null)
     }
+
+    private fun sendSuccessResponse(
+        device: BluetoothDevice?,
+        requestId: Int,
+        offset: Int,
+        responseNeeded: Boolean = true,
+        value: ByteArray?,
+        message: String? = null,
+    ) {
+        if (!responseNeeded) return
+        message?.let { Logger.d(TAG) { "SENDING GATT SUCCESS MESSAGE:$it" } }
+        _sendResponse?.invoke(device, requestId, BluetoothGatt.GATT_FAILURE, offset, value)
+    }
+
 
     fun cleanUp() {
         // clears everything on done
         if (_scope.isActive) _scope.cancel()
         // clear the maps
-        _localNonceMap.clear()
-        _cccDescriptorMap.clear()
+        methodHandler.cleanUp()
         // clear the maps
         _incomingPeerData.value = emptyList()
     }

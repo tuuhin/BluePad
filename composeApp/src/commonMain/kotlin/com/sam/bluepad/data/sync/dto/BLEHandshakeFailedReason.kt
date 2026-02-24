@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
 
 @Serializable
-enum class BLESyncACKFailedReason {
+enum class BLEHandshakeFailedReason {
     @ProtoNumber(1)
     UNKNOWN_SENDER,
 

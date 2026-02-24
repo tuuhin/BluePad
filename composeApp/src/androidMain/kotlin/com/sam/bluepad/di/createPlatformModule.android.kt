@@ -6,6 +6,7 @@ import com.sam.bluepad.data.ble.BLEDiscoveryImpl
 import com.sam.bluepad.data.ble.BLEGattAdvertiserConfig
 import com.sam.bluepad.data.ble.BLESyncConnectionManagerImpl
 import com.sam.bluepad.data.ble.callbacks.BLEGattAdvertisementCallback
+import com.sam.bluepad.data.ble.callbacks.ServerCallbackMethodHandler
 import com.sam.bluepad.data.ble.callbacks.ServerConnectionCallback
 import com.sam.bluepad.data.ble.callbacks.SyncDeviceConnectionCallback
 import com.sam.bluepad.data.ble.callbacks.SyncDeviceDiscoveryCallback
@@ -41,6 +42,7 @@ actual fun createPlatformModule(): Module = module {
     singleOf(::BLEConnectionManagerImpl) bind BLEConnectionManager::class
 
     // ble advertisement
+    singleOf(::ServerCallbackMethodHandler)
     singleOf(::ServerConnectionCallback)
     factoryOf(::BLEGattAdvertisementCallback)
     singleOf(::BLEGattAdvertiserConfig)

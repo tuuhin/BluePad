@@ -5,30 +5,31 @@ import kotlinx.serialization.protobuf.ProtoNumber
 import kotlin.uuid.Uuid
 
 @Serializable
-sealed class BLESyncData {
+sealed class BLESyncHandshakeData {
 
     @Serializable
-    data class BLEAdvertiseData(
+    data class AdvertiseDeviceData(
         @ProtoNumber(1) val deviceId: Uuid,
         @ProtoNumber(2) val nonce: String,
         @ProtoNumber(3) val allowSync: Boolean = true
-    ) : BLESyncData()
+    ) : BLESyncHandshakeData()
 
     @Serializable
-    data class BLEAdvertiseResponse(
+    data class AdvertiseResponseData(
         @ProtoNumber(1) val receiverID: Uuid,
         @ProtoNumber(2) val senderID: Uuid,
         @ProtoNumber(3) val nonce: String,
-    ) : BLESyncData()
+    ) : BLESyncHandshakeData()
 
     @Serializable
-    data class BLESyncACKSuccess(
+    data class HandshakeACKSuccess(
         @ProtoNumber(2) val nonce: String,
-        @ProtoNumber(3) val deviceAddress: String
-    ) : BLESyncData()
+    ) : BLESyncHandshakeData()
 
     @Serializable
-    data class BLESyncACKFailed(
-        @ProtoNumber(1) val reason: BLESyncACKFailedReason
-    ) : BLESyncData()
+    data class HandshakeACKFailed(
+        @ProtoNumber(1) val reason: BLEHandshakeFailedReason
+    ) : BLESyncHandshakeData()
+
+
 }
