@@ -5,17 +5,14 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
 
 @Serializable
-@SerialName("__bhfr")
-enum class BLEHandshakeFailedReason {
+@SerialName("__st")
+enum class BLESyncDataType {
     @ProtoNumber(1)
-    UNKNOWN_SENDER,
+    METADATA,
 
     @ProtoNumber(2)
-    INVALID_RECEIVER,
+    REQUESTED_CONTENT_IDS,
 
     @ProtoNumber(3)
-    INVALID_INCOMING_DATA,
-
-    @ProtoNumber(4)
-    TAMPERED_DATA;
+    CONTENT,
 }

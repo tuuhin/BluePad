@@ -10,9 +10,13 @@ import com.sam.bluepad.data.datastore.LocalDeviceInfoProviderImpl
 import com.sam.bluepad.data.repository.ExternalDevicesRepoImpl
 import com.sam.bluepad.data.repository.SketchesRepoImpl
 import com.sam.bluepad.data.serialization.SerializationProtocols
+import com.sam.bluepad.data.sync.IncomingPayloadManagerImpl
+import com.sam.bluepad.data.sync.OutgoingPayloadManagerImpl
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.repository.SketchesRepository
+import com.sam.bluepad.domain.sync.InPayloadManager
+import com.sam.bluepad.domain.sync.OutPayloadManager
 import com.sam.bluepad.domain.use_cases.BytesEncoder
 import com.sam.bluepad.domain.use_cases.HashGenerator
 import com.sam.bluepad.domain.use_cases.RandomGenerator
@@ -47,6 +51,10 @@ val commonAppModule = module(true) {
     singleOf(::HashGenerator)
     single { SerializationProtocols.protobuf } bind ProtoBuf::class
     single { BytesEncoder() } bind BytesEncoder::class
+
+    // sync manager
+    factoryOf(::OutgoingPayloadManagerImpl) bind OutPayloadManager::class
+    factoryOf(::IncomingPayloadManagerImpl) bind InPayloadManager::class
 
     // device id provider
     singleOf(::LocalDeviceInfoProviderImpl) bind LocalDeviceInfoProvider::class
