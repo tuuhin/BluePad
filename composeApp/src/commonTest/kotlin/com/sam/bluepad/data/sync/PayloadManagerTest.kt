@@ -2,6 +2,7 @@ package com.sam.bluepad.data.sync
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
 import assertk.assertions.isSuccess
 import com.sam.bluepad.data.repository.FakeSketchesRepoImpl
 import com.sam.bluepad.data.serialization.SerializationProtocols
@@ -9,6 +10,7 @@ import com.sam.bluepad.domain.models.CreateSketchModel
 import com.sam.bluepad.domain.repository.SketchesRepository
 import com.sam.bluepad.domain.sync.InPayloadManager
 import com.sam.bluepad.domain.sync.OutPayloadManager
+import com.sam.bluepad.domain.sync.SyncManager
 import com.sam.bluepad.domain.sync.models.SyncDataPayload
 import com.sam.bluepad.domain.use_cases.BytesEncoder
 import com.sam.bluepad.utils.TestDispatcherRule
@@ -41,6 +43,7 @@ class PayloadManagerTest : KoinTest {
                 single { SerializationProtocols.protobuf } bind ProtoBuf::class
                 singleOf(::BytesEncoder) bind BytesEncoder::class
                 singleOf(::FakeSketchesRepoImpl) bind SketchesRepository::class
+                factoryOf(::SyncManagerImpl) bind SyncManager::class
                 factoryOf(::OutgoingPayloadManagerImpl) bind OutPayloadManager::class
                 factoryOf(::IncomingPayloadManagerImpl) bind InPayloadManager::class
             },
@@ -85,5 +88,10 @@ class PayloadManagerTest : KoinTest {
 
         val processedResult = syncInManager.processData()
         assertThat(processedResult).isSuccess()
+
+        val metadataResult = processedResult.getOrThrow()
+
+        // metadata processing should produce content ids
+        assertThat(metadataResult).isInstanceOf(SyncDataPayload.ContentIdsQuery::class)
     }
 }

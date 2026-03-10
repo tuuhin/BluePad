@@ -22,9 +22,9 @@ sealed class SyncDataFrame(@ProtoNumber(10) val type: BLESyncDataType) {
     ) : SyncDataFrame(type = BLESyncDataType.METADATA)
 
     @Serializable
-    @SerialName("cq")
-    data class ContentIDQuery(
-        @ProtoNumber(1) val queryId: Uuid
+    @SerialName("cr")
+    data class ContentRequest(
+        @ProtoNumber(1) val contentId: Uuid
     ) : SyncDataFrame(BLESyncDataType.REQUESTED_CONTENT_IDS)
 
     @Serializable

@@ -14,6 +14,7 @@ import com.sam.bluepad.domain.models.CreateSketchModel
 import com.sam.bluepad.domain.models.SketchChangeType
 import com.sam.bluepad.domain.models.SketchModel
 import com.sam.bluepad.domain.repository.FlowResourceSketches
+import com.sam.bluepad.domain.repository.Sketches
 import com.sam.bluepad.domain.repository.SketchesRepository
 import com.sam.bluepad.domain.use_cases.HashGenerator
 import com.sam.bluepad.domain.utils.Resource
@@ -36,7 +37,7 @@ class SketchesRepoImpl(
 	private val timeZone = TimeZone.currentSystemDefault()
 
 	override fun getRevokedSketch(): Flow<Resource<List<SketchModel>, Exception>> {
-		return sketchesDao.getAllSketches(true)
+		return sketchesDao.readAllSketchesFlow(true)
 			.map<List<SketchMetaDataAndContent>, Resource<List<SketchModel>, Exception>> { entities ->
 				val sketches = entities.map { it.toModel(timezone = timeZone) }
 				Resource.Success(sketches)
@@ -48,7 +49,7 @@ class SketchesRepoImpl(
 	}
 
 	override fun getSketches(): Flow<Resource<List<SketchModel>, Exception>> {
-		return sketchesDao.getAllSketches(false)
+		return sketchesDao.readAllSketchesFlow(false)
 			.map<List<SketchMetaDataAndContent>, Resource<List<SketchModel>, Exception>> { entities ->
 				val sketches = entities.map { it.toModel(timezone = timeZone) }
 				Resource.Success(sketches)
@@ -160,6 +161,26 @@ class SketchesRepoImpl(
 			)
 			sketchesDao.insertSketchMetaDataAndContent(metaData, updatedContent, log)
 			Resource.Success(true)
+		}
+	}
+
+	override suspend fun readAllSketches(): Result<Sketches> {
+		return runCatching {
+			sketchesDao.readAllSketches().map { it.toModel(timeZone) }
+		}
+	}
+
+	override suspend fun readSketches(offset: Int, count: Int): Result<List<SketchModel>> {
+		return runCatching {
+			sketchesDao.readAllSketchesWithOffsetAndLimit(offset = offset, limit = count)
+				.map { it.toModel(timeZone) }
+		}
+	}
+
+	override suspend fun readSketchesByUUID(uuids: List<Uuid>): Result<List<SketchModel>> {
+		return runCatching {
+			sketchesDao.readAllSketchesByIds(uuids)
+				.map { it.toModel(timeZone) }
 		}
 	}
 }

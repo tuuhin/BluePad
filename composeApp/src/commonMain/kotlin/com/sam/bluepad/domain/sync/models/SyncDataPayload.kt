@@ -23,12 +23,12 @@ sealed interface SyncDataPayload {
     /**
      * Request for specific content after comparing metadata.
      */
-    data class ContentQuery(val ids: List<Uuid>) : Outgoing, ProcessedResult
+    data class ContentIdsQuery(val ids: List<Uuid>) : Outgoing, ProcessedResult
 
     /**
      * The actual content data being transferred.
      */
-    data class ContentPayload(val ids: List<Uuid>) : Outgoing, ProcessedResult
+    data class ContentPayload(val contentData: List<SyncContentDataModel>) : Outgoing, ProcessedResult
 
     /**
      * Indicates that the incoming data was processed and no further outgoing action is required.

@@ -20,7 +20,31 @@ interface SketchesDao {
 
 	@Transaction
 	@Query("SELECT * FROM SKETCH_METADATA_TABLE WHERE is_deleted=:isDeleted")
-	fun getAllSketches(isDeleted: Boolean = false): Flow<List<SketchMetaDataAndContent>>
+	fun readAllSketchesFlow(isDeleted: Boolean = false): Flow<List<SketchMetaDataAndContent>>
+
+	@Transaction
+	@Query("SELECT * FROM SKETCH_METADATA_TABLE WHERE (:includeDeleted = 1 OR is_deleted = 0)")
+	suspend fun readAllSketches(includeDeleted: Boolean = true): List<SketchMetaDataAndContent>
+
+	@Transaction
+	@Query(
+		"""SELECT * FROM SKETCH_METADATA_TABLE 
+        WHERE _id IN (:ids)  
+        AND (:includeDeleted = 1 OR is_deleted = 0)
+        """
+	)
+	suspend fun readAllSketchesByIds(
+		ids: List<Uuid>,
+		includeDeleted: Boolean = true
+	): List<SketchMetaDataAndContent>
+
+	@Transaction
+	@Query("SELECT * FROM SKETCH_METADATA_TABLE WHERE is_deleted=:isDeleted LIMIT :limit OFFSET :offset")
+	suspend fun readAllSketchesWithOffsetAndLimit(
+		isDeleted: Boolean = false,
+		offset: Int = 0,
+		limit: Int = 10
+	): List<SketchMetaDataAndContent>
 
 	// insert or delete values
 	@Upsert

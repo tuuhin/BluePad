@@ -12,24 +12,24 @@ import com.sam.bluepad.data.repository.SketchesRepoImpl
 import com.sam.bluepad.data.serialization.SerializationProtocols
 import com.sam.bluepad.data.sync.IncomingPayloadManagerImpl
 import com.sam.bluepad.data.sync.OutgoingPayloadManagerImpl
+import com.sam.bluepad.data.sync.SyncManagerImpl
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.repository.SketchesRepository
 import com.sam.bluepad.domain.sync.InPayloadManager
 import com.sam.bluepad.domain.sync.OutPayloadManager
+import com.sam.bluepad.domain.sync.SyncManager
 import com.sam.bluepad.domain.use_cases.BytesEncoder
 import com.sam.bluepad.domain.use_cases.HashGenerator
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import com.sam.bluepad.domain.use_cases.RandomGeneratorImpl
 import com.sam.bluepad.domain.use_cases.RandomNameGenerator
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.protobuf.ProtoBuf
 import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
-@OptIn(ExperimentalSerializationApi::class)
 val commonAppModule = module(true) {
     // db module
     single {
@@ -53,6 +53,7 @@ val commonAppModule = module(true) {
     single { BytesEncoder() } bind BytesEncoder::class
 
     // sync manager
+    factoryOf(::SyncManagerImpl) bind SyncManager::class
     factoryOf(::OutgoingPayloadManagerImpl) bind OutPayloadManager::class
     factoryOf(::IncomingPayloadManagerImpl) bind InPayloadManager::class
 
