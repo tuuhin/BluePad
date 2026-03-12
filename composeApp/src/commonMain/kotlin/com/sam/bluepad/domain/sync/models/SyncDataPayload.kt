@@ -28,10 +28,11 @@ sealed interface SyncDataPayload {
     /**
      * The actual content data being transferred.
      */
-    data class ContentPayload(val contentData: List<SyncContentDataModel>) : Outgoing, ProcessedResult
+    data class ContentPayload(val contentData: List<SyncContentDataModel>) : Outgoing,
+        ProcessedResult
 
     /**
      * Indicates that the incoming data was processed and no further outgoing action is required.
      */
-    data object NoAction : ProcessedResult
+    data object SuccessAndNoAction : ProcessedResult
 }

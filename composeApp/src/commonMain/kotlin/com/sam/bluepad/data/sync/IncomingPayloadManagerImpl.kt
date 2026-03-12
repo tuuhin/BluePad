@@ -28,7 +28,7 @@ class IncomingPayloadManagerImpl private constructor(
         protoBuf = protoBuf,
         syncManager = syncManager,
         encoder = encoder,
-        timezone = TimeZone.currentSystemDefault()
+        timezone = TimeZone.currentSystemDefault(),
     )
 
     private val _mutex = Mutex()
@@ -52,7 +52,10 @@ class IncomingPayloadManagerImpl private constructor(
 
         Logger.d(TAG) { "PROCESSING INCOMING DATA" }
 
-        if (data.isEmpty()) return Result.failure(BufferEmptyException())
+        if (data.isEmpty()) {
+            Logger.w(TAG) { "CANNOT PROCESS ANY DATA" }
+            return Result.failure(BufferEmptyException())
+        }
         val decoded = protoBuf.decodeFromByteArray<SyncPayloadSequence>(data)
 
         return try {
@@ -89,14 +92,16 @@ class IncomingPayloadManagerImpl private constructor(
                 val data = sequence.toSyncContent(timezone)
                 val results = syncManager.saveSyncContent(data)
                 results.getOrElse { err -> return Result.failure(err) }
-                Result.success(SyncDataPayload.NoAction)
+                Result.success(SyncDataPayload.SuccessAndNoAction)
             }
         }
     }
 
-    override fun clearBuffer() {
-        _incomingData.clear()
-        Logger.d(TAG) { "BUFFER DATA IS CLEARED" }
+    override suspend fun clearBuffer() {
+        _mutex.withLock {
+            _incomingData.clear()
+            Logger.d(TAG) { "BUFFER DATA IS CLEARED" }
+        }
     }
 
     private class BufferEmptyException : Exception("Buffer is empty")

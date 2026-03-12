@@ -17,27 +17,23 @@ class SyncManagerImpl(
 
     override suspend fun findChangedItems(incoming: List<SyncMetadataModel>): Result<List<Uuid>> {
         val externalMetadata = incoming.map { it.itemId }
-        val sketches = repo.readSketchesByUUID(externalMetadata)
-            .getOrElse { return Result.failure(it) }
-            .associateBy { it.id }
+        val sketches =
+            repo.readSketchesByUUID(externalMetadata).getOrElse { return Result.failure(it) }.associateBy { it.id }
 
         return coroutineScope {
-            val finalList = incoming.asSequence()
-                .mapNotNull { metadata ->
-                    ensureActive()
+            val finalList = incoming.asSequence().mapNotNull { metadata ->
+                ensureActive()
 
-                    // if the item id is not found then it's a new item on the external device
-                    val model = sketches[metadata.itemId] ?: return@mapNotNull metadata.itemId
+                // if the item id is not found then it's a new item on the external device
+                val model = sketches[metadata.itemId] ?: return@mapNotNull metadata.itemId
 
-                    // if any of version no ,content hash , modified at or title changed then
-                    // its a change in external device
-                    val changed = metadata.version > model.version ||
-                            metadata.contentHash != model.contentHash ||
-                            metadata.lastModified > model.modifiedAt ||
-                            metadata.title != model.title
-                    if (!changed) return@mapNotNull null
-                    metadata.itemId
-                }.distinct().toList()
+                // if any of version no ,content hash , modified at or title changed then
+                // its a change in external device
+                val changed =
+                    metadata.version > model.version || metadata.contentHash != model.contentHash || metadata.lastModified > model.modifiedAt || metadata.title != model.title
+                if (!changed) return@mapNotNull null
+                metadata.itemId
+            }.distinct().toList()
 
             Result.success(finalList)
         }
@@ -45,8 +41,7 @@ class SyncManagerImpl(
 
     override suspend fun fetchContentForExchange(itemIds: List<Uuid>): Result<List<SyncContentDataModel>> {
 
-        val sketches = repo.readSketchesByUUID(itemIds)
-            .getOrElse { return Result.failure(it) }
+        val sketches = repo.readSketchesByUUID(itemIds).getOrElse { return Result.failure(it) }
 
         val contentOut = sketches.map { SyncContentDataModel(content = it.content, itemId = it.id) }
         return Result.success(contentOut)
@@ -54,6 +49,7 @@ class SyncManagerImpl(
 
     override suspend fun saveSyncContent(data: List<SyncContentDataModel>): Result<Unit> {
         Logger.d(TAG) { "SAVING NEW CONTENT TO DB" }
+        Logger.d(TAG) { "DATA RECEIVED :$data" }
         // TODO FIX THIS LATER
         return Result.failure(Exception("Complete this"))
     }
@@ -67,7 +63,7 @@ class SyncManagerImpl(
                 itemId = it.id,
                 title = it.title,
                 version = it.version,
-                lastModified = it.modifiedAt
+                lastModified = it.modifiedAt,
             )
         }
         return Result.success(contentOut)
