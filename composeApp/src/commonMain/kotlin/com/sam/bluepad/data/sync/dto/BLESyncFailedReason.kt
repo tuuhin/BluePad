@@ -8,6 +8,15 @@ import kotlinx.serialization.protobuf.ProtoNumber
 @SerialName("__sfr")
 enum class BLESyncFailedReason {
 
-    @ProtoNumber(1)
-    TAMPERED_DATA;
+	@ProtoNumber(1)
+	TAMPERED_DATA,
+
+	@ProtoNumber(2)
+	CONTENT_SAME,
+
+	@ProtoNumber(3)
+	MISSING_FLAG,
+
+	@ProtoNumber(4)
+	INVALID_STATE,
 }

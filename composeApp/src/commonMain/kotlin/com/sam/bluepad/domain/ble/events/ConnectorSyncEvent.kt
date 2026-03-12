@@ -58,6 +58,9 @@ sealed interface ConnectorSyncEvent {
      */
     data object AdvertisingAcknowledgmentReceived : ConnectorSyncEvent
 
+
+    data object RemoteProcessing : ConnectorSyncEvent
+
     /**
      * Devices are exchanging some data
      * @property type Type of the data being exchanged
@@ -69,6 +72,7 @@ sealed interface ConnectorSyncEvent {
      * Content exchange is acknowledged
      */
     data object ExchangeDataAck : ConnectorSyncEvent
+
 
     /**
      * THe device has disconnected, either intentionally by the app or

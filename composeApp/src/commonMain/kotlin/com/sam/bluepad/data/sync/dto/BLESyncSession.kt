@@ -39,8 +39,25 @@ sealed class BLESyncSession {
     data class BLESyncDataPacket(
         @ProtoNumber(1) val type: BLESyncDataType,
         @ProtoNumber(2) val sequenceNumber: Int,
-        @ProtoNumber(3) val payload: String
+        @ProtoNumber(3) val payload: String,
     ) : BLESyncSession()
+
+    /**
+     * A packet end marker
+     * @property type  The category of packet that was being sent
+     * @see BLESyncDataType
+     */
+    @Serializable
+    @SerialName("bspe")
+    data class BLESyncDataPacketEnd(val type: BLESyncDataType) : BLESyncSession()
+
+    /**
+     * Data processing marker indicated data is being processed and will be
+     * sending a result soon  enough
+     */
+    @Serializable
+    @SerialName("spp")
+    data object SyncPacketProcessing : BLESyncSession()
 
     /**
      * Acknowledgment for a [BLESyncDataPacket] to confirm successful reception.
@@ -77,7 +94,7 @@ sealed class BLESyncSession {
      */
     @Serializable
     @SerialName("ssc")
-    data object SyncSessionCompleted : BLESyncSession()
+    data object SyncSessionSuccessful : BLESyncSession()
 
 
     /**
@@ -87,7 +104,8 @@ sealed class BLESyncSession {
     @Serializable
     @SerialName("ssf")
     data class SyncSessionFailed(
-        @ProtoNumber(1) val reason: BLESyncFailedReason
+        @ProtoNumber(1) val reason: BLESyncFailedReason,
+        @ProtoNumber(2) val isCritical: Boolean = false,
     ) : BLESyncSession()
 
 }

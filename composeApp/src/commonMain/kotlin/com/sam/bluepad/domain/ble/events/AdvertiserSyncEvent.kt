@@ -8,4 +8,9 @@ sealed interface AdvertiserSyncEvent {
      * Indicate an external device is trying to initiate a sync connection with the device
      */
     data class ForeignSyncRequest(val device: ExternalDeviceModel) : AdvertiserSyncEvent
+
+    /**
+     * Devices are exchanging some data
+     */
+    data object ForeignDeviceExchangingData : AdvertiserSyncEvent
 }

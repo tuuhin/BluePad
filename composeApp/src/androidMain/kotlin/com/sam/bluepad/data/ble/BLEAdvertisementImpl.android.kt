@@ -14,6 +14,7 @@ import co.touchlab.kermit.Logger
 import com.sam.bluepad.BuildKonfig
 import com.sam.bluepad.data.ble.callbacks.ServerConnectionCallback
 import com.sam.bluepad.data.ble.utils.BLEServiceToGatt
+import com.sam.bluepad.data.ble.utils.hasIndication
 import com.sam.bluepad.data.utils.hasAdvertisePermission
 import com.sam.bluepad.data.utils.hasConnectPermission
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
@@ -48,7 +49,7 @@ actual class BLEAdvertisementImpl(
         get() = advertizerConfig.errorsFlow
 
     override val peerSaveDevices: Flow<List<BLEPeerData>>
-        get() = connectionCallback.incomingPeerData
+        get() = connectionCallback.peerDevices
 
     override val serverSyncEvents: Flow<AdvertiserSyncEvent>
         get() = connectionCallback.syncRequestEvents
@@ -104,18 +105,16 @@ actual class BLEAdvertisementImpl(
     private fun onNotifyCharacteristics(
         device: BluetoothDevice,
         characteristics: BluetoothGattCharacteristic,
-        confirm: Boolean,
-        byteArray: ByteArray
+        byteArray: ByteArray,
     ): Boolean = try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             // values are set independent
-            val status =
-                _bleServer?.notifyCharacteristicChanged(device, characteristics, confirm, byteArray)
+            val status = _bleServer
+                ?.notifyCharacteristicChanged(device, characteristics, characteristics.hasIndication, byteArray)
             status == BluetoothStatusCodes.SUCCESS
         } else {
             characteristics.value = byteArray
-            _bleServer?.notifyCharacteristicChanged(device, characteristics, confirm)
-                ?: false
+            _bleServer?.notifyCharacteristicChanged(device, characteristics, characteristics.hasIndication) ?: false
         }
     } catch (e: IllegalStateException) {
         Logger.w(TAG, e) { "ILLEGAL ARGUMENT CHARACTERISTIC VALUE CANNOT BE BLANK " }

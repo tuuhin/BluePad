@@ -11,7 +11,7 @@ enum class BLESyncDataType {
     METADATA,
 
     @ProtoNumber(2)
-    REQUESTED_CONTENT_IDS,
+    CONTENT_REQUEST,
 
     @ProtoNumber(3)
     CONTENT,

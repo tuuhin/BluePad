@@ -16,6 +16,7 @@ import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.ble.callbacks.SyncDeviceConnectionCallback
 import com.sam.bluepad.data.ble.callbacks.SyncDeviceDiscoveryCallback
+import com.sam.bluepad.data.ble.exceptions.GattInvalidStatusException
 import com.sam.bluepad.data.utils.hasBLEScanPermission
 import com.sam.bluepad.data.utils.hasCoarseLocationPermission
 import com.sam.bluepad.data.utils.hasFineLocationPermission
@@ -66,7 +67,7 @@ actual class BLESyncConnectionManagerImpl(
 
     private val _hasCorrectLocationPermission: Boolean
         get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && context.hasFineLocationPermission ||
-                context.hasCoarseLocationPermission
+            context.hasCoarseLocationPermission
 
     override fun discoverAndConnect(timeout: Duration): Flow<ResourcesSyncDataEvents> = flow {
         emit(Resource.Loading)
@@ -113,7 +114,7 @@ actual class BLESyncConnectionManagerImpl(
         val scanFilters = listOf<ScanFilter>(
             ScanFilter.Builder()
                 .setServiceUuid(ParcelUuid(BLEConstants.SYNC_SERVICE_ID.toJavaUuid()))
-                .build()
+                .build(),
         )
 
         val scanSettings = ScanSettings.Builder()
@@ -137,14 +138,19 @@ actual class BLESyncConnectionManagerImpl(
 
         // callbacks
         connectionCallback.onEvents { event -> trySend(event) }
-        connectionCallback.onError { err -> close(err) }
+        connectionCallback.onError { err ->
+            if (err is GattInvalidStatusException) {
+                Logger.w(TAG) { "BLE GATT STATUS EXCEPTION ERROR TEXT:${err.statusMessage}" }
+            }
+            close(err)
+        }
 
         Logger.d(TAG) { "OPENING GATT CONNECTION" }
         val btGatt = device.connectGatt(
             context,
             false,
             connectionCallback,
-            BluetoothDevice.TRANSPORT_LE
+            BluetoothDevice.TRANSPORT_LE,
         )
 
         awaitClose {

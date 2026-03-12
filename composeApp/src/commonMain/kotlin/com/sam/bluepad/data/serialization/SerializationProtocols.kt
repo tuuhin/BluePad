@@ -17,19 +17,19 @@ object SerializationProtocols {
             polymorphic(BLESyncHandshakeData::class) {
                 subclass(
                     BLESyncHandshakeData.AdvertiseDeviceData::class,
-                    BLESyncHandshakeData.AdvertiseDeviceData.serializer()
+                    BLESyncHandshakeData.AdvertiseDeviceData.serializer(),
                 )
                 subclass(
                     BLESyncHandshakeData.AdvertiseResponseData::class,
-                    BLESyncHandshakeData.AdvertiseResponseData.serializer()
+                    BLESyncHandshakeData.AdvertiseResponseData.serializer(),
                 )
                 subclass(
                     BLESyncHandshakeData.HandshakeACKSuccess::class,
-                    BLESyncHandshakeData.HandshakeACKSuccess.serializer()
+                    BLESyncHandshakeData.HandshakeACKSuccess.serializer(),
                 )
                 subclass(
                     BLESyncHandshakeData.HandshakeACKFailed::class,
-                    BLESyncHandshakeData.HandshakeACKFailed.serializer()
+                    BLESyncHandshakeData.HandshakeACKFailed.serializer(),
                 )
             }
 
@@ -37,31 +37,39 @@ object SerializationProtocols {
             polymorphic(BLESyncSession::class) {
                 subclass(
                     BLESyncSession.SyncSessionStart::class,
-                    BLESyncSession.SyncSessionStart.serializer()
+                    BLESyncSession.SyncSessionStart.serializer(),
                 )
                 subclass(
                     BLESyncSession.BLESyncDataPacket::class,
-                    BLESyncSession.BLESyncDataPacket.serializer()
+                    BLESyncSession.BLESyncDataPacket.serializer(),
                 )
                 subclass(
                     BLESyncSession.BLESyncDataAck::class,
-                    BLESyncSession.BLESyncDataAck.serializer()
+                    BLESyncSession.BLESyncDataAck.serializer(),
                 )
                 subclass(
-                    BLESyncSession.SyncSessionCompleted::class,
-                    BLESyncSession.SyncSessionCompleted.serializer()
+                    BLESyncSession.SyncSessionSuccessful::class,
+                    BLESyncSession.SyncSessionSuccessful.serializer(),
                 )
                 subclass(
                     BLESyncSession.SyncSessionFailed::class,
-                    BLESyncSession.SyncSessionFailed.serializer()
+                    BLESyncSession.SyncSessionFailed.serializer(),
                 )
                 subclass(
                     BLESyncSession.SyncPacketTransition::class,
-                    BLESyncSession.SyncPacketTransition.serializer()
+                    BLESyncSession.SyncPacketTransition.serializer(),
+                )
+                subclass(
+                    BLESyncSession.BLESyncDataPacketEnd::class,
+                    BLESyncSession.BLESyncDataPacketEnd.serializer(),
+                )
+                subclass(
+                    BLESyncSession.SyncPacketProcessing::class,
+                    BLESyncSession.SyncPacketProcessing.serializer(),
                 )
                 subclass(
                     BLESyncSession.SyncSessionStartAck::class,
-                    BLESyncSession.SyncSessionStartAck.serializer()
+                    BLESyncSession.SyncSessionStartAck.serializer(),
                 )
             }
 
@@ -69,22 +77,22 @@ object SerializationProtocols {
             polymorphic(SyncDataFrame::class) {
                 subclass(
                     SyncDataFrame.Metadata::class,
-                    SyncDataFrame.Metadata.serializer()
+                    SyncDataFrame.Metadata.serializer(),
                 )
                 subclass(
                     SyncDataFrame.Content::class,
-                    SyncDataFrame.Content.serializer()
+                    SyncDataFrame.Content.serializer(),
                 )
             }
             // sync data frame
             polymorphic(SyncPayloadSequence::class) {
                 subclass(
                     SyncPayloadSequence.Content::class,
-                    SyncPayloadSequence.Content.serializer()
+                    SyncPayloadSequence.Content.serializer(),
                 )
                 subclass(
                     SyncPayloadSequence.MetaData::class,
-                    SyncPayloadSequence.MetaData.serializer()
+                    SyncPayloadSequence.MetaData.serializer(),
                 )
             }
         }
