@@ -59,7 +59,7 @@ class IncomingPayloadManagerImpl private constructor(
         val decoded = protoBuf.decodeFromByteArray<SyncPayloadSequence>(data)
 
         return try {
-            handleDataProcessing(decoded)
+            Result.success(handleDataProcessing(decoded))
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Logger.e(TAG, e) { "FAILED TO EXECUTE DECODING" }
@@ -69,30 +69,29 @@ class IncomingPayloadManagerImpl private constructor(
         }
     }
 
-    private suspend fun handleDataProcessing(sequence: SyncPayloadSequence): Result<SyncDataPayload.ProcessedResult> {
+    private suspend fun handleDataProcessing(sequence: SyncPayloadSequence): SyncDataPayload.ProcessedResult {
         return when (sequence) {
             is SyncPayloadSequence.MetaData -> {
                 // process the metadata and provide content id query
                 val metadata = sequence.toSyncMetaDataList(timezone)
                 val result = syncManager.findChangedItems(metadata)
-                val uuids = result.getOrElse { err -> return Result.failure(err) }
-                Result.success(SyncDataPayload.ContentIdsQuery(uuids))
+                val uuids = result.getOrThrow()
+                SyncDataPayload.ContentIdsQuery(uuids)
             }
 
             is SyncPayloadSequence.ContentRequests -> {
                 // so take the content ids and query the content and send the content
                 val ids = sequence.data.map { it.contentId }
                 val results = syncManager.fetchContentForExchange(ids)
-                val sketches = results.getOrElse { err -> return Result.failure(err) }
-                Result.success(SyncDataPayload.ContentPayload(sketches))
+                val sketches = results.getOrThrow()
+                SyncDataPayload.ContentPayload(sketches)
             }
 
             is SyncPayloadSequence.Content -> {
                 // sync manager now handles the content data
                 val data = sequence.toSyncContent(timezone)
-                val results = syncManager.saveSyncContent(data)
-                results.getOrElse { err -> return Result.failure(err) }
-                Result.success(SyncDataPayload.SuccessAndNoAction)
+                syncManager.saveSyncContent(data).getOrThrow()
+                SyncDataPayload.SuccessAndNoAction
             }
         }
     }

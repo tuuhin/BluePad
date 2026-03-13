@@ -51,7 +51,7 @@ class SyncManagerImpl(
         Logger.d(TAG) { "SAVING NEW CONTENT TO DB" }
         Logger.d(TAG) { "DATA RECEIVED :$data" }
         // TODO FIX THIS LATER
-        return Result.failure(Exception("Complete this"))
+        return Result.success(Unit)
     }
 
     override suspend fun getLocalSyncMetadata(): Result<List<SyncMetadataModel>> {

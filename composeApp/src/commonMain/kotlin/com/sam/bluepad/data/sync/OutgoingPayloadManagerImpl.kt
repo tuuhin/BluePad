@@ -116,7 +116,7 @@ class OutgoingPayloadManagerImpl private constructor(
 
     companion object {
         private const val TAG = "SyncOutPayloadManager"
-        private const val DEFAULT_WINDOW_SIZE = 16
+        private const val DEFAULT_WINDOW_SIZE = 32
         private const val MAX_READ_WITHOUT_ACK = 2
     }
 }
