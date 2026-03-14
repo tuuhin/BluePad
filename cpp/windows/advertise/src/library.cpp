@@ -458,7 +458,7 @@ JNIEXPORT void JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeAddServ
         // ----------------- CHECK IF SUBSCRIBED CLIENTS UPDATED
         // ReSharper disable once CppExpressionWithoutSideEffects
         characteristic.SubscribedClientsChanged([](GattLocalCharacteristic const& ch, auto const&) {
-            const auto clients = ch.SubscribedClients();
+            const auto clients                = ch.SubscribedClients();
             const auto characteristics_uuid_h = to_hstring(ch.Uuid());
 
             for (GattSubscribedClient const& client : clients) {
@@ -607,8 +607,7 @@ JNIEXPORT void JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeAddServ
 }
 
 JNIEXPORT void JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeSendNotification(
-    JNIEnv* env, jobject, jlong handle, jstring device_address, jstring characteristicsUUID, jbyteArray value,
-    jboolean confirm) {
+    JNIEnv* env, jobject, jlong handle, jstring device_address, jstring characteristicsUUID, jbyteArray value) {
 
     auto* ctx = reinterpret_cast<NativeContext*>(handle);
     if (!ctx) {
@@ -667,6 +666,8 @@ JNIEXPORT void JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeSendNot
     }
 
     try {
+        bool confirm = (characteristics.CharacteristicProperties() & GattCharacteristicProperties::Indicate) ==
+                       GattCharacteristicProperties::Indicate;
         WIN_LOG(L"REQUESTING NOTIFY" << device_address_w << " CHARACTERISTICS " << characteristics_h_str
                                      << " BUFFER SIZE " << buffer.Length() << " IS INDICATION " << confirm);
 
@@ -675,6 +676,7 @@ JNIEXPORT void JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeSendNot
         // notification
         if (!confirm)
             return;
+
         // indication wait for the result
 
         auto deviceId = target_client.Session().DeviceId().Id();

@@ -1,11 +1,6 @@
-package com.sam.bluepad.data.ble.callbacks
+package com.sam.bluepad.data.ble.delegate
 
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
 import co.touchlab.kermit.Logger
-import com.sam.bluepad.data.ble.utils.btDescriptorsNotificationOrIndicationEnabled
-import com.sam.bluepad.data.ble.utils.hasIndication
 import com.sam.bluepad.data.sync.dto.BLEHandshakeFailedReason
 import com.sam.bluepad.data.sync.dto.BLESyncDataType
 import com.sam.bluepad.data.sync.dto.BLESyncFailedReason
@@ -22,35 +17,28 @@ import com.sam.bluepad.domain.sync.models.SyncDataPayload
 import com.sam.bluepad.domain.use_cases.BytesEncoder
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import kotlinx.coroutines.CancellationException
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
-import kotlin.uuid.toKotlinUuid
 
-class ServerConnectionDelegate(
-    private val protoBuf: ProtoBuf,
-    private val randomGenerator: RandomGenerator,
-    private val platformInfoProvider: PlatformInfoProvider,
-    private val encoder: BytesEncoder,
-    private val inPayloadManager: InPayloadManager,
-    private val outPayloadManager: OutPayloadManager,
+class BLEAdvertiserSyncHandlerDelegate(
+    val protoBuf: ProtoBuf,
+    val randomGenerator: RandomGenerator,
+    val platformInfoProvider: PlatformInfoProvider,
+    val encoder: BytesEncoder,
+    val inPayloadManager: InPayloadManager,
+    val outPayloadManager: OutPayloadManager,
 ) {
 
-    private val _localNonceMap = ConcurrentHashMap<String, String>()
-    private val _cccDescriptorMap = ConcurrentHashMap<String, Boolean>()
-
-    var onCharacteristicsChanged: GATTNotifyCharacteristicsChanged? = null
+    val localNonceMap = ConcurrentHashMap<String, String>()
+    val cccDescriptorMap = ConcurrentHashMap<String, Boolean>()
 
     fun handleDeviceReadRequest(currentDeviceInfo: LocalDeviceInfoModel? = null): Result<ByteArray> {
-        if (currentDeviceInfo == null) {
-            Logger.w(TAG) { "NO DEVICE INFO PROVIDED" }
-            return Result.failure(LocalDeviceInfoMissing())
-        }
+        return runCatching {
+            if (currentDeviceInfo == null) throw LocalDeviceInfoMissingException()
 
-        return try {
             val nonce = randomGenerator.generateRandomBytes(size = NONCE_SIZE)
             val peerData = BLEPeerData(
                 deviceId = currentDeviceInfo.deviceId,
@@ -58,64 +46,44 @@ class ServerConnectionDelegate(
                 deviceName = currentDeviceInfo.name,
                 nonce = nonce.decodeToString(),
             )
-            val bytes = protoBuf.encodeToByteArray<BLEPeerData>(peerData)
-            Result.success(bytes)
-        } catch (e: Exception) {
-            Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
-            Result.failure(e)
-        }
+            protoBuf.encodeToByteArray<BLEPeerData>(peerData)
+        }.onFailure { err -> Logger.e(TAG, err) { "CANNOT HANDLE DEVICE READ REQUEST" } }
     }
 
     fun handleDeviceWriteRequest(value: ByteArray): Result<BLEPeerData> {
-        return try {
-            val peerData = protoBuf.decodeFromByteArray<BLEPeerData>(value)
-            Result.success(peerData)
-        } catch (e: Exception) {
-            Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
-            Result.failure(e)
-        }
+        return runCatching {
+            protoBuf.decodeFromByteArray<BLEPeerData>(value)
+        }.onFailure { err -> Logger.e(TAG, err) { "CANNOT HANDLE DEVICE WRITE REQUEST" } }
     }
 
-    fun handleProximityReadRequest(
-        device: BluetoothDevice,
-        currentDeviceInfo: LocalDeviceInfoModel? = null,
-    ): Result<ByteArray> {
-        if (currentDeviceInfo == null) {
-            Logger.w(TAG) { "NO DEVICE INFO PROVIDED" }
-            return Result.failure(LocalDeviceInfoMissing())
-        }
+    fun handleProximityReadRequest(address: String, currentDevice: LocalDeviceInfoModel? = null): Result<ByteArray> {
+        return runCatching {
+            if (currentDevice == null) throw LocalDeviceInfoMissingException()
 
-        return try {
             val nonce = randomGenerator.generateRandomBytes(NONCE_SIZE).let { nonceBytes ->
-                encoder.encodeBytes(nonceBytes)
-                    .apply { _localNonceMap[device.address] = this }
+                encoder.encodeBytes(nonceBytes).apply { localNonceMap[address] = this }
             }
             val data = BLESyncHandshakeData.AdvertiseDeviceData(
-                deviceId = currentDeviceInfo.deviceId,
+                deviceId = currentDevice.deviceId,
                 nonce = nonce,
                 allowSync = true,
             )
-            val bytes =
-                protoBuf.encodeToByteArray<BLESyncHandshakeData.AdvertiseDeviceData>(data)
-            Logger.d(TAG) { "RESPONDING WITH DEVICE DATA" }
-            Result.success(bytes)
-        } catch (e: Exception) {
-            Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
-            Result.failure(e)
-        }
+            protoBuf.encodeToByteArray<BLESyncHandshakeData.AdvertiseDeviceData>(data)
+        }.onFailure { err -> Logger.e(TAG, err) { "CANNOT HANDLE PROXIMITY READ REQUEST" } }
     }
 
-    suspend fun handleProximityWriteRequest(
-        device: BluetoothDevice,
-        characteristic: BluetoothGattCharacteristic,
+    suspend inline fun handleProximityWriteRequest(
+        address: String,
         value: ByteArray,
-        savedDevices: suspend (Uuid) -> Result<ExternalDeviceModel>,
         currentDeviceInfo: LocalDeviceInfoModel? = null,
+        savedDevices: suspend (Uuid) -> Result<ExternalDeviceModel>,
+        onNotify: suspend (ByteArray) -> Unit,
     ): Result<ExternalDeviceModel> {
-        return try {
+        return runCatching {
+
             val response = protoBuf.decodeFromByteArray<BLESyncHandshakeData.AdvertiseResponseData>(value)
 
-            val savedNonce = _localNonceMap[device.address]
+            val savedNonce = localNonceMap[address]
             val externalDevice = savedDevices(response.senderID).getOrNull()
 
             val failedReason = when {
@@ -130,55 +98,60 @@ class ServerConnectionDelegate(
                 ?: BLESyncHandshakeData.HandshakeACKSuccess(response.nonce)
 
             val bytes = protoBuf.encodeToByteArray<BLESyncHandshakeData>(data)
-            onCharacteristicsChanged?.invoke(device, characteristic, bytes)
+            onNotify(bytes)
 
-            if (externalDevice == null) return Result.failure(MissingSavedDeviceException())
             val message = when (data) {
                 is BLESyncHandshakeData.HandshakeACKSuccess -> "ACK SUCCESS"
                 is BLESyncHandshakeData.HandshakeACKFailed -> "ACK FAILED : REASON :${data.reason}"
                 else -> ""
             }
-            Logger.d(TAG) { "SENDING ACK DATA ON CHARACTERISTICS:${characteristic.uuid} $message" }
-            Result.success(externalDevice)
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
-            Result.failure(e)
+            Logger.d(TAG) { "SENDING ACK DATA ACK RESULT: $message" }
+            if (externalDevice == null) throw MissingSavedDeviceException()
+            externalDevice
+        }.onFailure { err ->
+            if (err is CancellationException) throw err
+            Logger.e(TAG, err) { "FAILED TO HANDLE PROXIMITY WRITE REQUEST" }
         }
     }
 
-    suspend fun handleSyncDataWriteRequest(
-        device: BluetoothDevice,
-        characteristic: BluetoothGattCharacteristic,
+    suspend inline fun handleSyncDataWriteRequest(
         value: ByteArray,
-    ): Result<Unit> {
-        return try {
-            // read the response
-            when (val response = protoBuf.decodeFromByteArray<BLESyncSession>(value)) {
-                BLESyncSession.SyncSessionStart -> sendSessionStartACK(device, characteristic)
-                is BLESyncSession.BLESyncDataPacket -> manageSyncSessionDataPacket(device, characteristic, response)
-                is BLESyncSession.BLESyncDataAck -> manageSyncSessionDataPacketAck(device, characteristic, response)
-                is BLESyncSession.BLESyncDataPacketEnd -> markSyncSessionPacketEnded(device, characteristic, response)
-                is BLESyncSession.SyncPacketTransition ->
-                    checkTransitionAckAndSendDataPacket(device, characteristic, response)
-
-                else -> return Result.failure(InvalidSyncTypeException())
+        onNotify: suspend (ByteArray) -> Boolean,
+    ) = runCatching {
+        // read the response
+        val opResult = when (val response = protoBuf.decodeFromByteArray<BLESyncSession>(value)) {
+            BLESyncSession.SyncSessionStart -> sendSessionStartACK(onNotify)
+            is BLESyncSession.BLESyncDataPacket -> manageSyncSessionDataPacket(response, onNotify)
+            is BLESyncSession.BLESyncDataAck -> manageSyncSessionDataPacketAck(response, onNotify)
+            is BLESyncSession.BLESyncDataPacketEnd -> markSyncSessionPacketEnded(response, onNotify)
+            is BLESyncSession.SyncPacketTransition -> checkTransitionAckAndSendDataPacket(response, onNotify)
+            BLESyncSession.SyncPacketProcessing -> runCatching {
+                Logger.d(TAG) { "PROCESSING" }
+                true
             }
-            Result.success(Unit)
-        } catch (e: SerializationException) {
-            Logger.w(TAG) { "FAILED TO SERIALIZE DATA" }
-            Result.failure(e)
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            Logger.w(TAG, e) { "UNABLE TO SERIALIZE THE DATA" }
-            Result.failure(e)
+
+            is BLESyncSession.SyncSessionFailed -> runCatching {
+                Logger.d(TAG) { "SYNC SESSION FAILED :${response.reason}" }
+                true
+            }
+
+            BLESyncSession.SyncSessionSuccessful -> runCatching {
+                Logger.d(TAG) { "SYNC SESSION SUCCESSFULLY" }
+                true
+            }
+
+            else -> throw InvalidBLESyncSessionRequestException(response)
         }
+        opResult.getOrElse { err -> throw err }
+        Unit
+    }.onFailure { err ->
+        if (err is CancellationException) throw err
+        Logger.e(TAG, err) { "CANNOT HANDLE THIS OPERATION ${err.message}" }
     }
 
-    private suspend fun manageSyncSessionDataPacketAck(
-        device: BluetoothDevice,
-        characteristic: BluetoothGattCharacteristic,
+    suspend inline fun manageSyncSessionDataPacketAck(
         data: BLESyncSession.BLESyncDataAck,
+        onNotify: suspend (ByteArray) -> Boolean,
     ): Result<Boolean> {
         Logger.d(TAG) { "RECEIVED A DATA PACKET ACK TYPE:${data.type}" }
         return runCatching {
@@ -190,36 +163,35 @@ class ServerConnectionDelegate(
                 // send we are done with sending metadata packet
                 val response = BLESyncSession.BLESyncDataPacketEnd(type = data.type)
                 val bytes = protoBuf.encodeToByteArray<BLESyncSession>(response)
-                return@runCatching onCharacteristicsChanged?.invoke(device, characteristic, bytes) ?: false
+                return@runCatching onNotify(bytes)
             }
 
             val chunk = outPayloadManager.getNextChunk()
                 .getOrElse { err ->
                     Logger.w(TAG, err) { "ISSUE WITH NEXT CHUNK" }
                     // mark this as failed
-                    val response = BLESyncSession.SyncSessionFailed(reason = BLESyncFailedReason.TAMPERED_DATA, true)
+                    val response =
+                        BLESyncSession.SyncSessionFailed(reason = BLESyncFailedReason.TAMPERED_DATA, true)
                     val bytes = protoBuf.encodeToByteArray<BLESyncSession>(response)
-                    return@runCatching onCharacteristicsChanged?.invoke(device, characteristic, bytes) ?: false
+                    return@runCatching onNotify(bytes)
                 }
 
             // now send the response as the payload block
             val response = BLESyncSession.BLESyncDataPacket(data.type, chunk.seqNumber, chunk.payload)
             val bytes = protoBuf.encodeToByteArray<BLESyncSession>(response)
-            onCharacteristicsChanged?.invoke(device, characteristic, bytes) ?: false
+            onNotify(bytes)
         }
     }
 
-
-    private suspend fun markSyncSessionPacketEnded(
-        device: BluetoothDevice,
-        characteristic: BluetoothGattCharacteristic,
+    suspend inline fun markSyncSessionPacketEnded(
         payload: BLESyncSession.BLESyncDataPacketEnd,
-    ): Result<Unit> = runCatching {
+        onNotify: suspend (ByteArray) -> Boolean,
+    ): Result<Boolean> = runCatching {
         Logger.d(TAG) { "SESSION PACKET END RECEIVED TYPE:${payload.type}" }
 
         // send sync packet processing
         val bytes = protoBuf.encodeToByteArray<BLESyncSession>(BLESyncSession.SyncPacketProcessing)
-        onCharacteristicsChanged?.invoke(device, characteristic, bytes)
+        onNotify(bytes)
 
         // process the payload
         val processedResult = inPayloadManager.processData()
@@ -250,7 +222,7 @@ class ServerConnectionDelegate(
             SyncDataPayload.SuccessAndNoAction -> {
                 // Half duplex sync done
                 val successBytes = protoBuf.encodeToByteArray<BLESyncSession>(BLESyncSession.SyncSessionSuccessful)
-                onCharacteristicsChanged?.invoke(device, characteristic, successBytes)
+                onNotify(successBytes)
 
                 Logger.d(TAG) { "STARTING THE SECOND HALF-DUPLEX SYNC" }
                 // NOW WE NEED TO SEND THE METADATA FROM THE ADVERTISER
@@ -261,15 +233,14 @@ class ServerConnectionDelegate(
 
             else -> throw Exception("Method not implemented")
         }
-
+        Logger.d(TAG) { "SYNC PACKET TO BE SEND : $data" }
         val packetData = protoBuf.encodeToByteArray<BLESyncSession>(data)
-        onCharacteristicsChanged?.invoke(device, characteristic, packetData)
+        onNotify(packetData)
     }
 
-    suspend fun checkTransitionAckAndSendDataPacket(
-        device: BluetoothDevice,
-        characteristic: BluetoothGattCharacteristic,
+    suspend inline fun checkTransitionAckAndSendDataPacket(
         payload: BLESyncSession.SyncPacketTransition,
+        onNotify: suspend (ByteArray) -> Boolean,
     ) = runCatching {
         // if the transition requested send an ack
         when {
@@ -280,24 +251,22 @@ class ServerConnectionDelegate(
 
                 val dataAck = payload.copy(isRequested = false, isAck = true)
                 val bytes = protoBuf.encodeToByteArray<BLESyncSession>(dataAck)
-                return@runCatching onCharacteristicsChanged?.invoke(device, characteristic, bytes) ?: false
+                return@runCatching onNotify(bytes)
             }
 
             // transition need to be ack
-            !payload.isAck || payload.newType == null -> {
+            !payload.isAck -> {
                 Logger.w(TAG) { "MISSING ACK FLAG OR NEW DATA TYPE IS NOT MENTIONED" }
                 val session = BLESyncSession.SyncSessionFailed(reason = BLESyncFailedReason.MISSING_FLAG, true)
                 val bytes = protoBuf.encodeToByteArray<BLESyncSession>(session)
-                return@runCatching onCharacteristicsChanged?.invoke(device, characteristic, bytes)
-                    ?: false
+                return@runCatching onNotify(bytes)
             }
 
             !outPayloadManager.getHasMoreChunks() -> {
                 // send we are done with sending metadata packet
                 val response = BLESyncSession.BLESyncDataPacketEnd(type = payload.newType)
                 val bytes = protoBuf.encodeToByteArray<BLESyncSession>(response)
-                return@runCatching onCharacteristicsChanged?.invoke(device, characteristic, bytes)
-                    ?: false
+                return@runCatching onNotify(bytes)
             }
 
             // now send the response
@@ -308,23 +277,21 @@ class ServerConnectionDelegate(
                     Logger.w(TAG, err) { "A CHUNK OF DATA SHOULD BE PRESENT" }
                     val session = BLESyncSession.SyncSessionFailed(reason = BLESyncFailedReason.INVALID_STATE, true)
                     val bytes = protoBuf.encodeToByteArray<BLESyncSession>(session)
-                    return@runCatching onCharacteristicsChanged?.invoke(device, characteristic, bytes)
-                        ?: false
+                    return@runCatching onNotify(bytes)
                 }
 
                 // now send the response
                 val response = BLESyncSession.BLESyncDataPacket(payload.newType, chunk.seqNumber, chunk.payload)
                 val bytes = protoBuf.encodeToByteArray<BLESyncSession>(response)
-                onCharacteristicsChanged?.invoke(device, characteristic, bytes) ?: false
+                onNotify(bytes)
             }
         }
     }
 
 
-    suspend fun manageSyncSessionDataPacket(
-        device: BluetoothDevice,
-        characteristic: BluetoothGattCharacteristic,
+    suspend inline fun manageSyncSessionDataPacket(
         data: BLESyncSession.BLESyncDataPacket,
+        onNotify: suspend (ByteArray) -> Boolean,
     ): Result<Boolean> {
         Logger.d(TAG) { "RECEIVED A DATA PACKET TYPE:${data.type}" }
 
@@ -333,12 +300,11 @@ class ServerConnectionDelegate(
             inPayloadManager.addIncomingPayloadChunk(data.sequenceNumber, data.payload)
             val data = BLESyncSession.BLESyncDataAck(data.type, data.sequenceNumber)
             val bytes = protoBuf.encodeToByteArray<BLESyncSession>(data)
-            onCharacteristicsChanged?.invoke(device, characteristic, bytes) ?: false
+            onNotify(bytes)
         }
     }
 
-
-    private suspend fun sendSessionStartACK(device: BluetoothDevice, characteristic: BluetoothGattCharacteristic)
+    suspend inline fun sendSessionStartACK(onNotify: suspend (ByteArray) -> Boolean)
         : Result<Boolean> {
         // clear buffers for both cases
         outPayloadManager.reset()
@@ -348,64 +314,60 @@ class ServerConnectionDelegate(
         val data = BLESyncSession.SyncSessionStartAck(true)
         return runCatching {
             val bytes = protoBuf.encodeToByteArray<BLESyncSession>(data)
-            onCharacteristicsChanged?.invoke(device, characteristic, bytes) ?: false
+            onNotify(bytes)
         }
     }
 
     fun markDeviceDisconnectedAndClearCache(address: String) {
-        _localNonceMap.remove(address)
-        _cccDescriptorMap.remove(address)
+        localNonceMap.remove(address)
+        cccDescriptorMap.remove(address)
     }
 
     fun cleanUp() {
-        _localNonceMap.clear()
-        _cccDescriptorMap.clear()
+        localNonceMap.clear()
+        cccDescriptorMap.clear()
     }
 
     fun handleCCCWriteRequest(
-        device: BluetoothDevice,
-        descriptor: BluetoothGattDescriptor,
+        address: String,
+        descriptorUuid: Uuid,
         value: ByteArray,
-    ): Result<Unit> {
-
-        if (descriptor.uuid.toKotlinUuid() != BLEConstants.CCC_DESCRIPTOR)
+    ): Result<Unit> = runCatching {
+        if (descriptorUuid != BLEConstants.CCC_DESCRIPTOR)
             return Result.failure(Exception("INVALID DESCRIPTOR PROVIDED ONLY CCC DESCRIPTOR ALLOWED"))
 
-        return runCatching {
-            _cccDescriptorMap[device.address] = value.btDescriptorsNotificationOrIndicationEnabled
-            val bytesAsString = value.joinToString("-") { it.toHexString() }
-            Logger.d(TAG) { "UPDATED DESCRIPTOR VALUE :$bytesAsString" }
-        }
+        cccDescriptorMap[address] = value.btDescriptorsNotificationOrIndicationEnabled
+        val bytesAsString = value.joinToString("-") { it.toHexString() }
+        Logger.d(TAG) { "UPDATED DESCRIPTOR VALUE :$bytesAsString" }
+
     }
 
     fun handleCCCReadRequest(
-        device: BluetoothDevice,
-        descriptor: BluetoothGattDescriptor,
+        address: String,
+        isIndication: Boolean = true,
+        descriptorUuid: Uuid,
     ): Result<ByteArray> {
 
-        if (descriptor.uuid.toKotlinUuid() != BLEConstants.CCC_DESCRIPTOR)
+        if (descriptorUuid != BLEConstants.CCC_DESCRIPTOR)
             return Result.failure(Exception("INVALID DESCRIPTOR PROVIDED ONLY CCC DESCRIPTOR ALLOWED"))
 
-        val isEnabled = _cccDescriptorMap[device.address] ?: false
-        val isIndication = descriptor.characteristic.hasIndication
-        val bytes = when (isEnabled) {
-            true if (isIndication) -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
-            true -> BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-            false -> BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
-        }
+        val isEnabled = cccDescriptorMap[address] ?: false
+        val bytes = isEnabled.asCCCDescriptorValue(isIndication)
         val bytesAsString = bytes.joinToString("-") { it.toHexString() }
         Logger.d(TAG) { "DESCRIPTOR READ VALUE : $bytesAsString" }
         return Result.success(bytes)
     }
 
 
-    private class InvalidSyncTypeException : Exception("incorrect sync type")
-    private class LocalDeviceInfoMissing : Exception("Local device data need to be known")
-    private class MissingSavedDeviceException : Exception("Device is not saved by the user earlier")
+    class InvalidBLESyncSessionRequestException(type: BLESyncSession) : Exception("Cannot handle session type :$type")
+    class LocalDeviceInfoMissingException :
+        Exception("Missing local device data without which the external device cannot identify the device")
+
+    class MissingSavedDeviceException :
+        Exception("Device need to be saved earlier any unknown device cannot perform any sync")
 
     companion object {
-
-        private const val NONCE_SIZE = 16
-        private const val TAG = "SERVER_METHOD_HANDLER"
+        const val NONCE_SIZE = 16
+        const val TAG = "SERVER_METHOD_HANDLER"
     }
 }

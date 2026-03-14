@@ -9,8 +9,10 @@ import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.data.ble.delegate.BLEAdvertiserSyncHandlerDelegate
 import com.sam.bluepad.data.ble.exceptions.GattInvalidCharacteristicsException
 import com.sam.bluepad.data.ble.exceptions.GattInvalidDescriptorException
+import com.sam.bluepad.data.ble.utils.hasIndication
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
@@ -39,14 +41,14 @@ import kotlin.uuid.toKotlinUuid
 
 private const val TAG = "SERVER_CALLBACK"
 
-typealias GATTSendResponse = (device: BluetoothDevice?, requestId: Int, status: Int, offset: Int, value: ByteArray?) -> Unit
-typealias GATTNotifyCharacteristicsChanged = (device: BluetoothDevice, characteristics: BluetoothGattCharacteristic, value: ByteArray) -> Boolean
+private typealias GATTSendResponse = (device: BluetoothDevice?, requestId: Int, status: Int, offset: Int, value: ByteArray?) -> Unit
+private typealias GATTNotifyCharacteristicsChanged = (device: BluetoothDevice, characteristics: BluetoothGattCharacteristic, value: ByteArray) -> Boolean
 
 @SuppressLint("MissingPermission")
 class ServerConnectionCallback private constructor(
     deviceInfoProvider: LocalDeviceInfoProvider,
     private val externalDevicesRepo: ExternalDevicesRepository,
-    private val delegate: ServerConnectionDelegate,
+    private val delegate: BLEAdvertiserSyncHandlerDelegate,
 ) : BluetoothGattServerCallback() {
 
     constructor(
@@ -61,7 +63,7 @@ class ServerConnectionCallback private constructor(
     ) : this(
         deviceInfoProvider = deviceInfoProvider,
         externalDevicesRepo = externalDevicesRepo,
-        delegate = ServerConnectionDelegate(
+        delegate = BLEAdvertiserSyncHandlerDelegate(
             protoBuf = protoBuf,
             randomGenerator = randomGenerator,
             platformInfoProvider = platformInfoProvider,
@@ -79,6 +81,7 @@ class ServerConnectionCallback private constructor(
         initialValue = null,
     )
 
+    private var _onCharacteristicsChanged: GATTNotifyCharacteristicsChanged? = null
     private var _sendResponse: GATTSendResponse? = null
     private var _onServiceAdded: (() -> Unit)? = null
 
@@ -87,7 +90,7 @@ class ServerConnectionCallback private constructor(
     }
 
     fun setNotifyCharacteristicsChanged(callback: GATTNotifyCharacteristicsChanged) {
-        delegate.onCharacteristicsChanged = callback
+        _onCharacteristicsChanged = callback
     }
 
     fun setOnServiceAdded(onServiceAdded: () -> Unit = {}) {
@@ -173,8 +176,8 @@ class ServerConnectionCallback private constructor(
                 Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
 
                 val result = delegate.handleProximityReadRequest(
-                    device = device,
-                    currentDeviceInfo = _deviceInfo.value,
+                    address = device.address,
+                    currentDevice = _deviceInfo.value,
                 )
                 sendReadResponse(device, requestId, offset, result)
                 return
@@ -228,9 +231,11 @@ class ServerConnectionCallback private constructor(
 
                 _scope.launch {
                     val result = delegate.handleProximityWriteRequest(
-                        device = device,
-                        characteristic = characteristic,
                         value = value,
+                        address = device.address,
+                        onNotify = { bytes ->
+                            _onCharacteristicsChanged?.invoke(device, characteristic, bytes) ?: false
+                        },
                         savedDevices = { id -> externalDevicesRepo.getDeviceByUuid(id) },
                         currentDeviceInfo = _deviceInfo.value,
                     )
@@ -249,9 +254,10 @@ class ServerConnectionCallback private constructor(
 
                 _scope.launch {
                     val result = delegate.handleSyncDataWriteRequest(
-                        device = device,
-                        characteristic = characteristic,
                         value = value,
+                        onNotify = { bytes ->
+                            _onCharacteristicsChanged?.invoke(device, characteristic, bytes) ?: false
+                        },
                     )
                     sendWriteResponse(device, requestId, offset, responseNeeded, value, result)
                 }
@@ -285,7 +291,11 @@ class ServerConnectionCallback private constructor(
 
         when (characteristicsId) {
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
-                val result = delegate.handleCCCReadRequest(device, descriptor)
+                val result = delegate.handleCCCReadRequest(
+                    address = device.address,
+                    isIndication = descriptor.characteristic.hasIndication,
+                    descriptorUuid = descriptor.uuid.toKotlinUuid(),
+                )
                 sendReadResponse(device, requestId, offset, result)
                 return
             }
@@ -330,7 +340,7 @@ class ServerConnectionCallback private constructor(
 
         when (characteristicId) {
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
-                val result = delegate.handleCCCWriteRequest(device, descriptor, value)
+                val result = delegate.handleCCCWriteRequest(device.address, descriptor.uuid.toKotlinUuid(), value)
                 sendWriteResponse(device, requestId, offset, responseNeeded, value, result)
             }
 

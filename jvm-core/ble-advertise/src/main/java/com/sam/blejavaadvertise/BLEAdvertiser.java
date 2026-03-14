@@ -86,9 +86,9 @@ public class BLEAdvertiser {
         return GATTServiceAdvertisementStatus.fromInt(status);
     }
 
-    public void sendNotification(String deviceAddress, String characteristicUuid, byte[] value, boolean confirm) {
+    public void sendNotification(String deviceAddress, String characteristicUuid, byte[] value) {
         ensureValid();
-        nativeSendNotification(nativeHandler, deviceAddress, characteristicUuid, value, confirm);
+        nativeSendNotification(nativeHandler, deviceAddress, characteristicUuid, value);
     }
 
 
@@ -128,7 +128,7 @@ public class BLEAdvertiser {
 
     private native int nativeGetAdvertisingStatus(long h);
 
-    private native void nativeSendNotification(long h, String deviceAddress, String characteristicUuid, byte[] value, boolean confirm);
+    private native boolean nativeSendNotification(long h, String deviceAddress, String characteristicUuid, byte[] value);
 
     interface GATTServerCallbackInternal {
 
