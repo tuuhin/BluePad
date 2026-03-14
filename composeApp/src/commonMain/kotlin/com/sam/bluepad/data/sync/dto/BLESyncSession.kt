@@ -83,7 +83,7 @@ sealed class BLESyncSession {
     @SerialName("spt")
     data class SyncPacketTransition(
         @ProtoNumber(1) val prevType: BLESyncDataType? = null,
-        @ProtoNumber(2) val newType: BLESyncDataType? = null,
+        @ProtoNumber(2) val newType: BLESyncDataType,
         @ProtoNumber(3) val isRequested: Boolean = true,
         @ProtoNumber(4) val isAck: Boolean = false,
     ) : BLESyncSession()

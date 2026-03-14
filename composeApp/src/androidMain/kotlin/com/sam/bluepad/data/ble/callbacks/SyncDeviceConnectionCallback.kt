@@ -7,9 +7,13 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.os.Build
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.data.ble.delegate.BLEConnectorSyncHandlerDelegate
 import com.sam.bluepad.data.ble.exceptions.GattInvalidStatusException
+import com.sam.bluepad.data.ble.utils.toggleNotification
+import com.sam.bluepad.data.ble.utils.writeToCharacteristics
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.ConnectorSyncEvent
+import com.sam.bluepad.domain.exceptions.InvalidServiceOrCharacteristicsException
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.sync.InPayloadManager
@@ -23,6 +27,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.protobuf.ProtoBuf
+import kotlin.uuid.toJavaUuid
 import kotlin.uuid.toKotlinUuid
 
 private const val TAG = "SYNC_CONNECTION_CALLBACK"
@@ -31,7 +36,7 @@ private const val TAG = "SYNC_CONNECTION_CALLBACK"
 class SyncDeviceConnectionCallback private constructor(
     deviceInfoProvider: LocalDeviceInfoProvider,
     private val externalDevicesRepository: ExternalDevicesRepository,
-    private val delegate: SyncDeviceConnectionDelegate,
+    private val delegate: BLEConnectorSyncHandlerDelegate,
 ) : BluetoothGattCallback() {
 
     constructor(
@@ -43,7 +48,7 @@ class SyncDeviceConnectionCallback private constructor(
     ) : this(
         deviceInfoProvider = deviceInfoProvider,
         externalDevicesRepository = externalDevicesRepository,
-        delegate = SyncDeviceConnectionDelegate(
+        delegate = BLEConnectorSyncHandlerDelegate(
             protoBuf = protoBuf,
             outPayloadManager = syncOutPayloadManager,
             inPayloadManager = syncInPayloadManager,
@@ -69,20 +74,6 @@ class SyncDeviceConnectionCallback private constructor(
             started = SharingStarted.Eagerly,
             initialValue = null,
         )
-
-//	private val _savedExternalDevices = devicesRepository.getAllDevices()
-//		.onEach { res ->
-//			if (res !is Resource.Error) return@onEach
-//			Logger.e(TAG, res.error) { "SOME ERROR OCCURRED WHILE READING DEVICES" }
-//		}
-//		.filterIsInstance<Resource.Success<List<ExternalDeviceModel>, Exception>>()
-//		.map { res -> res.data }
-//		.stateIn(
-//			scope = _scope,
-//			started = SharingStarted.Eagerly,
-//			initialValue = emptyList(),
-//		)
-
 
     override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
@@ -120,13 +111,11 @@ class SyncDeviceConnectionCallback private constructor(
             _onError?.invoke(GattInvalidStatusException(status))
             return
         }
-        val result = delegate.requestHandshakeCharacteristics(gatt = gatt)
-        if (result.isSuccess) {
-            _onEvents?.invoke(ConnectorSyncEvent.ServicesDiscovered)
-        } else {
-            val error = result.exceptionOrNull() ?: return
-            _onError?.invoke(error)
+        requestHandshakeCharacteristics(gatt = gatt).getOrElse { err ->
+            _onError?.invoke(err)
+            return
         }
+        _onEvents?.invoke(ConnectorSyncEvent.ServicesDiscovered)
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
@@ -169,25 +158,21 @@ class SyncDeviceConnectionCallback private constructor(
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if serviceId == BLEConstants.SYNC_SERVICE_ID -> {
                 _scope.launch {
                     val result = delegate.handleHandshakeRead(
-                        gatt = gatt,
-                        characteristic = characteristic,
+                        deviceAddress = gatt.device.address,
                         value = value,
                         deviceInfo = _currentDeviceProfile.value,
+                        onReadSuccess = { gatt.toggleNotification(characteristic, true) },
                         savedDevices = { id -> externalDevicesRepository.getDeviceByUuid(id) },
                     )
-                    if (result.isSuccess) {
-                        val model = result.getOrThrow()
-                        _onEvents?.invoke(ConnectorSyncEvent.AdvertisingDeviceRead(model))
-                    } else {
-                        val error = result.exceptionOrNull() ?: return@launch
-                        _onError?.invoke(error)
+                    val model = result.getOrElse { err ->
+                        _onError?.invoke(err)
+                        return@launch
                     }
+                    _onEvents?.invoke(ConnectorSyncEvent.AdvertisingDeviceRead(model))
                 }
             }
 
-            else -> Logger.w(TAG) {
-                "NO READ METHOD PRESENT FOR CHARACTERISTICS:$characteristicsId SERVICE:$serviceId"
-            }
+            else -> Logger.w(TAG) { "NO READ METHOD PRESENT FOR CHARACTERISTICS:$characteristicsId SERVICE:$serviceId" }
         }
     }
 
@@ -208,10 +193,10 @@ class SyncDeviceConnectionCallback private constructor(
         val serviceId = characteristic.service.uuid.toKotlinUuid()
 
         when (characteristicsId) {
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if serviceId == BLEConstants.SYNC_SERVICE_ID -> {
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if serviceId == BLEConstants.SYNC_SERVICE_ID ->
                 _onEvents?.invoke(ConnectorSyncEvent.ConnectorDeviceDataResponseSend)
-            }
 
+            // it's a provided characteristics but adding no handler
             BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if serviceId == BLEConstants.SYNC_SERVICE_ID -> return
 
             else -> Logger.w(TAG) { "NO WRITE RESPONSE EXCEPTED FROM CHARACTERISTICS:$characteristicsId SERVICE:$serviceId" }
@@ -241,10 +226,21 @@ class SyncDeviceConnectionCallback private constructor(
             return
         }
         val descriptorId = descriptor.uuid.toKotlinUuid()
+        val serviceId = descriptor.characteristic.service.uuid.toKotlinUuid()
         val characteristic = descriptor.characteristic
 
         when (descriptorId) {
-            BLEConstants.CCC_DESCRIPTOR -> delegate.onEnabledDisabledCCCDescriptor(gatt, characteristic, value)
+            BLEConstants.CCC_DESCRIPTOR -> delegate.onEnabledDisabledCCCDescriptor(
+                address = gatt.device.address,
+                characteristicId = characteristic.uuid.toKotlinUuid(),
+                bytes = value,
+                onWriteBytes = { bytes -> gatt.writeToCharacteristics(characteristic, bytes) },
+                onToggleNotification = { uuid, enable ->
+                    val notificationCharacteristic = gatt.getService(serviceId.toJavaUuid())
+                        .getCharacteristic(uuid.toJavaUuid()) ?: return
+                    gatt.toggleNotification(notificationCharacteristic, enable)
+                },
+            )
         }
     }
 
@@ -293,15 +289,17 @@ class SyncDeviceConnectionCallback private constructor(
         val serviceId = characteristic.service.uuid.toKotlinUuid()
 
         when (characteristicId) {
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
-                val event = delegate
-                    .handleHandshakeNotification(gatt = gatt, characteristic = characteristic, value = value)
-                    .getOrElse { err ->
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) ->
+                _scope.launch {
+                    val event = delegate.handleHandshakeNotification(
+                        value = value,
+                        onHandshakeSuccess = { gatt.toggleNotification(characteristic, false) },
+                    ).getOrElse { err ->
                         _onError?.invoke(err)
-                        return
+                        return@launch
                     }
-                _onEvents?.invoke(event)
-            }
+                    _onEvents?.invoke(event)
+                }
 
             BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
                 if (!_scope.isActive) {
@@ -311,9 +309,16 @@ class SyncDeviceConnectionCallback private constructor(
 
                 _scope.launch {
                     delegate.handleSyncDataNotification(
-                        gatt = gatt,
-                        characteristic = characteristic,
+                        characteristicId = characteristic.uuid.toKotlinUuid(),
                         value = value,
+                        onWriteBytes = { bytes ->
+                            gatt.writeToCharacteristics(characteristic, bytes)
+                        },
+                        onToggleNotification = { uuid, enable ->
+                            val notificationCharacteristic = gatt.getService(serviceId.toJavaUuid())
+                                .getCharacteristic(uuid.toJavaUuid()) ?: return@launch
+                            gatt.toggleNotification(notificationCharacteristic, enable)
+                        },
                         onEvent = { event -> _onEvents?.invoke(event) },
                         onError = { exp -> if (exp is Exception) _onError?.invoke(exp) },
                     )
@@ -325,6 +330,20 @@ class SyncDeviceConnectionCallback private constructor(
             }
         }
     }
+
+    private fun requestHandshakeCharacteristics(gatt: BluetoothGatt) = runCatching {
+
+        val syncService = gatt.getService(BLEConstants.SYNC_SERVICE_ID.toJavaUuid())
+            ?: throw InvalidServiceOrCharacteristicsException(true, BLEConstants.SYNC_SERVICE_ID)
+
+        val characteristic = syncService
+            .getCharacteristic(BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID.toJavaUuid())
+            ?: throw InvalidServiceOrCharacteristicsException(false, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID)
+
+        val isSuccess = gatt.readCharacteristic(characteristic)
+        Logger.d(TAG) { "READ CHARACTERISTICS OP SUCCESS: $isSuccess" }
+    }
+
 
     fun onClearCallbacks() {
         Logger.d(TAG) { "CALLBACKS REMOVED" }

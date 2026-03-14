@@ -81,16 +81,12 @@ actual class BLEAdvertisementImpl(
         }
     }
 
-    private fun handleNotification(
-        address: String,
-        uuid: String,
-        confirm: Boolean,
-        value: ByteArray
-    ) {
-        try {
-            _advertiser.sendNotification(address, uuid, value, confirm)
+    private fun handleNotification(address: String, uuid: String, value: ByteArray): Boolean {
+        return try {
+            _advertiser.sendNotification(address, uuid, value)
         } catch (e: Exception) {
             Logger.e(TAG, e) { "FAILED TO SEND NOTIFICATION" }
+            false
         }
     }
 
