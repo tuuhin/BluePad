@@ -1,7 +1,7 @@
 package com.sam.bluepad.data.ble.delegate
 
-private val ENABLE_NOTIFICATION_VALUE = byteArrayOf(0x0, 0x1)
-private val ENABLE_INDICATION_VALUE = byteArrayOf(0x0, 0x2)
+private val ENABLE_NOTIFICATION_VALUE = byteArrayOf(0x1, 0x0)
+private val ENABLE_INDICATION_VALUE = byteArrayOf(0x2, 0x0)
 private val DISABLE_NOTIFICATION_VALUE = byteArrayOf(0x0, 0x0)
 
 val ByteArray.btDescriptorsNotificationOrIndicationEnabled: Boolean
@@ -9,7 +9,7 @@ val ByteArray.btDescriptorsNotificationOrIndicationEnabled: Boolean
         contentEquals(ENABLE_NOTIFICATION_VALUE) -> true
         contentEquals(ENABLE_INDICATION_VALUE) -> true
         contentEquals(DISABLE_NOTIFICATION_VALUE) -> false
-        else -> throw IllegalArgumentException("Invalid value")
+        else -> throw IllegalArgumentException("CCC descriptor values are fixed")
     }
 
 fun Boolean.asCCCDescriptorValue(isIndication: Boolean): ByteArray {

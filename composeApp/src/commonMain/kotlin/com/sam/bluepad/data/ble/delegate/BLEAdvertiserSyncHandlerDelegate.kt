@@ -9,6 +9,7 @@ import com.sam.bluepad.data.sync.dto.BLESyncSession
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.models.BLEPeerData
+import com.sam.bluepad.domain.exceptions.InvalidCCCDescriptorException
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.models.LocalDeviceInfoModel
 import com.sam.bluepad.domain.sync.InPayloadManager
@@ -17,10 +18,11 @@ import com.sam.bluepad.domain.sync.models.SyncDataPayload
 import com.sam.bluepad.domain.use_cases.BytesEncoder
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
 
 class BLEAdvertiserSyncHandlerDelegate(
@@ -32,12 +34,13 @@ class BLEAdvertiserSyncHandlerDelegate(
     val outPayloadManager: OutPayloadManager,
 ) {
 
-    val localNonceMap = ConcurrentHashMap<String, String>()
-    val cccDescriptorMap = ConcurrentHashMap<String, Boolean>()
+    val lock = Mutex()
+    val localNonceMap = HashMap<String, String>()
+    val cccDescriptorMap = HashMap<String, Boolean>()
 
     fun handleDeviceReadRequest(currentDeviceInfo: LocalDeviceInfoModel? = null): Result<ByteArray> {
         return runCatching {
-            if (currentDeviceInfo == null) throw LocalDeviceInfoMissingException()
+            if (currentDeviceInfo == null) throw LocalIdentityMissingException()
 
             val nonce = randomGenerator.generateRandomBytes(size = NONCE_SIZE)
             val peerData = BLEPeerData(
@@ -56,12 +59,17 @@ class BLEAdvertiserSyncHandlerDelegate(
         }.onFailure { err -> Logger.e(TAG, err) { "CANNOT HANDLE DEVICE WRITE REQUEST" } }
     }
 
-    fun handleProximityReadRequest(address: String, currentDevice: LocalDeviceInfoModel? = null): Result<ByteArray> {
+    suspend fun handleProximityReadRequest(
+        address: String,
+        currentDevice: LocalDeviceInfoModel? = null
+    ): Result<ByteArray> {
         return runCatching {
-            if (currentDevice == null) throw LocalDeviceInfoMissingException()
+            if (currentDevice == null) throw LocalIdentityMissingException()
 
-            val nonce = randomGenerator.generateRandomBytes(NONCE_SIZE).let { nonceBytes ->
-                encoder.encodeBytes(nonceBytes).apply { localNonceMap[address] = this }
+            val nonce = lock.withLock {
+                randomGenerator.generateRandomBytes(NONCE_SIZE).let { nonceBytes ->
+                    encoder.encodeBytes(nonceBytes).apply { localNonceMap[address] = this }
+                }
             }
             val data = BLESyncHandshakeData.AdvertiseDeviceData(
                 deviceId = currentDevice.deviceId,
@@ -83,7 +91,7 @@ class BLEAdvertiserSyncHandlerDelegate(
 
             val response = protoBuf.decodeFromByteArray<BLESyncHandshakeData.AdvertiseResponseData>(value)
 
-            val savedNonce = localNonceMap[address]
+            val savedNonce = lock.withLock { localNonceMap[address] }
             val externalDevice = savedDevices(response.senderID).getOrNull()
 
             val failedReason = when {
@@ -106,7 +114,7 @@ class BLEAdvertiserSyncHandlerDelegate(
                 else -> ""
             }
             Logger.d(TAG) { "SENDING ACK DATA ACK RESULT: $message" }
-            if (externalDevice == null) throw MissingSavedDeviceException()
+            if (externalDevice == null) throw UnrecognizedPeerDeviceException(response.senderID)
             externalDevice
         }.onFailure { err ->
             if (err is CancellationException) throw err
@@ -140,7 +148,7 @@ class BLEAdvertiserSyncHandlerDelegate(
                 true
             }
 
-            else -> throw InvalidBLESyncSessionRequestException(response)
+            else -> throw UnsupportedSyncSessionException(response)
         }
         opResult.getOrElse { err -> throw err }
         Unit
@@ -170,8 +178,7 @@ class BLEAdvertiserSyncHandlerDelegate(
                 .getOrElse { err ->
                     Logger.w(TAG, err) { "ISSUE WITH NEXT CHUNK" }
                     // mark this as failed
-                    val response =
-                        BLESyncSession.SyncSessionFailed(reason = BLESyncFailedReason.TAMPERED_DATA, true)
+                    val response = BLESyncSession.SyncSessionFailed(reason = BLESyncFailedReason.TAMPERED_DATA, true)
                     val bytes = protoBuf.encodeToByteArray<BLESyncSession>(response)
                     return@runCatching onNotify(bytes)
                 }
@@ -231,7 +238,7 @@ class BLEAdvertiserSyncHandlerDelegate(
                 BLESyncSession.SyncPacketTransition(BLESyncDataType.CONTENT, BLESyncDataType.METADATA)
             }
 
-            else -> throw Exception("Method not implemented")
+            else -> throw InvalidSyncPayloadException()
         }
         Logger.d(TAG) { "SYNC PACKET TO BE SEND : $data" }
         val packetData = protoBuf.encodeToByteArray<BLESyncSession>(data)
@@ -328,43 +335,49 @@ class BLEAdvertiserSyncHandlerDelegate(
         cccDescriptorMap.clear()
     }
 
-    fun handleCCCWriteRequest(
+    suspend fun handleCCCWriteRequest(
         address: String,
         descriptorUuid: Uuid,
         value: ByteArray,
     ): Result<Unit> = runCatching {
         if (descriptorUuid != BLEConstants.CCC_DESCRIPTOR)
-            return Result.failure(Exception("INVALID DESCRIPTOR PROVIDED ONLY CCC DESCRIPTOR ALLOWED"))
+            throw InvalidCCCDescriptorException()
 
-        cccDescriptorMap[address] = value.btDescriptorsNotificationOrIndicationEnabled
+        lock.withLock {
+            cccDescriptorMap[address] = value.btDescriptorsNotificationOrIndicationEnabled
+        }
         val bytesAsString = value.joinToString("-") { it.toHexString() }
         Logger.d(TAG) { "UPDATED DESCRIPTOR VALUE :$bytesAsString" }
-
     }
 
-    fun handleCCCReadRequest(
+    suspend fun handleCCCReadRequest(
         address: String,
         isIndication: Boolean = true,
         descriptorUuid: Uuid,
-    ): Result<ByteArray> {
+    ): Result<ByteArray> = runCatching {
 
         if (descriptorUuid != BLEConstants.CCC_DESCRIPTOR)
-            return Result.failure(Exception("INVALID DESCRIPTOR PROVIDED ONLY CCC DESCRIPTOR ALLOWED"))
+            throw InvalidCCCDescriptorException()
 
-        val isEnabled = cccDescriptorMap[address] ?: false
+        val isEnabled = lock.withLock { cccDescriptorMap[address] ?: false }
         val bytes = isEnabled.asCCCDescriptorValue(isIndication)
         val bytesAsString = bytes.joinToString("-") { it.toHexString() }
         Logger.d(TAG) { "DESCRIPTOR READ VALUE : $bytesAsString" }
-        return Result.success(bytes)
+        bytes
     }
 
 
-    class InvalidBLESyncSessionRequestException(type: BLESyncSession) : Exception("Cannot handle session type :$type")
-    class LocalDeviceInfoMissingException :
-        Exception("Missing local device data without which the external device cannot identify the device")
+    class UnsupportedSyncSessionException(session: BLESyncSession) :
+        Exception("The sync session request of type ${session::class.simpleName} is not supported or was received out of sequence")
 
-    class MissingSavedDeviceException :
-        Exception("Device need to be saved earlier any unknown device cannot perform any sync")
+    class LocalIdentityMissingException :
+        Exception("Local device information is required for BLE identification but was not provided.")
+
+    class UnrecognizedPeerDeviceException(val deviceId: Uuid) :
+        Exception("Sync denied: The device $deviceId is not in the list of authorized or saved devices.")
+
+    class InvalidSyncPayloadException :
+        Exception("The synchronization data was processed successfully, but the resulting payload state is invalid for current transaction")
 
     companion object {
         const val NONCE_SIZE = 16

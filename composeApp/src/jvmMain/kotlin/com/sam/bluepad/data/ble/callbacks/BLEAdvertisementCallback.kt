@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlin.uuid.Uuid
 
@@ -130,10 +131,12 @@ class BLEAdvertisementCallback private constructor(
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
                 Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicsId FROM SYNC SERVICE" }
 
-                val result = delegate.handleProximityReadRequest(
-                    address = deviceAddress,
-                    currentDevice = _deviceInfo.value,
-                )
+                val result = runBlocking {
+                    delegate.handleProximityReadRequest(
+                        address = deviceAddress,
+                        currentDevice = _deviceInfo.value,
+                    )
+                }
                 return result.getOrNull()
             }
 
@@ -223,11 +226,14 @@ class BLEAdvertisementCallback private constructor(
 
         when (characteristicsId) {
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
-                val result = delegate.handleCCCReadRequest(
-                    address = deviceAddress,
-                    isIndication = true,
-                    descriptorUuid = descriptorId,
-                )
+                // need to use blocking code otherwise we cannot return the data
+                val result = runBlocking {
+                    delegate.handleCCCReadRequest(
+                        address = deviceAddress,
+                        isIndication = true,
+                        descriptorUuid = descriptorId,
+                    )
+                }
                 return result.getOrNull()
             }
 
@@ -256,7 +262,7 @@ class BLEAdvertisementCallback private constructor(
         if (serviceId != BLEConstants.SYNC_SERVICE_ID) return
 
         when (characteristicId) {
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> _scope.launch {
                 delegate.handleCCCWriteRequest(deviceAddress, descriptorId, value)
             }
 

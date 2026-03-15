@@ -230,17 +230,19 @@ class SyncDeviceConnectionCallback private constructor(
         val characteristic = descriptor.characteristic
 
         when (descriptorId) {
-            BLEConstants.CCC_DESCRIPTOR -> delegate.onEnabledDisabledCCCDescriptor(
-                address = gatt.device.address,
-                characteristicId = characteristic.uuid.toKotlinUuid(),
-                bytes = value,
-                onWriteBytes = { bytes -> gatt.writeToCharacteristics(characteristic, bytes) },
-                onToggleNotification = { uuid, enable ->
-                    val notificationCharacteristic = gatt.getService(serviceId.toJavaUuid())
-                        .getCharacteristic(uuid.toJavaUuid()) ?: return
-                    gatt.toggleNotification(notificationCharacteristic, enable)
-                },
-            )
+            BLEConstants.CCC_DESCRIPTOR -> _scope.launch {
+                delegate.onEnabledDisabledCCCDescriptor(
+                    address = gatt.device.address,
+                    characteristicId = characteristic.uuid.toKotlinUuid(),
+                    bytes = value,
+                    onWriteBytes = { bytes -> gatt.writeToCharacteristics(characteristic, bytes) },
+                    onToggleNotification = { uuid, enable ->
+                        val notificationCharacteristic = gatt.getService(serviceId.toJavaUuid())
+                            .getCharacteristic(uuid.toJavaUuid()) ?: return@launch
+                        gatt.toggleNotification(notificationCharacteristic, enable)
+                    },
+                )
+            }
         }
     }
 

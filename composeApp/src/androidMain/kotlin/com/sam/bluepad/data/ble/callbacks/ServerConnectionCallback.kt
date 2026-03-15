@@ -172,7 +172,7 @@ class ServerConnectionCallback private constructor(
             }
 
             // HANDLE SYNC SERVICE PROXIMITY CHECK ADVERTISEMENT HERE
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> _scope.launch {
                 Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
 
                 val result = delegate.handleProximityReadRequest(
@@ -180,7 +180,6 @@ class ServerConnectionCallback private constructor(
                     currentDevice = _deviceInfo.value,
                 )
                 sendReadResponse(device, requestId, offset, result)
-                return
             }
 
             else -> {
@@ -290,14 +289,13 @@ class ServerConnectionCallback private constructor(
         if (serviceId != BLEConstants.SYNC_SERVICE_ID) return
 
         when (characteristicsId) {
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> _scope.launch {
                 val result = delegate.handleCCCReadRequest(
                     address = device.address,
                     isIndication = descriptor.characteristic.hasIndication,
                     descriptorUuid = descriptor.uuid.toKotlinUuid(),
                 )
                 sendReadResponse(device, requestId, offset, result)
-                return
             }
 
             else -> {
@@ -339,7 +337,7 @@ class ServerConnectionCallback private constructor(
         }
 
         when (characteristicId) {
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> _scope.launch {
                 val result = delegate.handleCCCWriteRequest(device.address, descriptor.uuid.toKotlinUuid(), value)
                 sendWriteResponse(device, requestId, offset, responseNeeded, value, result)
             }

@@ -15,6 +15,8 @@ import com.sam.bluepad.domain.sync.OutPayloadManager
 import com.sam.bluepad.domain.sync.exceptions.EmptyPayloadException
 import com.sam.bluepad.domain.sync.models.SyncDataPayload
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
@@ -28,7 +30,8 @@ class BLEConnectorSyncHandlerDelegate(
     val inPayloadManager: InPayloadManager,
 ) {
 
-    val handShakeDataMap = ConcurrentHashMap<String, BLESyncHandshakeData.AdvertiseResponseData>()
+    val lock = Mutex()
+    val handShakeDataMap = HashMap<String, BLESyncHandshakeData.AdvertiseResponseData>()
     val hadShakeNotificationMap = ConcurrentHashMap<String, Boolean>()
 
 
@@ -63,10 +66,11 @@ class BLEConnectorSyncHandlerDelegate(
             senderID = currentDeviceInfo.deviceId,
         )
 
-        // saving the content data on the cache map
-        handShakeDataMap[deviceAddress] = outgoingData
-        hadShakeNotificationMap[deviceAddress] = true
-
+        lock.withLock {
+            // saving the content data on the cache map
+            handShakeDataMap[deviceAddress] = outgoingData
+            hadShakeNotificationMap[deviceAddress] = true
+        }
         externalDevice
 
     }
@@ -308,7 +312,7 @@ class BLEConnectorSyncHandlerDelegate(
         }
     }
 
-    inline fun onEnabledDisabledCCCDescriptor(
+    suspend inline fun onEnabledDisabledCCCDescriptor(
         address: String,
         characteristicId: Uuid,
         bytes: ByteArray,
@@ -320,13 +324,13 @@ class BLEConnectorSyncHandlerDelegate(
         when (characteristicId) {
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if isEnabled -> {
                 // thus notification is turned on successfully
-                val outgoingData = handShakeDataMap[address] ?: return
+                val outgoingData = lock.withLock { handShakeDataMap[address] } ?: return
                 val syncWrite = protoBuf.encodeToByteArray<BLESyncHandshakeData.AdvertiseResponseData>(outgoingData)
                 val response = onWriteBytes(syncWrite)
                 Logger.d(TAG) { "WRITING ADVERTISING RESPONSE CHARACTERISTICS IS_SUCCESS:$response" }
             }
 
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID -> {
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID -> lock.withLock {
                 val isNotificationOn = hadShakeNotificationMap[address] ?: false
                 if (!isNotificationOn) return
                 hadShakeNotificationMap.remove(address)
