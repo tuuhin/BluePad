@@ -1,5 +1,6 @@
 [versions]
-agp = "9.0.0"
+agp = "9.1.0"
+assertk = "0.28.1"
 kotlinxImmutable = "0.4.0"
 kotlinxDatetime = "0.7.1"
 kotlinxSerialization = "1.10.0"
@@ -7,35 +8,36 @@ splashApiVersion = "1.2.0"
 android-compileSdk = "36"
 android-targetSdk = "36"
 android-minSdk = "28"
-androidx-activity = "1.12.2"
+androidx-activity = "1.13.0"
 androidx-appcompat = "1.7.1"
-androidx-core = "1.17.0"
+androidx-core = "1.18.0"
 androidx-espresso = "3.7.0"
 androidx-lifecycle = "2.9.6"
 androidx-testExt = "1.3.0"
 composeHotReload = "1.0.0"
 junit = "4.13.2"
-kotlin = "2.3.0"
+kotlin = "2.3.10"
 kotlinx-coroutines = "1.10.2"
 room = "2.8.4"
 sqlite = "2.6.2"
-ksp = "2.3.4"
-koin = "4.1.1"
+ksp = "2.3.6"
+koin = "4.2.0-RC2"
 kotlincrypto = "0.8.0"
 kotlincryptorandom = "0.6.0"
-multiplatform-nav3-ui = "1.1.0-alpha01"
-composeMultiplatform = "1.11.0-alpha01"
-androidx-tooling-version = "1.11.0-alpha03"
-compose-multiplatform-adaptive = "1.3.0-alpha03"
-compose-multiplatform-lifecycle = "2.10.0-alpha07"
+multiplatform-nav3-ui = "1.1.0-alpha04"
+composeMultiplatform = "1.11.0-alpha04"
+androidx-tooling-version = "1.11.0-beta01"
+compose-multiplatform-adaptive = "1.3.0-alpha06"
+compose-multiplatform-lifecycle = "2.10.0-beta01"
 bluecove = "2.1.1"
-datastore = "1.2.0"
+datastore = "1.2.1"
 kermit = "2.0.8"
 mokoPermissionsCompose = "0.18.1-desktop-5"
 build-konfig = "0.17.1"
-kableCore = "0.41.0"
+kableCore = "0.42.0"
 kableExceptions = "0.34.0"
-compose_toast = "2.1.2"
+compose_toast = "3.1.0"
+turbine = "1.2.1"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -58,7 +60,10 @@ cmp-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview
 androidx-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "androidx-tooling-version" }
 cmp-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "composeMultiplatform" }
 cmp-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
+cmp-ui-test = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "composeMultiplatform" }
+cmp-ui-test-junit = { module = "org.jetbrains.compose.ui:ui-test-junit4", version.ref = "composeMultiplatform" }
 cmp-adaptive = { module = "org.jetbrains.compose.material3.adaptive:adaptive", version.ref = "compose-multiplatform-adaptive" }
+#nav
 jetbrains-lifecycle-viewmodelNavigation3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "compose-multiplatform-lifecycle" }
 jetbrains-material3-adaptiveNavigation3 = { module = "org.jetbrains.compose.material3.adaptive:adaptive-navigation3", version.ref = "compose-multiplatform-adaptive" }
 jetbrains-navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "multiplatform-nav3-ui" }
@@ -72,10 +77,12 @@ androidx-splash = { module = "androidx.core:core-splashscreen", version.ref = "s
 #koin
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
+koin-test-junit = { module = "io.insert-koin:koin-test-junit4", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 koin-android-startup = { module = "io.insert-koin:koin-androidx-startup", version.ref = "koin" }
+koin-compose-nav3 = { module = "io.insert-koin:koin-compose-navigation3", version.ref = "koin" }
 #kotlinx
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "kotlinxImmutable" }
@@ -99,6 +106,9 @@ compose_toast = { module = "io.github.the-best-is-best:compose_toast", version.r
 #kotlinx serialization
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
 kotlinx-serialization-protobuf = { module = "org.jetbrains.kotlinx:kotlinx-serialization-protobuf", version.ref = "kotlinxSerialization" }
+#io
+assertk = { module = "com.willowtreeapps.assertk:assertk", version.ref = "assertk" }
+turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

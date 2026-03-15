@@ -1,15 +1,13 @@
 package com.sam.bluepad.presentation.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
-import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.DialogSceneStrategy
-import androidx.navigation3.scene.SceneStrategy
+import androidx.navigation3.scene.SinglePaneSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import com.sam.bluepad.presentation.navigation.dialogs.advertiseDeviceEntry
@@ -34,13 +32,10 @@ fun AppRootNavHost(modifier: Modifier = Modifier) {
         RootNavGraph.AssociatedNavGraphRoute,
     )
 
-    val sceneStrategy: SceneStrategy<NavKey> =
-        remember { BottomSheetSceneStrategy<NavKey>() then DialogSceneStrategy() }
-
     NavDisplay(
         backStack = backStack,
         modifier = modifier,
-        sceneStrategy = sceneStrategy,
+        sceneStrategies = listOf(DialogSceneStrategy(), BottomSheetSceneStrategy(), SinglePaneSceneStrategy()),
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator(),
             rememberViewModelStoreNavEntryDecorator(),
@@ -58,6 +53,6 @@ fun AppRootNavHost(modifier: Modifier = Modifier) {
             // sync routes
             receiveSyncDataRouteEntry(backStack)
             syncDeviceRouteEntry(backStack)
-        }
+        },
     )
 }

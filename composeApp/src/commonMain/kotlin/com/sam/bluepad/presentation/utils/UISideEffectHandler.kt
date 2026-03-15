@@ -9,56 +9,56 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
-import io.github.tbib.compose_toast.native_toast.NativeShowToast
-import io.github.tbib.compose_toast.native_toast.NativeToastType
+import io.github.the_best_is_best.toast_kmp.KMPNativeShowToast
+import io.github.the_best_is_best.toast_kmp.KMPNativeToastType
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 
 @Composable
 fun UiEventsHandler(
-	eventsFlow: () -> Flow<UIEvents>,
-	onNavigateBack: () -> Unit = {},
+    eventsFlow: () -> Flow<UIEvents>,
+    onNavigateBack: () -> Unit = {},
 ) {
 
-	val lifecyleOwner = LocalLifecycleOwner.current
-	val snackBarState = LocalSnackBarState.current
+    val lifecyleOwner = LocalLifecycleOwner.current
+    val snackBarState = LocalSnackBarState.current
 
 
-	val updatedOnNavigateBack by rememberUpdatedState(newValue = onNavigateBack)
+    val updatedOnNavigateBack by rememberUpdatedState(newValue = onNavigateBack)
 
-	LaunchedEffect(key1 = lifecyleOwner) {
-		lifecyleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-			eventsFlow().buffer(2, BufferOverflow.DROP_OLDEST)
-				.collect { event ->
-					when (event) {
+    LaunchedEffect(key1 = lifecyleOwner) {
+        lifecyleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            eventsFlow()
+                .buffer(2, BufferOverflow.DROP_OLDEST)
+                .collect { event ->
+                    when (event) {
+                        is UIEvents.ShowSnackBarWithActions -> {
+                            val result = snackBarState.showSnackbar(
+                                message = event.message,
+                                actionLabel = event.actionText,
+                                withDismissAction = event.actionText != null,
+                                duration = if (event.long) SnackbarDuration.Long else SnackbarDuration.Short,
+                            )
+                            when (result) {
+                                SnackbarResult.ActionPerformed -> event.action()
+                                else -> {}
+                            }
+                        }
 
-						is UIEvents.ShowSnackBarWithActions -> {
-							val result = snackBarState.showSnackbar(
-								message = event.message,
-								actionLabel = event.actionText,
-								withDismissAction = event.actionText != null,
-								duration = if (event.long) SnackbarDuration.Long else SnackbarDuration.Short
-							)
-							when (result) {
-								SnackbarResult.ActionPerformed -> event.action()
-								else -> {}
-							}
-						}
+                        is UIEvents.ShowToast -> KMPNativeShowToast.show(
+                            msg = event.message,
+                            type = KMPNativeToastType.LONG,
+                        )
 
-						is UIEvents.ShowToast -> NativeShowToast.show(
-							event.message,
-							NativeToastType.SHORT
-						)
+                        is UIEvents.ShowSnackBar -> snackBarState.showSnackbar(
+                            message = event.message,
+                            duration = SnackbarDuration.Short,
+                        )
 
-						is UIEvents.ShowSnackBar -> snackBarState.showSnackbar(
-							message = event.message,
-							duration = SnackbarDuration.Short
-						)
-
-						UIEvents.PopScreen -> updatedOnNavigateBack()
-					}
-				}
-		}
-	}
+                        UIEvents.PopScreen -> updatedOnNavigateBack()
+                    }
+                }
+        }
+    }
 }
