@@ -284,6 +284,7 @@ class ServerConnectionCallback private constructor(
 
         val serviceId = descriptor.characteristic.service.uuid.toKotlinUuid()
         val characteristicsId = descriptor.characteristic.uuid.toKotlinUuid()
+        val descriptorId = descriptor.uuid.toKotlinUuid()
 
         // only handle sync service id
         if (serviceId != BLEConstants.SYNC_SERVICE_ID) return
@@ -292,8 +293,9 @@ class ServerConnectionCallback private constructor(
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> _scope.launch {
                 val result = delegate.handleCCCReadRequest(
                     address = device.address,
+                    descriptorUuid = descriptorId,
+                    characteristicsId = characteristicsId,
                     isIndication = descriptor.characteristic.hasIndication,
-                    descriptorUuid = descriptor.uuid.toKotlinUuid(),
                 )
                 sendReadResponse(device, requestId, offset, result)
             }
@@ -338,7 +340,12 @@ class ServerConnectionCallback private constructor(
 
         when (characteristicId) {
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> _scope.launch {
-                val result = delegate.handleCCCWriteRequest(device.address, descriptor.uuid.toKotlinUuid(), value)
+                val result = delegate.handleCCCWriteRequest(
+                    address = device.address,
+                    descriptorUuid = descriptorId,
+                    characteristicsId = characteristicId,
+                    value = value,
+                )
                 sendWriteResponse(device, requestId, offset, responseNeeded, value, result)
             }
 

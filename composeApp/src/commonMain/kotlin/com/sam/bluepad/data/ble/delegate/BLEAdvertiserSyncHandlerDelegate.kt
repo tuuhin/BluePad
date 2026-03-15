@@ -49,12 +49,14 @@ class BLEAdvertiserSyncHandlerDelegate(
                 deviceName = currentDeviceInfo.name,
                 nonce = nonce.decodeToString(),
             )
+            Logger.d(TAG) { "OUTGOING PEER DEVICE DATA" }
             protoBuf.encodeToByteArray<BLEPeerData>(peerData)
         }.onFailure { err -> Logger.e(TAG, err) { "CANNOT HANDLE DEVICE READ REQUEST" } }
     }
 
     fun handleDeviceWriteRequest(value: ByteArray): Result<BLEPeerData> {
         return runCatching {
+            Logger.d(TAG) { "INCOMING PEER DEVICE DATA" }
             protoBuf.decodeFromByteArray<BLEPeerData>(value)
         }.onFailure { err -> Logger.e(TAG, err) { "CANNOT HANDLE DEVICE WRITE REQUEST" } }
     }
@@ -76,6 +78,7 @@ class BLEAdvertiserSyncHandlerDelegate(
                 nonce = nonce,
                 allowSync = true,
             )
+            Logger.d(TAG) { "OUTGOING HANDSHAKE DATA" }
             protoBuf.encodeToByteArray<BLESyncHandshakeData.AdvertiseDeviceData>(data)
         }.onFailure { err -> Logger.e(TAG, err) { "CANNOT HANDLE PROXIMITY READ REQUEST" } }
     }
@@ -115,6 +118,7 @@ class BLEAdvertiserSyncHandlerDelegate(
             }
             Logger.d(TAG) { "SENDING ACK DATA ACK RESULT: $message" }
             if (externalDevice == null) throw UnrecognizedPeerDeviceException(response.senderID)
+            Logger.d(TAG) { "INCOMING HANDSHAKE DEVICE :$externalDevice" }
             externalDevice
         }.onFailure { err ->
             if (err is CancellationException) throw err
@@ -127,7 +131,8 @@ class BLEAdvertiserSyncHandlerDelegate(
         onNotify: suspend (ByteArray) -> Boolean,
     ) = runCatching {
         // read the response
-        val opResult = when (val response = protoBuf.decodeFromByteArray<BLESyncSession>(value)) {
+        val response = protoBuf.decodeFromByteArray<BLESyncSession>(value)
+        val opResult = when (response) {
             BLESyncSession.SyncSessionStart -> sendSessionStartACK(onNotify)
             is BLESyncSession.BLESyncDataPacket -> manageSyncSessionDataPacket(response, onNotify)
             is BLESyncSession.BLESyncDataAck -> manageSyncSessionDataPacketAck(response, onNotify)
@@ -150,6 +155,7 @@ class BLEAdvertiserSyncHandlerDelegate(
 
             else -> throw UnsupportedSyncSessionException(response)
         }
+        Logger.d(TAG) { "INCOMING SYNC DATA :${response::class.simpleName}" }
         opResult.getOrElse { err -> throw err }
         Unit
     }.onFailure { err ->
@@ -338,6 +344,7 @@ class BLEAdvertiserSyncHandlerDelegate(
     suspend fun handleCCCWriteRequest(
         address: String,
         descriptorUuid: Uuid,
+        characteristicsId: Uuid,
         value: ByteArray,
     ): Result<Unit> = runCatching {
         if (descriptorUuid != BLEConstants.CCC_DESCRIPTOR)
@@ -346,23 +353,23 @@ class BLEAdvertiserSyncHandlerDelegate(
         lock.withLock {
             cccDescriptorMap[address] = value.btDescriptorsNotificationOrIndicationEnabled
         }
-        val bytesAsString = value.joinToString("-") { it.toHexString() }
-        Logger.d(TAG) { "UPDATED DESCRIPTOR VALUE :$bytesAsString" }
+        Logger.d(TAG) { "DESCRIPTOR WRITE REQUESTED BY $address CHARACTERISTICS:$characteristicsId VALUE:0x${value.toHexString()}" }
     }
 
     suspend fun handleCCCReadRequest(
         address: String,
-        isIndication: Boolean = true,
         descriptorUuid: Uuid,
+        characteristicsId: Uuid,
+        isIndication: Boolean = true,
     ): Result<ByteArray> = runCatching {
 
         if (descriptorUuid != BLEConstants.CCC_DESCRIPTOR)
             throw InvalidCCCDescriptorException()
 
+
         val isEnabled = lock.withLock { cccDescriptorMap[address] ?: false }
         val bytes = isEnabled.asCCCDescriptorValue(isIndication)
-        val bytesAsString = bytes.joinToString("-") { it.toHexString() }
-        Logger.d(TAG) { "DESCRIPTOR READ VALUE : $bytesAsString" }
+        Logger.d(TAG) { "DESCRIPTOR READ REQUESTED BY $address CHARACTERISTICS:$characteristicsId VALUE :0x${bytes.toHexString()}" }
         bytes
     }
 

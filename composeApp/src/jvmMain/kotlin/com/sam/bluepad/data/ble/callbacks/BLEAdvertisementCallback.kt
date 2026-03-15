@@ -231,6 +231,7 @@ class BLEAdvertisementCallback private constructor(
                     delegate.handleCCCReadRequest(
                         address = deviceAddress,
                         isIndication = true,
+                        characteristicsId = characteristicsId,
                         descriptorUuid = descriptorId,
                     )
                 }
@@ -263,7 +264,12 @@ class BLEAdvertisementCallback private constructor(
 
         when (characteristicId) {
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> _scope.launch {
-                delegate.handleCCCWriteRequest(deviceAddress, descriptorId, value)
+                delegate.handleCCCWriteRequest(
+                    address = deviceAddress,
+                    descriptorUuid = descriptorId,
+                    characteristicsId = characteristicId,
+                    value = value,
+                )
             }
 
             else -> {}

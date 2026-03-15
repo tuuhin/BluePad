@@ -29,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -46,6 +47,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.uuid.Uuid
 
 private const val TAG = "BLE_SYNC_CONNECTION_MANAGER"
 
@@ -137,7 +139,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
             logging {
                 identifier = "IDENTIFIER: ${advertisement.identifier}"
                 format = Logging.Format.Compact
-                level = Logging.Level.Warnings
+                level = Logging.Level.Data
             }
             // exception handler
             observationExceptionHandler { exp ->
@@ -170,23 +172,20 @@ actual class BLESyncConnectionManagerImpl private constructor(
                 val handshakeCharacteristics = syncService.characteristics
                     .handshakeCharacteristics.getOrThrow()
 
-                val syncCharacteristics = syncService.characteristics
+                val syncDataCharacteristics = syncService.characteristics
                     .syncDataCharacteristics.getOrThrow()
 
                 // handle sync notification
-                val syncNotification = launch(start = CoroutineStart.LAZY) {
-                    peripheral.observe(syncCharacteristics)
-                        .collect { bytes ->
+                val syncDataJob = launch(start = CoroutineStart.LAZY) {
+                    syncDataCharacteristics.observeNotifications(
+                        peripheral = peripheral,
+                        onToggleNotification = { uuid, enable -> },
+                        onObserveBytes = { bytes ->
                             delegate.handleSyncDataNotification(
                                 characteristicId = BLEConstants.SYNC_DATA_CHARACTERISTICS_ID,
                                 value = bytes,
                                 onWriteBytes = { dataBytes ->
-                                    try {
-                                        peripheral.write(syncCharacteristics, dataBytes)
-                                        true
-                                    } catch (_: NotConnectedException) {
-                                        false
-                                    }
+                                    peripheral.writeToCharacteristics(syncDataCharacteristics, dataBytes)
                                 },
                                 onToggleNotification = { _, enable ->
                                     if (enable) Unit
@@ -195,33 +194,22 @@ actual class BLESyncConnectionManagerImpl private constructor(
                                 onError = { err -> close(err) },
                                 onEvent = { event -> trySend(event) },
                             )
-                        }
+                        },
+                    )
                 }
 
                 // handle the handshake notifications
-                val handshakeNotifications = launch(start = CoroutineStart.LAZY) {
-                    peripheral.observe(handshakeCharacteristics)
-                        .onStart {
-                            Logger.d(TAG) { "HANDSHAKE NOTIFICATION FLOW STARTED" }
-                            handshakeCharacteristics.descriptors.find { it.descriptorUuid == BLEConstants.CCC_DESCRIPTOR }
-                                ?.let { desc ->
-                                    val readValue = peripheral.read(desc)
-                                    delegate.onEnabledDisabledCCCDescriptor(
-                                        address = peripheral.toString(),
-                                        characteristicId = handshakeCharacteristics.characteristicUuid,
-                                        bytes = readValue,
-                                        onWriteBytes = { bytes ->
-                                            peripheral.write(handshakeCharacteristics, bytes)
-                                            true
-                                        },
-                                        onToggleNotification = { _, enable ->
-                                            if (!enable) syncNotification.cancel()
-                                        },
-                                    )
-                                }
-                        }
-                        .onCompletion { Logger.d(TAG) { "HANDSHAKE NOTIFICATION FLOW COMPLETED" } }
-                        .collect { bytes ->
+                val handshakeJob = launch(start = CoroutineStart.LAZY) {
+                    handshakeCharacteristics.observeNotifications(
+                        peripheral = peripheral,
+                        onToggleNotification = { uuid, enable ->
+                            when (uuid) {
+                                syncDataCharacteristics.characteristicUuid if (enable) -> syncDataJob.start()
+                                syncDataCharacteristics.characteristicUuid -> syncDataJob.cancel()
+                                handshakeCharacteristics.characteristicUuid if !enable -> cancel()
+                            }
+                        },
+                        onObserveBytes = { bytes ->
                             delegate.handleHandshakeNotification(
                                 value = bytes,
                                 onHandshakeSuccess = {
@@ -232,20 +220,21 @@ actual class BLESyncConnectionManagerImpl private constructor(
                                     return@handleHandshakeNotification true
                                 },
                             )
-                        }
+                        },
+                    )
                 }
 
                 val bytes = peripheral.read(handshakeCharacteristics)
                 val deviceResult = delegate.handleHandshakeRead(
-                    deviceAddress = peripheral.toString(),
+                    deviceAddress = peripheral.identifier.toString(),
                     value = bytes,
                     deviceInfo = localDeviceProvider.readDeviceInfo.first(),
+                    savedDevices = externalDevicesRepository::getDeviceByUuid,
                     onReadSuccess = {
                         // start the handshake notification reader
                         Logger.d(TAG) { "HANDSHAKE SUCCESSFULLY WAITING FOR APPROVAL " }
-                        handshakeNotifications.start()
+                        handshakeJob.start()
                     },
-                    savedDevices = { id -> externalDevicesRepository.getDeviceByUuid(id) },
                 )
 
                 if (deviceResult.isFailure) {
@@ -255,8 +244,8 @@ actual class BLESyncConnectionManagerImpl private constructor(
 
                 trySend(ConnectorSyncEvent.ConnectorDeviceDataResponseSend)
                 // now join the handshake notification one
-                handshakeNotifications.join()
-                syncNotification.join()
+                handshakeJob.join()
+                syncDataJob.join()
 
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
@@ -298,4 +287,55 @@ actual class BLESyncConnectionManagerImpl private constructor(
             find { it.characteristicUuid == BLEConstants.SYNC_DATA_CHARACTERISTICS_ID }
                 ?: throw InvalidServiceOrCharacteristicsException(false, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID)
         }
+
+    private suspend fun Peripheral.writeToCharacteristics(
+        characteristic: DiscoveredCharacteristic,
+        bytes: ByteArray
+    ): Boolean {
+        return try {
+            write(characteristic, bytes)
+            true
+        } catch (_: NotConnectedException) {
+            false
+        }
+    }
+
+    private suspend fun DiscoveredCharacteristic.observeNotifications(
+        peripheral: Peripheral,
+        onToggleNotification: (Uuid, Boolean) -> Unit,
+        onObserveBytes: suspend (ByteArray) -> Unit,
+    ) = coroutineScope {
+
+        val cccDescriptor = descriptors.find { it.descriptorUuid == BLEConstants.CCC_DESCRIPTOR }
+            ?: return@coroutineScope
+
+        peripheral
+            .observe(
+                characteristic = this@observeNotifications,
+                onSubscription = {
+                    Logger.d(TAG) { "READY TO OBSERVE NOTIFICATIONS" }
+                    // mostly ccc will be enabled here
+                    delegate.onEnabledDisabledCCCDescriptor(
+                        address = peripheral.identifier.toString(),
+                        characteristicId = this@observeNotifications.characteristicUuid,
+                        bytes = peripheral.read(cccDescriptor),
+                        onWriteBytes = { bytes -> peripheral.writeToCharacteristics(this@observeNotifications, bytes) },
+                        onToggleNotification = onToggleNotification,
+                    )
+                },
+            )
+            .onStart { Logger.d(TAG) { "CHARACTERISTICS:${characteristicUuid} NOTIFICATION OBSERVER STARTED" } }
+            .onCompletion {
+                Logger.d(TAG) { "CHARACTERISTICS:${characteristicUuid} NOTIFICATION OBSERVER STOPPED" }
+                // mostly ccc will be disabled here
+                delegate.onEnabledDisabledCCCDescriptor(
+                    address = peripheral.toString(),
+                    characteristicId = this@observeNotifications.characteristicUuid,
+                    bytes = peripheral.read(cccDescriptor),
+                    onWriteBytes = { bytes -> peripheral.writeToCharacteristics(this@observeNotifications, bytes) },
+                    onToggleNotification = onToggleNotification,
+                )
+            }
+            .collect(onObserveBytes)
+    }
 }

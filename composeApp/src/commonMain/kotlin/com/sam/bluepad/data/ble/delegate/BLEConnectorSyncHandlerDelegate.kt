@@ -21,7 +21,6 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
 
 class BLEConnectorSyncHandlerDelegate(
@@ -32,8 +31,7 @@ class BLEConnectorSyncHandlerDelegate(
 
     val lock = Mutex()
     val handShakeDataMap = HashMap<String, BLESyncHandshakeData.AdvertiseResponseData>()
-    val hadShakeNotificationMap = ConcurrentHashMap<String, Boolean>()
-
+    val hadShakeNotificationMap = HashMap<String, Boolean>()
 
     suspend inline fun handleHandshakeRead(
         deviceAddress: String,
@@ -330,11 +328,13 @@ class BLEConnectorSyncHandlerDelegate(
                 Logger.d(TAG) { "WRITING ADVERTISING RESPONSE CHARACTERISTICS IS_SUCCESS:$response" }
             }
 
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID -> lock.withLock {
-                val isNotificationOn = hadShakeNotificationMap[address] ?: false
-                if (!isNotificationOn) return
-                hadShakeNotificationMap.remove(address)
-                Logger.d(TAG) { "TURNING OF HANDSHAKE NOTIFICATION AND TURNING ON DATA NOTIFICATION" }
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID -> {
+                lock.withLock {
+                    val isNotificationOn = hadShakeNotificationMap[address] ?: false
+                    if (!isNotificationOn) return
+                    hadShakeNotificationMap.remove(address)
+                }
+                Logger.d(TAG) { "TURNING OFF HANDSHAKE NOTIFICATION AND TURNING ON DATA NOTIFICATION" }
 
                 onToggleNotification(BLEConstants.SYNC_DATA_CHARACTERISTICS_ID, true)
             }

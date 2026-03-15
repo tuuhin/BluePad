@@ -90,13 +90,13 @@ class OutgoingPayloadManagerImpl private constructor(
         if (bytes.isEmpty()) return
 
         val encodedString = encoder.encodeBytes(bytes)
-        Logger.d(TAG) { "PREPARING PAYLOAD CHUNKS TOTAL PAYLOAD SIZE:${encodedString.length}" }
+        Logger.d(TAG) { "PREPARING PAYLOAD TOTAL SIZE:${encodedString.length}" }
 
         withContext(Dispatchers.Default) {
             _lock.withLock {
                 val chunks = encodedString.chunked(DEFAULT_WINDOW_SIZE)
                 _dataQueue.addAll(chunks)
-                Logger.d(TAG) { "PAYLOAD CHUNKS READY: COUNT:${chunks.size}" }
+                Logger.d(TAG) { "PAYLOAD CHUNKS READY NUMBER OF BLOCKS:${chunks.size}" }
             }
         }
     }
