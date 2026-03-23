@@ -28,7 +28,9 @@ import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
+import com.sam.bluepad.domain.models.DevicePlatformOS
 import com.sam.bluepad.domain.models.ExternalDeviceModel
+import com.sam.bluepad.domain.models.LocalDeviceInfoModel
 import com.sam.bluepad.presentation.utils.PreviewFakes
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.receiver_sync_request_allow
@@ -42,7 +44,8 @@ fun ReceiverFoundContainer(
     onStartSync: () -> Unit,
     onRejectDevice: () -> Unit,
     modifier: Modifier = Modifier,
-    currentDevice: ExternalDeviceModel? = null,
+    currentDevice: LocalDeviceInfoModel? = null,
+    currentDevicePlatformOS: DevicePlatformOS = DevicePlatformOS.UNKNOWN,
     isSyncStarted: Boolean = false,
     contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
@@ -51,17 +54,10 @@ fun ReceiverFoundContainer(
     val devicesContent = remember {
         movableContentOf {
             // remote device
-            ReceiverDeviceUICard(
-                device = externalDevice,
-                isRemoteDevice = true,
-                localDeviceContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            )
+            ReceiverDeviceUICard(device = externalDevice)
             // current device
             currentDevice?.let { device ->
-                ReceiverDeviceUICard(
-                    device = device,
-                    localDeviceContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                )
+                LocalDeviceUICard(device = device, platformOS = currentDevicePlatformOS)
             }
         }
     }
@@ -107,17 +103,17 @@ private fun SyncPermissionButtons(
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.widthIn(min = 120.dp, max = 320.dp)
+            modifier = Modifier.widthIn(min = 120.dp, max = 320.dp),
         ) {
             Button(
                 onClick = onStartSync,
                 shapes = ButtonDefaults.shapes(
                     shape = ButtonDefaults.shape,
-                    pressedShape = ButtonDefaults.mediumPressedShape
+                    pressedShape = ButtonDefaults.mediumPressedShape,
                 ),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = primaryActionColor,
-                    contentColor = contentColorFor(primaryActionColor)
+                    contentColor = contentColorFor(primaryActionColor),
                 ),
                 enabled = showOptions,
                 contentPadding = ButtonDefaults.MediumContentPadding,
@@ -125,13 +121,13 @@ private fun SyncPermissionButtons(
             ) {
                 Text(
                     text = stringResource(Res.string.receiver_sync_request_allow),
-                    style = MaterialTheme.typography.titleMediumEmphasized
+                    style = MaterialTheme.typography.titleMediumEmphasized,
                 )
             }
             Button(
                 onClick = onRejectSync,
                 shapes = ButtonDefaults.shapes(
-                    shape = ButtonDefaults.shape, pressedShape = ButtonDefaults.mediumPressedShape
+                    shape = ButtonDefaults.shape, pressedShape = ButtonDefaults.mediumPressedShape,
                 ),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = secondaryActionColor,
@@ -143,7 +139,7 @@ private fun SyncPermissionButtons(
             ) {
                 Text(
                     text = stringResource(Res.string.receiver_sync_request_deny),
-                    style = MaterialTheme.typography.titleMediumEmphasized
+                    style = MaterialTheme.typography.titleMediumEmphasized,
                 )
             }
         }
@@ -156,7 +152,8 @@ private fun SyncPermissionButtons(
 private fun ReceiverFoundContainerPreview() = BluePadTheme {
     ReceiverFoundContainer(
         externalDevice = PreviewFakes.FAKE_EXTERNAL_MODEL,
-        currentDevice = PreviewFakes.FAKE_EXTERNAL_MODEL_2,
+        currentDevice = PreviewFakes.FAKE_LOCAL_DEVICE_MODEL,
+        currentDevicePlatformOS = DevicePlatformOS.ANDROID,
         onStartSync = {},
         onRejectDevice = {},
         contentPadding = PaddingValues(12.dp),

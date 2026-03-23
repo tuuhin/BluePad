@@ -3,18 +3,21 @@ package com.sam.bluepad.presentation.utils
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.models.DevicePlatformOS
 import com.sam.bluepad.domain.models.ExternalDeviceModel
+import com.sam.bluepad.domain.models.LocalDeviceInfoModel
 import com.sam.bluepad.domain.models.SketchModel
 import kotlinx.datetime.LocalDateTime
 import kotlin.uuid.Uuid
 
 object PreviewFakes {
 
+    val FAKE_LOCAL_DEVICE_MODEL = LocalDeviceInfoModel(deviceId = Uuid.random(), name = "Some_Name")
+
     val FAKE_EXTERNAL_MODEL = ExternalDeviceModel(
         id = Uuid.random(),
         displayName = "Android device",
         pairedAt = LocalDateTime(2025, 1, 10, 4, 32),
         lastSeenAt = LocalDateTime(2025, 1, 10, 4, 32),
-        deviceOs = DevicePlatformOS.ANDROID
+        deviceOs = DevicePlatformOS.ANDROID,
     )
 
     val FAKE_EXTERNAL_MODEL_2 = ExternalDeviceModel(
@@ -22,7 +25,7 @@ object PreviewFakes {
         displayName = "Windows device",
         pairedAt = LocalDateTime(2025, 1, 10, 4, 32),
         lastSeenAt = LocalDateTime(2025, 1, 10, 4, 32),
-        deviceOs = DevicePlatformOS.WINDOWS
+        deviceOs = DevicePlatformOS.WINDOWS,
     )
 
     val FAKE_SKETCH_MODEL = SketchModel(
@@ -37,6 +40,6 @@ object PreviewFakes {
     val FAKE_BLE_PEER_MODEL = BLEPeerData(
         deviceId = Uuid.random(),
         deviceName = "Test device",
-        deviceOs = DevicePlatformOS.ANDROID
+        deviceOs = DevicePlatformOS.ANDROID,
     )
 }

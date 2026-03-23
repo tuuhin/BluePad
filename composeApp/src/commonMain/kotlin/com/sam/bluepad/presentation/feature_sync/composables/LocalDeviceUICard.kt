@@ -30,17 +30,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.sam.bluepad.domain.models.ExternalDeviceModel
+import com.sam.bluepad.domain.models.DevicePlatformOS
+import com.sam.bluepad.domain.models.LocalDeviceInfoModel
 import com.sam.bluepad.presentation.composables.DeviceOSTypeContainer
 import com.sam.bluepad.presentation.utils.PreviewFakes
 import com.sam.bluepad.theme.BluePadTheme
 import com.sam.bluepad.theme.Dimensions
 
 @Composable
-fun ReceiverDeviceUICard(
-    device: ExternalDeviceModel,
+fun LocalDeviceUICard(
+    device: LocalDeviceInfoModel,
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.secondaryContainer,
+    platformOS: DevicePlatformOS = DevicePlatformOS.ANDROID,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
     shape: Shape = MaterialTheme.shapes.extraLarge,
 ) {
     Card(
@@ -49,7 +51,7 @@ fun ReceiverDeviceUICard(
         colors = CardDefaults.cardColors(
             containerColor = containerColor,
             contentColor = contentColorFor(containerColor),
-            ),
+        ),
     ) {
         Column(
             modifier = Modifier.padding(Dimensions.CARD_INTERNAL_PADDING_LARGE)
@@ -64,7 +66,7 @@ fun ReceiverDeviceUICard(
             ) {
                 AssistChip(
                     onClick = {},
-                    label = { Text(text = "Remote") },
+                    label = { Text("Local") },
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.onTertiaryContainer),
                     shape = MaterialTheme.shapes.extraLarge,
                     enabled = false,
@@ -74,21 +76,21 @@ fun ReceiverDeviceUICard(
                     ),
                 )
                 DeviceOSTypeContainer(
-                    deviceOs = device.deviceOs,
+                    deviceOs = platformOS,
                     modifier = Modifier.size(64.dp),
-                    containerColor = MaterialTheme.colorScheme.primary,
+                    containerColor = MaterialTheme.colorScheme.secondary,
                 )
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    text = device.displayName ?: "Unknown",
+                    text = device.name,
                     style = MaterialTheme.typography.headlineSmallEmphasized,
                 )
                 Text(
                     text = buildAnnotatedString {
                         append("ID: ")
                         withStyle(style = SpanStyle(fontFamily = FontFamily.Monospace)) {
-                            append(device.id.toHexString())
+                            append(device.deviceId.toHexString())
                         }
                     },
                     fontWeight = FontWeight.SemiBold,
@@ -102,10 +104,11 @@ fun ReceiverDeviceUICard(
 
 @Preview
 @Composable
-private fun ReceiverDeviceUICardPreview() = BluePadTheme {
+private fun LocalDeviceUICardPreview() = BluePadTheme {
     Surface(color = MaterialTheme.colorScheme.background) {
-        ReceiverDeviceUICard(
-            device = PreviewFakes.FAKE_EXTERNAL_MODEL,
+        LocalDeviceUICard(
+            device = PreviewFakes.FAKE_LOCAL_DEVICE_MODEL,
+            platformOS = DevicePlatformOS.ANDROID,
         )
     }
 }

@@ -22,6 +22,7 @@ import com.sam.bluepad.presentation.feature_sync.composables.ReceiverRunningOrNo
 import com.sam.bluepad.presentation.feature_sync.composables.ReceiverScreenTopAppbar
 import com.sam.bluepad.presentation.feature_sync.event.SyncReceiverScreenEvent
 import com.sam.bluepad.presentation.feature_sync.state.SyncReceiverScreenState
+import com.sam.bluepad.presentation.feature_sync.state.SyncUIState
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.PreviewFakes
 import com.sam.bluepad.resources.Res
@@ -51,7 +52,7 @@ fun SyncReceiverScreen(
                 isAdvertising = state.isReceiverRunning,
                 navigation = navigation,
                 onStartAdvertising = { onEvent(SyncReceiverScreenEvent.StartSyncReceiver) },
-                onStopAdvertising = { onEvent(SyncReceiverScreenEvent.StopSyncReceiver) }
+                onStopAdvertising = { onEvent(SyncReceiverScreenEvent.StopSyncReceiver) },
             )
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
@@ -78,7 +79,7 @@ fun SyncReceiverScreen(
             onFailed = {
                 ReceiverRunningOrNoPeerContainer(
                     isRunning = state.isReceiverRunning,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
                 )
             },
         )
@@ -92,12 +93,12 @@ private class SyncReceiverScreenStatePreviewParams :
         get() = sequenceOf(
             SyncReceiverScreenState(),
             SyncReceiverScreenState(isReceiverRunning = true),
-            SyncReceiverScreenState(isSyncRunning = true),
+            SyncReceiverScreenState(syncPhase = SyncUIState.NotRunning),
             SyncReceiverScreenState(
-                currentDevice = PreviewFakes.FAKE_EXTERNAL_MODEL,
+                currentDevice = PreviewFakes.FAKE_LOCAL_DEVICE_MODEL,
                 foreignDevice = PreviewFakes.FAKE_EXTERNAL_MODEL_2,
-                isReceiverRunning = false
-            )
+                isReceiverRunning = false,
+            ),
         )
 }
 
@@ -113,8 +114,8 @@ private fun SyncReceiverScreenPreview(
         navigation = {
             Icon(
                 painter = painterResource(Res.drawable.ic_back),
-                contentDescription = stringResource(Res.string.action_back)
+                contentDescription = stringResource(Res.string.action_back),
             )
-        }
+        },
     )
 }
