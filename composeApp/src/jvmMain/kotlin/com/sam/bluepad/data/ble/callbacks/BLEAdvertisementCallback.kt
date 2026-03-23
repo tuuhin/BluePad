@@ -5,10 +5,12 @@ import com.sam.blejavaadvertise.callbacks.GATTServerCallback
 import com.sam.blejavaadvertise.models.GATTBluetoothError
 import com.sam.blejavaadvertise.models.GATTServiceAdvertisementStatus
 import com.sam.bluepad.data.ble.delegate.BLEAdvertiserSyncHandlerDelegate
+import com.sam.bluepad.data.sync.dto.BLESyncSession
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.ble.models.BLEPeerData
+import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.sync.InPayloadManager
@@ -31,6 +33,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.protobuf.ProtoBuf
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
 
 private const val TAG = "BLE_ADVERTISEMENT_CALLBACK"
@@ -78,17 +81,16 @@ class BLEAdvertisementCallback private constructor(
         _notifyCharacteristicsChanged = callback
     }
 
-
     private val _isRunning = MutableStateFlow(false)
     val isRunning = _isRunning.asStateFlow()
 
     private val _peerDevices = MutableStateFlow<List<BLEPeerData>>(emptyList())
-    val incomingDeviceData: Flow<List<BLEPeerData>>
-        get() = _peerDevices.asStateFlow()
+    val incomingDeviceData: Flow<List<BLEPeerData>> = _peerDevices.asStateFlow()
 
     private val _advertiserEvents = Channel<AdvertiserSyncEvent>(Channel.CONFLATED)
-    val syncRequestEvents: Flow<AdvertiserSyncEvent>
-        get() = _advertiserEvents.receiveAsFlow()
+    val syncRequestEvents: Flow<AdvertiserSyncEvent> = _advertiserEvents.receiveAsFlow()
+
+    private val _activeSyncDeviceInfo = ConcurrentHashMap<String, ExternalDeviceModel>()
 
     override fun onServiceAdded(
         serviceUuid: String,
@@ -184,8 +186,15 @@ class BLEAdvertisementCallback private constructor(
                         savedDevices = { id -> externalDevicesRepo.getDeviceByUuid(id) },
                         currentDeviceInfo = _deviceInfo.value,
                     )
-                    val externalDevice = result.getOrNull() ?: return@launch
-                    _advertiserEvents.trySend(AdvertiserSyncEvent.ForeignSyncRequest(externalDevice))
+                    result.fold(
+                        onSuccess = { device ->
+                            _activeSyncDeviceInfo[deviceAddress] = device
+                            _advertiserEvents.trySend(AdvertiserSyncEvent.HandshakeSuccess(device))
+                        },
+                        onFailure = { err ->
+                            _advertiserEvents.trySend(AdvertiserSyncEvent.HandshakeFailed("Handshake failed: ${err.message}"))
+                        },
+                    )
                 }
             }
 
@@ -194,10 +203,35 @@ class BLEAdvertisementCallback private constructor(
                 Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicId FROM SYNC SERVICE" }
 
                 _scope.launch {
-                    delegate.handleSyncDataWriteRequest(
+                    val result = delegate.handleSyncDataWriteRequest(
                         value = value,
                         onNotify = { bytes ->
                             _notifyCharacteristicsChanged?.invoke(deviceAddress, characteristicUuid, bytes) ?: false
+                        },
+                    )
+
+                    result.fold(
+                        onSuccess = { session ->
+                            val device = _activeSyncDeviceInfo[deviceAddress] ?: return@fold
+                            val event = when (session) {
+                                BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
+                                BLESyncSession.SyncSessionSuccessful -> AdvertiserSyncEvent.SyncCompleted(device)
+                                is BLESyncSession.SyncSessionFailed ->
+                                    AdvertiserSyncEvent.SyncFailed(device, session.reason.name)
+
+                                else -> return@fold
+                            }
+                            _advertiserEvents.trySend(event)
+                        },
+                        onFailure = { error ->
+                            Logger.e(TAG, error) { "Failed to handle sync data write request" }
+                            val device = _activeSyncDeviceInfo[deviceAddress] ?: return@fold
+                            _advertiserEvents.trySend(
+                                AdvertiserSyncEvent.SyncFailed(
+                                    device,
+                                    error.message ?: "Unknown Error",
+                                ),
+                            )
                         },
                     )
                 }
@@ -206,6 +240,7 @@ class BLEAdvertisementCallback private constructor(
             else -> {}
         }
     }
+
 
     override fun onReadDescriptor(
         deviceAddress: String?,
@@ -286,5 +321,8 @@ class BLEAdvertisementCallback private constructor(
         // clear the maps
         delegate.cleanUp()
         _peerDevices.value = emptyList()
+        _activeSyncDeviceInfo.clear()
+        // clear the callback ref
+        _notifyCharacteristicsChanged = null
     }
 }

@@ -13,10 +13,12 @@ import com.sam.bluepad.data.ble.delegate.BLEAdvertiserSyncHandlerDelegate
 import com.sam.bluepad.data.ble.exceptions.GattInvalidCharacteristicsException
 import com.sam.bluepad.data.ble.exceptions.GattInvalidDescriptorException
 import com.sam.bluepad.data.ble.utils.hasIndication
+import com.sam.bluepad.data.sync.dto.BLESyncSession
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.ble.models.BLEPeerData
+import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.sync.InPayloadManager
@@ -37,6 +39,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.protobuf.ProtoBuf
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.toKotlinUuid
 
 private const val TAG = "SERVER_CALLBACK"
@@ -96,6 +99,8 @@ class ServerConnectionCallback private constructor(
     fun setOnServiceAdded(onServiceAdded: () -> Unit = {}) {
         _onServiceAdded = onServiceAdded
     }
+
+    private val _activeSyncDeviceInfo = ConcurrentHashMap<String, ExternalDeviceModel>()
 
     private val _peerDevices = MutableStateFlow<List<BLEPeerData>>(emptyList())
     val peerDevices = _peerDevices.asStateFlow()
@@ -238,12 +243,17 @@ class ServerConnectionCallback private constructor(
                         savedDevices = { id -> externalDevicesRepo.getDeviceByUuid(id) },
                         currentDeviceInfo = _deviceInfo.value,
                     )
-                    val externalDevice = result.getOrElse { err ->
-                        val errorResult = Result.failure<Unit>(err)
-                        sendWriteResponse(device, requestId, offset, responseNeeded, value, errorResult)
-                        return@launch
-                    }
-                    _advertiserEvents.trySend(AdvertiserSyncEvent.ForeignSyncRequest(externalDevice))
+                    result.fold(
+                        onSuccess = { externalDevice ->
+                            _activeSyncDeviceInfo[device.address] = externalDevice
+                            _advertiserEvents.trySend(AdvertiserSyncEvent.HandshakeSuccess(externalDevice))
+                        },
+                        onFailure = { err ->
+                            _advertiserEvents.trySend(AdvertiserSyncEvent.HandshakeFailed("Handshake: ${err.message}"))
+                        },
+                    )
+                    // send response
+                    sendWriteResponse(device, requestId, offset, responseNeeded, value, result.toUnitResult())
                 }
             }
 
@@ -258,14 +268,34 @@ class ServerConnectionCallback private constructor(
                             _onCharacteristicsChanged?.invoke(device, characteristic, bytes) ?: false
                         },
                     )
-                    sendWriteResponse(device, requestId, offset, responseNeeded, value, result)
+                    result.fold(
+                        onSuccess = { session ->
+                            val device = _activeSyncDeviceInfo[device.address] ?: return@fold
+                            val event = when (session) {
+                                BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
+                                BLESyncSession.SyncSessionSuccessful -> AdvertiserSyncEvent.SyncCompleted(device)
+                                is BLESyncSession.SyncSessionFailed ->
+                                    AdvertiserSyncEvent.SyncFailed(device, session.reason.name)
+
+                                else -> return@fold
+                            }
+                            _advertiserEvents.trySend(event)
+                        },
+                        onFailure = { error ->
+                            val extenalDevice = _activeSyncDeviceInfo[device.address] ?: return@fold
+                            val event = AdvertiserSyncEvent.SyncFailed(extenalDevice, error.message ?: "Unknown Error")
+                            _advertiserEvents.trySend(event)
+                        },
+                    )
+                    // send write response
+                    sendWriteResponse(device, requestId, offset, responseNeeded, value, result.toUnitResult())
                 }
             }
 
-            else -> sendWriteResponse(
-                device, requestId, offset, responseNeeded, value,
-                Result.failure(GattInvalidCharacteristicsException(characteristic)),
-            )
+            else -> {
+                val res = Result.failure<Unit>(GattInvalidCharacteristicsException(characteristic))
+                sendWriteResponse(device, requestId, offset, responseNeeded, value, res)
+            }
         }
     }
 
@@ -404,5 +434,12 @@ class ServerConnectionCallback private constructor(
         // clear the maps
         delegate.cleanUp()
         _peerDevices.value = emptyList()
+
+        // clean the callbacks too
+        _sendResponse = null
+        _onCharacteristicsChanged = null
+        _onServiceAdded = null
     }
+
+    private fun Result<Any>.toUnitResult(): Result<Unit> = map { }
 }

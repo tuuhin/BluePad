@@ -129,7 +129,7 @@ class BLEAdvertiserSyncHandlerDelegate(
     suspend inline fun handleSyncDataWriteRequest(
         value: ByteArray,
         onNotify: suspend (ByteArray) -> Boolean,
-    ) = runCatching {
+    ): Result<BLESyncSession> = runCatching {
         // read the response
         val response = protoBuf.decodeFromByteArray<BLESyncSession>(value)
         val opResult = when (response) {
@@ -156,8 +156,10 @@ class BLEAdvertiserSyncHandlerDelegate(
             else -> throw UnsupportedSyncSessionException(response)
         }
         Logger.d(TAG) { "INCOMING SYNC DATA :${response::class.simpleName}" }
-        opResult.getOrElse { err -> throw err }
-        Unit
+        // if any operation failed throw the error
+        opResult.getOrThrow()
+        // otherwise return the response itself
+        response
     }.onFailure { err ->
         if (err is CancellationException) throw err
         Logger.e(TAG, err) { "CANNOT HANDLE THIS OPERATION ${err.message}" }
