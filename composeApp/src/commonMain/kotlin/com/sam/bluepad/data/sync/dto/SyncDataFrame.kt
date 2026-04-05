@@ -18,7 +18,9 @@ sealed class SyncDataFrame(@ProtoNumber(10) val type: BLESyncDataType) {
         @ProtoNumber(2) val title: String,
         @ProtoNumber(3) val itemId: Uuid,
         @ProtoNumber(4) val version: Int,
-        @Serializable(InstantSerializer::class) @ProtoNumber(5) val lastModified: Instant,
+
+        @Serializable(InstantSerializer::class)
+        @ProtoNumber(5) val lastModified: Instant,
     ) : SyncDataFrame(type = BLESyncDataType.METADATA)
 
     @Serializable
@@ -28,10 +30,19 @@ sealed class SyncDataFrame(@ProtoNumber(10) val type: BLESyncDataType) {
     ) : SyncDataFrame(BLESyncDataType.CONTENT_REQUEST)
 
     @Serializable
-    @SerialName("c")
+    @SerialName("ct")
     data class Content(
         @ProtoNumber(1) val itemId: Uuid,
         @ProtoNumber(2) val content: String,
+        @ProtoNumber(3) val title: String,
+        @ProtoNumber(4) val isDeleted: Boolean,
+        @ProtoNumber(5) val contentHash: String,
+        @ProtoNumber(6) val version: Int,
+        @ProtoNumber(7) val modifiedByDevice: Uuid? = null,
+        @ProtoNumber(8) val createdByDevice: Uuid? = null,
+
+        @Serializable(InstantSerializer::class)
+        @ProtoNumber(9) val modifiedAt: Instant,
     ) : SyncDataFrame(BLESyncDataType.CONTENT)
 
 }

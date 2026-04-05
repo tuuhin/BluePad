@@ -3,10 +3,11 @@ package com.sam.bluepad.data.sync
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.sync.dto.SyncPayloadSequence
 import com.sam.bluepad.data.sync.mappers.toPayloadSequence
+import com.sam.bluepad.domain.repository.SketchesRepository
 import com.sam.bluepad.domain.sync.OutPayloadManager
-import com.sam.bluepad.domain.sync.SyncManager
 import com.sam.bluepad.domain.sync.models.FragmentedDataBlock
 import com.sam.bluepad.domain.sync.models.SyncDataPayload
+import com.sam.bluepad.domain.sync.models.toMetadataModel
 import com.sam.bluepad.domain.use_cases.BytesEncoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -24,15 +25,15 @@ import kotlin.concurrent.atomics.incrementAndFetch
 @OptIn(ExperimentalAtomicApi::class)
 class OutgoingPayloadManagerImpl private constructor(
     private val protoBuf: ProtoBuf,
-    private val syncManager: SyncManager,
     private val encoder: BytesEncoder,
+    private val sketchRepository: SketchesRepository,
     private val timezone: TimeZone,
 ) : OutPayloadManager {
 
-    constructor(protoBuf: ProtoBuf, syncManager: SyncManager, encoder: BytesEncoder) : this(
+    constructor(protoBuf: ProtoBuf, encoder: BytesEncoder, repo: SketchesRepository) : this(
         protoBuf = protoBuf,
-        syncManager = syncManager,
         encoder = encoder,
+        sketchRepository = repo,
         timezone = TimeZone.currentSystemDefault(),
     )
 
@@ -50,9 +51,11 @@ class OutgoingPayloadManagerImpl private constructor(
         reset()
         // convert all of them into sync data metadata
         val payloadSeq = when (type) {
-            SyncDataPayload.Metadata -> syncManager.getLocalSyncMetadata()
-                .getOrElse { err -> return Result.failure(err) }
-                .toPayloadSequence(timezone)
+            SyncDataPayload.Metadata ->
+                sketchRepository.readAllSketches()
+                    .getOrElse { err -> return Result.failure(err) }
+                    .map { it.toMetadataModel() }
+                    .toPayloadSequence(timezone)
 
             is SyncDataPayload.ContentIdsQuery -> type.ids.toPayloadSequence()
             is SyncDataPayload.ContentPayload -> type.contentData.toPayloadSequence(timezone)
@@ -90,19 +93,19 @@ class OutgoingPayloadManagerImpl private constructor(
         if (bytes.isEmpty()) return
 
         val encodedString = encoder.encodeBytes(bytes)
-        Logger.d(TAG) { "PREPARING PAYLOAD TOTAL SIZE:${encodedString.length}" }
+        Logger.d(tag = TAG) { "PREPARING PAYLOAD TOTAL SIZE:${encodedString.length}" }
 
         withContext(Dispatchers.Default) {
             _lock.withLock {
                 val chunks = encodedString.chunked(DEFAULT_WINDOW_SIZE)
                 _dataQueue.addAll(chunks)
-                Logger.d(TAG) { "PAYLOAD CHUNKS READY NUMBER OF BLOCKS:${chunks.size}" }
+                Logger.d(tag = TAG) { "PAYLOAD CHUNKS READY NUMBER OF BLOCKS:${chunks.size}" }
             }
         }
     }
 
     override suspend fun reset() {
-        Logger.d(TAG) { "RESETTING THE SYNC OUT MANAGER STATE" }
+        Logger.d(tag = TAG) { "RESETTING THE SYNC OUT MANAGER STATE" }
         _lock.withLock {
             _dataQueue.clear()
         }

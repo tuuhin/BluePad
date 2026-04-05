@@ -1,12 +1,15 @@
 package com.sam.bluepad.data.sync
 
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.domain.models.SketchModel
 import com.sam.bluepad.domain.repository.SketchesRepository
 import com.sam.bluepad.domain.sync.SyncManager
 import com.sam.bluepad.domain.sync.models.SyncContentDataModel
 import com.sam.bluepad.domain.sync.models.SyncMetadataModel
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import kotlin.uuid.Uuid
 
 private const val TAG = "SYNC_MANAGER_IMPL"
@@ -15,57 +18,46 @@ class SyncManagerImpl(
     private val repo: SketchesRepository,
 ) : SyncManager {
 
-    override suspend fun findChangedItems(incoming: List<SyncMetadataModel>): Result<List<Uuid>> {
-        val externalMetadata = incoming.map { it.itemId }
-        val sketches =
-            repo.readSketchesByUUID(externalMetadata).getOrElse { return Result.failure(it) }.associateBy { it.id }
+    override suspend fun computeUpdatedOrNewItems(metadata: List<SyncMetadataModel>): Result<List<Uuid>> {
+        return withContext(Dispatchers.Default) {
+            try {
+                val externalMetadata = metadata.map { it.itemId }
+                val sketches = repo.readSketchesByUUID(externalMetadata)
+                    .getOrThrow()
 
-        return coroutineScope {
-            val finalList = incoming.asSequence().mapNotNull { metadata ->
-                ensureActive()
+                val sketchesMap = sketches.associateBy { it.id }
 
-                // if the item id is not found then it's a new item on the external device
-                val model = sketches[metadata.itemId] ?: return@mapNotNull metadata.itemId
+                val finalList = metadata.asSequence().mapNotNull { metadata ->
+                    ensureActive()
 
-                // if any of version no ,content hash , modified at or title changed then
-                // its a change in external device
-                val changed =
-                    metadata.version > model.version || metadata.contentHash != model.contentHash || metadata.lastModified > model.modifiedAt || metadata.title != model.title
-                if (!changed) return@mapNotNull null
-                metadata.itemId
-            }.distinct().toList()
+                    // if the item id is not found then it's a new item on the external device
+                    val model = sketchesMap[metadata.itemId] ?: return@mapNotNull metadata.itemId
 
-            Result.success(finalList)
+                    val hasChanged = metadata.hasContentChange(model)
+                    if (!hasChanged) return@mapNotNull null
+                    metadata.itemId
+
+                }.distinct().toList()
+                Result.success(finalList)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Result.failure(e)
+            }
         }
     }
 
-    override suspend fun fetchContentForExchange(itemIds: List<Uuid>): Result<List<SyncContentDataModel>> {
-
-        val sketches = repo.readSketchesByUUID(itemIds).getOrElse { return Result.failure(it) }
-
-        val contentOut = sketches.map { SyncContentDataModel(content = it.content, itemId = it.id) }
-        return Result.success(contentOut)
-    }
-
-    override suspend fun saveSyncContent(data: List<SyncContentDataModel>): Result<Unit> {
-        Logger.d(TAG) { "SAVING NEW CONTENT TO DB" }
-        Logger.d(TAG) { "DATA RECEIVED :$data" }
-        // TODO FIX THIS LATER
-        return Result.success(Unit)
-    }
-
-    override suspend fun getLocalSyncMetadata(): Result<List<SyncMetadataModel>> {
-        val sketches = repo.readAllSketches().getOrElse { return Result.failure(it) }
-
-        val contentOut = sketches.map {
-            SyncMetadataModel(
-                contentHash = it.contentHash,
-                itemId = it.id,
-                title = it.title,
-                version = it.version,
-                lastModified = it.modifiedAt,
-            )
+    override suspend fun performSyncResultsOperation(results: List<SyncContentDataModel>): Result<Unit> {
+        Logger.i(tag = TAG) { "=========================== FINAL DATA RECEIVED :$results" }
+        return runCatching {
+            Logger.d(tag = TAG) { "SAVING NEW CONTENT TO DB" }
+//                repo.updateSketches()
         }
-        return Result.success(contentOut)
     }
+
+
+    private fun SyncMetadataModel.hasContentChange(model: SketchModel) =
+        version > model.version ||
+            contentHash != model.contentHash ||
+            lastModified > model.modifiedAt ||
+            title != model.title
 }
