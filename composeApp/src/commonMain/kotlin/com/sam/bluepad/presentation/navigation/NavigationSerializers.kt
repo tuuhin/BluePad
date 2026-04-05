@@ -31,8 +31,8 @@ object NavigationSerializers {
 				RootNavGraph.SearchDeviceRoute.serializer()
 			)
 			subclass(
-				RootNavGraph.SendSyncDeviceRoute::class,
-				RootNavGraph.SendSyncDeviceRoute.serializer()
+				RootNavGraph.SyncConnectorRoute::class,
+				RootNavGraph.SyncConnectorRoute.serializer()
 			)
 			subclass(
 				RootNavGraph.ReceiveSyncDeviceRoute::class,

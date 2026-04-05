@@ -28,7 +28,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.sam.bluepad.domain.ble.models.BLEConnectionState
+import com.sam.bluepad.domain.ble.enums.BLEConnectionState
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.external_device_conn_device_data_collection_started

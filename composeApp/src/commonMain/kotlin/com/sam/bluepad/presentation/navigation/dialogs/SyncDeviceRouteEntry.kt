@@ -1,24 +1,44 @@
 package com.sam.bluepad.presentation.navigation.dialogs
 
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.scene.DialogSceneStrategy
-import com.sam.bluepad.presentation.feature_sync.SendSyncDialog
-import com.sam.bluepad.presentation.feature_sync.viewmodel.SendDeviceSyncViewModel
+import com.sam.bluepad.presentation.feature_sync.SyncConnectorScreen
+import com.sam.bluepad.presentation.feature_sync.viewmodel.SyncConnectorViewModel
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
+import com.sam.bluepad.presentation.utils.UiEventsHandler
+import com.sam.bluepad.resources.Res
+import com.sam.bluepad.resources.action_back
+import com.sam.bluepad.resources.ic_back
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 fun EntryProviderScope<NavKey>.syncDeviceRouteEntry(
-	backStack: NavBackStack<NavKey>
-) = entry<RootNavGraph.SendSyncDeviceRoute>(
-	metadata = DialogSceneStrategy.dialog(),
-) {
+    backStack: NavBackStack<NavKey>
+) = entry<RootNavGraph.SyncConnectorRoute> {
 
-	val viewModel = koinViewModel<SendDeviceSyncViewModel>()
+    val viewModel = koinViewModel<SyncConnectorViewModel>()
+    val screenState by viewModel.screenState.collectAsStateWithLifecycle()
 
-	SendSyncDialog(
-		onEvent = viewModel::onEvent,
-		onCancel = { backStack.removeLastOrNull() },
-	)
+    UiEventsHandler(eventsFlow = viewModel::uiEvent)
+
+    SyncConnectorScreen(
+        state = screenState,
+        onEvent = viewModel::onEvent,
+        navigation = {
+            if (backStack.isNotEmpty()) {
+                IconButton(onClick = { backStack.removeLastOrNull() }) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_back),
+                        contentDescription = stringResource(Res.string.action_back)
+                    )
+                }
+            }
+        },
+    )
 }

@@ -9,45 +9,57 @@ import com.sam.bluepad.data.datastore.DataStoreUtils
 import com.sam.bluepad.data.datastore.LocalDeviceInfoProviderImpl
 import com.sam.bluepad.data.repository.ExternalDevicesRepoImpl
 import com.sam.bluepad.data.repository.SketchesRepoImpl
+import com.sam.bluepad.data.serialization.SerializationProtocols
+import com.sam.bluepad.data.sync.IncomingPayloadManagerImpl
+import com.sam.bluepad.data.sync.OutgoingPayloadManagerImpl
+import com.sam.bluepad.data.sync.SyncManagerImpl
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.repository.SketchesRepository
+import com.sam.bluepad.domain.sync.InPayloadManager
+import com.sam.bluepad.domain.sync.OutPayloadManager
+import com.sam.bluepad.domain.sync.SyncManager
+import com.sam.bluepad.domain.use_cases.BytesEncoder
 import com.sam.bluepad.domain.use_cases.HashGenerator
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import com.sam.bluepad.domain.use_cases.RandomGeneratorImpl
 import com.sam.bluepad.domain.use_cases.RandomNameGenerator
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.protobuf.ProtoBuf
 import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
-@OptIn(ExperimentalSerializationApi::class)
 val commonAppModule = module(true) {
-	// db module
-	single {
-		val dbBuilder = get<AppDBBuilder>()
-		BluePadDB.prepareRoomDb(dbBuilder.getDbBuilder())
-	}
-	single { get<BluePadDB>().devicesDao() }
-	single { get<BluePadDB>().sketchesDao() }
-	single { get<BluePadDB>().sketchMetadataDao() }
-	single { get<BluePadDB>().sketchContentDao() }
+    // db module
+    single {
+        val dbBuilder = get<AppDBBuilder>()
+        BluePadDB.prepareRoomDb(dbBuilder.getDbBuilder())
+    }
+    single { get<BluePadDB>().devicesDao() }
+    single { get<BluePadDB>().sketchesDao() }
+    single { get<BluePadDB>().sketchMetadataDao() }
+    single { get<BluePadDB>().sketchContentDao() }
 
-	// preferences
-	single(createdAtStart = true) { get<DataStoreProvider>().provideDataStore(DataStoreUtils.APP_COMMONS_DATASTORE_FILE) }
-		.bind<DataStore<Preferences>>()
+    // preferences
+    single(createdAtStart = true) { get<DataStoreProvider>().provideDataStore(DataStoreUtils.APP_COMMONS_DATASTORE_FILE) }
+        .bind<DataStore<Preferences>>()
 
-	//utils
-	singleOf(::RandomNameGenerator)
-	singleOf(::RandomGeneratorImpl) bind RandomGenerator::class
-	singleOf(::HashGenerator)
-	single { ProtoBuf } bind ProtoBuf::class
+    //utils
+    singleOf(::RandomNameGenerator)
+    singleOf(::RandomGeneratorImpl) bind RandomGenerator::class
+    singleOf(::HashGenerator)
+    single { SerializationProtocols.protobuf } bind ProtoBuf::class
+    single { BytesEncoder() } bind BytesEncoder::class
 
-	// device id provider
-	singleOf(::LocalDeviceInfoProviderImpl) bind LocalDeviceInfoProvider::class
-	// repository
-	factoryOf(::ExternalDevicesRepoImpl) bind ExternalDevicesRepository::class
-	factoryOf(::SketchesRepoImpl) bind SketchesRepository::class
+    // sync manager
+    factoryOf(::SyncManagerImpl) bind SyncManager::class
+    factoryOf(::OutgoingPayloadManagerImpl) bind OutPayloadManager::class
+    factoryOf(::IncomingPayloadManagerImpl) bind InPayloadManager::class
+
+    // device id provider
+    singleOf(::LocalDeviceInfoProviderImpl) bind LocalDeviceInfoProvider::class
+    // repository
+    factoryOf(::ExternalDevicesRepoImpl) bind ExternalDevicesRepository::class
+    factoryOf(::SketchesRepoImpl) bind SketchesRepository::class
 }

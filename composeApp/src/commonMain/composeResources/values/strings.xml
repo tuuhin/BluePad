@@ -1,107 +1,125 @@
 <resources>
-  <string name="navigation_list">List</string>
-  <string name="navigation_device">Device</string>
-  <string name="navigation_settings">Settings</string>
-  <string name="dialog_action_close">Close</string>
-  <string name="dialog_action_cancel">Cancel</string>
-  <string name="dialog_action_connect">Connect</string>
-  <string name="dialog_action_disconnect">Disconnect</string>
-  <string name="dialog_action_add_device">Add Device</string>
-  <string name="action_start_scan">Start</string>
-  <string name="action_stop_scan">Stop</string>
-  <string name="action_revoke_device">Revoke</string>
-  <string name="action_delete_device">Delete</string>
-  <string name="action_delete">Delete</string>
-  <string name="action_add_new_device">Add Device</string>
-  <string name="action_save">Save</string>
-  <string name="action_update">Update</string>
-  <string name="action_sync_device">Sync</string>
-  <string name="state_loading">Loading</string>
-  <string name="add_devices_screen_title">Add Device</string>
-  <string name="add_devices_screen_subtitle">Scan for devices in your perimeter</string>
-  <string name="action_ble_advertise">Advertise</string>
-  <string name="action_back">Back Arrow</string>
-  <string name="devices_screen_title">Devices</string>
-  <string name="devices_screen_subtitle">Manage and sync sketches across your devices</string>
-  <string name="devices_screen_list_empty">No devices were added</string>
-  <string name="scan_results_no_device_title">No devices found</string>
-  <string name="scan_results_no_device_desc">No device found after scan, if you have's started any scan</string>
-  <string name="scan_results_save_device_warning">Sometime scan results can have duplicate values, use the latest device or refresh result</string>
-  <string name="scan_device_signal_strength_excellent">Excellent</string>
-  <!--  Signal Strength-->
-  <string name="scan_device_signal_strength_good">Good</string>
-  <string name="scan_device_signal_strength_avg">Average</string>
-  <string name="scan_device_signal_strength_poor">Poor</string>
-  <string name="scan_device_signal_strength_very_poor">Very Poor</string>
-  <string name="scan_device_signal_strength_unreliable">Unreliable</string>
+    <string name="navigation_list">List</string>
+    <string name="navigation_device">Device</string>
+    <string name="navigation_settings">Settings</string>
+    <string name="dialog_action_close">Close</string>
+    <string name="dialog_action_cancel">Cancel</string>
+    <string name="dialog_action_connect">Connect</string>
+    <string name="dialog_action_disconnect">Disconnect</string>
+    <string name="dialog_action_add_device">Add Device</string>
+    <string name="action_start_scan">Start</string>
+    <string name="action_stop_scan">Stop</string>
+    <string name="action_revoke_device">Revoke</string>
+    <string name="action_delete_device">Delete</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_add_new_device">Add Device</string>
+    <string name="action_save">Save</string>
+    <string name="action_update">Update</string>
+    <string name="action_sync_device">Sync</string>
+    <string name="state_loading">Loading</string>
+    <string name="add_devices_screen_title">Add Device</string>
+    <string name="add_devices_screen_subtitle">Scan for devices in your perimeter</string>
+    <string name="action_ble_advertise">Advertise</string>
+    <string name="action_back">Back Arrow</string>
+    <string name="devices_screen_title">Devices</string>
+    <string name="devices_screen_subtitle">Manage and sync sketches across your devices</string>
+    <string name="devices_screen_list_empty">No devices were added</string>
+    <string name="scan_results_no_device_title">No devices found</string>
+    <string name="scan_results_no_device_desc">No device found after scan, if you have's started any scan</string>
+    <string name="scan_results_save_device_warning">Sometime scan results can have duplicate values, use the latest device or refresh result</string>
+    <string name="scan_device_signal_strength_excellent">Excellent</string>
+    <!--  Signal Strength-->
+    <string name="scan_device_signal_strength_good">Good</string>
+    <string name="scan_device_signal_strength_avg">Average</string>
+    <string name="scan_device_signal_strength_poor">Poor</string>
+    <string name="scan_device_signal_strength_very_poor">Very Poor</string>
+    <string name="scan_device_signal_strength_unreliable">Unreliable</string>
 
-  <!--  Device Card title -->
-  <string name="scan_result_device_name_not_found">N/A</string>
-  <string name="scan_result_device_name_title">Device Name</string>
-  <string name="scan_result_device_signal_strength_title">Strength</string>
-  <string name="scan_result_device_address_tittle">Address</string>
-  <!--  Device Advertisement Dialog-->
-  <string name="device_advertisement_dialog_title">Advertise this device</string>
-  <string name="device_advertisement_dialog_text">This makes your device visible so another nearby device can add it.</string>
-  <string-array name="device_advertisement_dialog_points">
-    <item>Makes current device visible to scanners</item>
-    <item>While device is advertising connect to it to exchange information</item>
-    <item>Current device will auto capture connectable device info and save it</item>
-  </string-array>
-  <string name="device_advertisement_action_start">Start Advertisement</string>
-  <string name="device_advertisement_action_stop">Stop Advertisement</string>
-  <!--  External device connection state-->
-  <string name="external_device_conn_state_connecting">Connecting</string>
-  <string name="external_device_conn_state_connected">Connected</string>
-  <string name="external_device_conn_state_disconnecting">Disconnecting</string>
-  <string name="external_device_conn_state_disconnected">Disconnected</string>
-  <string name="external_device_conn_dialog_title">Connecting to Device</string>
-  <string name="external_device_conn_dialog_text">Trying connecting to external device and exchanging device information</string>
-  <string name="external_device_conn_device_data_found">Device information is collected successfully</string>
-  <string name="external_device_conn_device_data_collection_started">Collecting device information</string>
-  <string name="external_device_conn_device_disconnected">Device has been disconnected, try connecting to it again</string>
-  <string name="action_connect">Connect</string>
-  <string name="external_device_conn_retry_connection">Retry</string>
-  <!--  sketches content screen-->
-  <string name="sketches_screen_title">Sketches</string>
-  <string name="sketches_screen_subtitle">View, edit, and manage your quick sketches.</string>
-  <string name="add_content_screen_title_text">Title</string>
-  <string name="add_content_screen_note_text">Your Sketch</string>
-  <string name="sketches_list_empty">No sketches were added, start by creating one</string>
-  <string name="action_create_sketch">Create Sketch</string>
-  <string name="delete_sketch_dialog_title">Delete this Sketch</string>
-  <string name="delete_sketch_dialog_text">Are you sure you want to delete this sketch</string>
-  <!--  Settings-->
-  <string name="settings_screen_title">Settings</string>
-  <string name="settings_screen_subtitle">Manage preferences, owner identity, and device access</string>
-  <string name="action_rename">Rename</string>
-  <string name="settings_device_name_title">Device Name</string>
-  <string name="settings_device_rename_dialog_title">Update Device Name</string>
-  <string name="settings_device_rename_dialog_text">Update current device name</string>
-  <string name="settings_screen_re_enroll_device_title">Re-Enroll Device</string>
-  <string name="settings_screen_re_enroll_device_text">Remove revoke tag from all revoked device</string>
-  <string name="action_re_enroll_device">Re-Enroll</string>
-  <!--  Others-->
-  <string name="bluetooth_not_enabled_text">Bluetooth is not enabled</string>
-  <string name="menu_action_copy">Copy</string>
-  <string name="menu_action_delete">Delete</string>
-  <string name="menu_action_share">Share</string>
-  <!--  Sync -->
-  <string name="sync_device_dialog_title">Searching device</string>
-  <string name="sync_device_dialog_text">Finding your associated device, keep it close to your device</string>
-  <string name="action_receive">Receive</string>
-  <string name="action_continue">Continue</string>
-  <string name="receive_sync_devices_list_screen_title">Ready to receive</string>
-  <string name="receive_sync_devices_list_screen_subtitle">Looking for nearby devices that want to sync</string>
-  <string name="option_receiver_active">Receiver is Active</string>
-  <string name="option_receiver_inactive">Receiver Off</string>
+    <!--  Device Card title -->
+    <string name="scan_result_device_name_not_found">N/A</string>
+    <string name="scan_result_device_name_title">Device Name</string>
+    <string name="scan_result_device_signal_strength_title">Strength</string>
+    <string name="scan_result_device_address_tittle">Address</string>
+    <!--  Device Advertisement Dialog-->
+    <string name="device_advertisement_dialog_title">Advertise this device</string>
+    <string name="device_advertisement_dialog_text">This makes your device visible so another nearby device can add it.</string>
+    <string-array name="device_advertisement_dialog_points">
+        <item>Makes current device visible to scanners</item>
+        <item>While device is advertising connect to it to exchange information</item>
+        <item>Current device will auto capture connectable device info and save it</item>
+    </string-array>
+    <string name="device_advertisement_action_start">Start Advertisement</string>
+    <string name="device_advertisement_action_stop">Stop Advertisement</string>
+    <!--  External device connection state-->
+    <string name="external_device_conn_state_connecting">Connecting</string>
+    <string name="external_device_conn_state_connected">Connected</string>
+    <string name="external_device_conn_state_disconnecting">Disconnecting</string>
+    <string name="external_device_conn_state_disconnected">Disconnected</string>
+    <string name="external_device_conn_dialog_title">Connecting to Device</string>
+    <string name="external_device_conn_dialog_text">Trying connecting to external device and exchanging device information</string>
+    <string name="external_device_conn_device_data_found">Device information is collected successfully</string>
+    <string name="external_device_conn_device_data_collection_started">Collecting device information</string>
+    <string name="external_device_conn_device_disconnected">Device has been disconnected, try connecting to it again</string>
+    <string name="action_connect">Connect</string>
+    <string name="external_device_conn_retry_connection">Retry</string>
+    <!--  sketches content screen-->
+    <string name="sketches_screen_title">Sketches</string>
+    <string name="sketches_screen_subtitle">View, edit, and manage your quick sketches.</string>
+    <string name="add_content_screen_title_text">Title</string>
+    <string name="add_content_screen_note_text">Your Sketch</string>
+    <string name="sketches_list_empty">No sketches were added, start by creating one</string>
+    <string name="action_create_sketch">Create Sketch</string>
+    <string name="delete_sketch_dialog_title">Delete this Sketch</string>
+    <string name="delete_sketch_dialog_text">Are you sure you want to delete this sketch</string>
+    <!--  Settings-->
+    <string name="settings_screen_title">Settings</string>
+    <string name="settings_screen_subtitle">Manage preferences, owner identity, and device access</string>
+    <string name="action_rename">Rename</string>
+    <string name="settings_device_name_title">Device Name</string>
+    <string name="settings_device_rename_dialog_title">Update Device Name</string>
+    <string name="settings_device_rename_dialog_text">Update current device name</string>
+    <string name="settings_screen_re_enroll_device_title">Re-Enroll Device</string>
+    <string name="settings_screen_re_enroll_device_text">Remove revoke tag from all revoked device</string>
+    <string name="action_re_enroll_device">Re-Enroll</string>
+    <!--  Others-->
+    <string name="bluetooth_not_enabled_text">Bluetooth is not enabled</string>
+    <string name="menu_action_copy">Copy</string>
+    <string name="menu_action_delete">Delete</string>
+    <string name="menu_action_share">Share</string>
+    <!--  Sync -->
+    <string name="sync_device_screen_title">Ready to sync</string>
+    <string name="sync_device_screen_subtitle">Start a connection to sync data with this device</string>
+    <string name="action_receive">Receive</string>
+    <string name="action_start_sync">Start Sync</string>
+    <string name="action_continue">Continue</string>
+    <string name="receive_sync_devices_list_screen_title">Ready to receive</string>
+    <string name="receive_sync_devices_list_screen_subtitle">Looking for nearby devices that want to sync</string>
+    <string name="option_receiver_active">Receiver is Active</string>
+    <string name="option_receiver_inactive">Receiver Off</string>
+    <string name="turn_on_sync_receiver">Start Receiver</string>
+    <string name="turn_off_sync_receiver">Stop Receiver</string>
+    <string name="receiver_sync_devices_empty_title">Looking for devices to sync in close proximity</string>
+    <string name="receiver_sync_devices_empty_text">Press sync from the other saved device</string>
+    <string name="receiver_sync_devices_receiver_running_title">Unable to find any device in close proximity</string>
+    <string name="receiver_sync_devices_receiver_running_text">Ensure sync started from the other saved device</string>
+    <string name="receiver_sync_request_allow">Allow</string>
+    <string name="receiver_sync_request_deny">Deny</string>
 
-  <string name="black_list_devices_screen_title">Black Listed Device</string>
-  <string name="black_list_devices_screen_text">The list of devices that are blacklisted earlier</string>
-  <string name="black_list_devices_screen_action_restore_all">Restore All</string>
-  <string name="black_list_devices_screen_action_restore">Restore</string>
-  <string name="black_list_devices_no_items_title">No Blacklisted devices</string>
-  <string name="device_device_id">Device id: %1$s</string>
-  <string name="action_blacklist_devices_screen">BlackList Devices</string>
-  <string name="action_blacklist_device">BlackList</string>
+    <string name="connector_discovery_timeout_title">Cannot find the device, Try Again</string>
+    <string name="connector_discovery_timeout_text">Make sure the device receiver is active</string>
+    <string name="connector_discovery_running_title">Looking for receiver</string>
+    <string name="connector_discovery_running_text">Looking for device in proximity keep the receiver close to the device</string>
+    <string name="connector_discovery_connected_without_data_title">Connected to the device</string>
+    <string name="connector_discovery_connected_without_data_text">Connected to a device extracting information</string>
+    <string name="connector_discovery_disconnected_without_data_title">Cannot connect to the device</string>
+    <string name="connector_discovery_disconnected_without_data_text">Failed to connect to the device</string>
+
+    <string name="black_list_devices_screen_title">Black Listed Device</string>
+    <string name="black_list_devices_screen_text">The list of devices that are blacklisted earlier</string>
+    <string name="black_list_devices_screen_action_restore_all">Restore All</string>
+    <string name="black_list_devices_screen_action_restore">Restore</string>
+    <string name="black_list_devices_no_items_title">No Blacklisted devices</string>
+    <string name="device_device_id">Device id: %1$s</string>
+    <string name="action_blacklist_devices_screen">BlackList Devices</string>
+    <string name="action_blacklist_device">BlackList</string>
 </resources>

@@ -32,8 +32,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.sam.bluepad.domain.ble.enums.BLEPeerSignalStrength
 import com.sam.bluepad.domain.ble.models.BLEPeerDevice
-import com.sam.bluepad.domain.ble.models.BLEPeerSignalStrength
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_connect
 import com.sam.bluepad.resources.scan_device_signal_strength_avg

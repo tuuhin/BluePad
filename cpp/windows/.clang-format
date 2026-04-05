@@ -1,0 +1,26 @@
+# Base style to inherit sensible defaults
+BasedOnStyle: LLVM
+
+# Core Layout
+Language: Cpp
+Standard: c++17
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 120 # 80 is a bit tight for modern screens; 100 is a sweet spot
+
+# Alignment & Spacing
+PointerAlignment: Left
+AccessModifierOffset: -4 # Standard practice: aligns 'public:' with 'class'
+AlignConsecutiveAssignments: true
+AlignTrailingComments: true
+
+# Braces & Flow
+BreakBeforeBraces: Attach
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: All
+
+# Cleanliness
+MaxEmptyLinesToKeep: 1
+FixNamespaceComments: true # Automatically adds // namespace Name

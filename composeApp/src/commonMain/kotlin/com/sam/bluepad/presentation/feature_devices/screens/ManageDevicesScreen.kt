@@ -52,128 +52,130 @@ import com.sam.bluepad.theme.Dimensions
 import kotlinx.collections.immutable.ImmutableList
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManageDevicesScreen(
-	devices: ImmutableList<ExternalDeviceModel>,
-	onEvent: (ManageDevicesScreenEvent) -> Unit,
-	modifier: Modifier = Modifier,
-	isLoading: Boolean = false,
-	navigation: @Composable () -> Unit = {},
-	onNavigateToAddDeviceRoute: () -> Unit = {},
-	onNavigateToAdvertiseRoute: () -> Unit = {},
-	onNavigateToRevokeDevicesRoute: () -> Unit = {},
+    devices: ImmutableList<ExternalDeviceModel>,
+    onEvent: (ManageDevicesScreenEvent) -> Unit,
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
+    navigation: @Composable () -> Unit = {},
+    onNavigateToAddDeviceRoute: () -> Unit = {},
+    onNavigateToAdvertiseRoute: () -> Unit = {},
+    onNavigateToRevokeDevicesRoute: () -> Unit = {},
+    onNavigateToSyncDeviceRoute: (Uuid) -> Unit = {},
 ) {
-	val snackBarHostState = LocalSnackBarState.current
-	val windowSize = LocalWindowSizeInfo.current
-	val topBarScrollBehaviour = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val snackBarHostState = LocalSnackBarState.current
+    val windowSize = LocalWindowSizeInfo.current
+    val topBarScrollBehaviour = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-	val hasAtLeastOneDevice by remember(devices) {
-		derivedStateOf { devices.isNotEmpty() }
-	}
+    val hasAtLeastOneDevice by remember(devices) {
+        derivedStateOf { devices.isNotEmpty() }
+    }
 
-	val isLargeScreen =
-		windowSize.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
+    val isLargeScreen =
+        windowSize.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
 
-	Scaffold(
-		topBar = {
-			ManageDeviceScreenTopAppBar(
-				onNavigateToAdvertise = onNavigateToAdvertiseRoute,
-				onNavigateToBlockDevices = onNavigateToRevokeDevicesRoute,
-				navigation = navigation,
-				topBarScrollBehaviour = topBarScrollBehaviour
-			)
-		},
-		floatingActionButton = {
-			AnimatedVisibility(
-				visible = hasAtLeastOneDevice,
-				enter = slideInVertically(),
-				exit = slideOutVertically()
-			) {
-				ExtendedFloatingActionButton(
-					onClick = onNavigateToAddDeviceRoute,
-					shape = if (isLargeScreen) FloatingActionButtonDefaults.largeExtendedFabShape else FloatingActionButtonDefaults.largeShape,
-					text = { Text(text = stringResource(Res.string.action_add_new_device)) },
-					icon = {
-						Icon(
-							painter = painterResource(Res.drawable.ic_add),
-							contentDescription = stringResource(Res.string.action_add_new_device),
-							modifier = Modifier.size(FloatingActionButtonDefaults.MediumIconSize),
-						)
-					},
-					expanded = isLargeScreen
-				)
-			}
-		},
-		snackbarHost = { SnackbarHost(snackBarHostState) },
-		modifier = modifier.nestedScroll(topBarScrollBehaviour.nestedScrollConnection)
-	) { padding ->
-		ListContentLoadingWrapper(
-			content = devices,
-			isLoading = isLoading,
-			modifier = Modifier.fillMaxSize().padding(padding),
-			onEmpty = {
-				EmptyBlackListedDevicesContainer(
-					onAddDevice = onNavigateToAddDeviceRoute,
-					modifier = Modifier.fillMaxSize()
-				)
-			},
-			onItems = { devices ->
-				SavedExternalDevicesList(
-					devices = devices,
-					onSyncDevice = { device -> onEvent(ManageDevicesScreenEvent.OnSyncDevice(device)) },
-					onRevokeDevice = { device ->
-						onEvent(ManageDevicesScreenEvent.OnRevokeDevice(device))
-					},
-					onDeleteDevice = { device ->
-						onEvent(ManageDevicesScreenEvent.OnDeleteDevice(device))
-					},
-					modifier = Modifier.fillMaxSize(),
-					contentPadding = PaddingValues(
-						horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
-						vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING
-					)
-				)
-			},
-		)
-	}
+    Scaffold(
+        topBar = {
+            ManageDeviceScreenTopAppBar(
+                onNavigateToAdvertise = onNavigateToAdvertiseRoute,
+                onNavigateToBlockDevices = onNavigateToRevokeDevicesRoute,
+                navigation = navigation,
+                topBarScrollBehaviour = topBarScrollBehaviour
+            )
+        },
+        floatingActionButton = {
+            AnimatedVisibility(
+                visible = hasAtLeastOneDevice,
+                enter = slideInVertically(),
+                exit = slideOutVertically()
+            ) {
+                ExtendedFloatingActionButton(
+                    onClick = onNavigateToAddDeviceRoute,
+                    shape = if (isLargeScreen) FloatingActionButtonDefaults.largeExtendedFabShape else FloatingActionButtonDefaults.largeShape,
+                    text = { Text(text = stringResource(Res.string.action_add_new_device)) },
+                    icon = {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_add),
+                            contentDescription = stringResource(Res.string.action_add_new_device),
+                            modifier = Modifier.size(FloatingActionButtonDefaults.MediumIconSize),
+                        )
+                    },
+                    expanded = isLargeScreen
+                )
+            }
+        },
+        snackbarHost = { SnackbarHost(snackBarHostState) },
+        modifier = modifier.nestedScroll(topBarScrollBehaviour.nestedScrollConnection)
+    ) { padding ->
+        ListContentLoadingWrapper(
+            content = devices,
+            isLoading = isLoading,
+            modifier = Modifier.fillMaxSize().padding(padding),
+            onEmpty = {
+                EmptyBlackListedDevicesContainer(
+                    onAddDevice = onNavigateToAddDeviceRoute,
+                    modifier = Modifier.fillMaxSize()
+                )
+            },
+            onItems = { devices ->
+                SavedExternalDevicesList(
+                    devices = devices,
+                    onSyncDevice = { device -> onNavigateToSyncDeviceRoute(device.id) },
+                    onRevokeDevice = { device ->
+                        onEvent(ManageDevicesScreenEvent.OnRevokeDevice(device))
+                    },
+                    onDeleteDevice = { device ->
+                        onEvent(ManageDevicesScreenEvent.OnDeleteDevice(device))
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
+                        vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING
+                    )
+                )
+            },
+        )
+    }
 }
 
 @Composable
 private fun EmptyBlackListedDevicesContainer(
-	onAddDevice: () -> Unit,
-	modifier: Modifier = Modifier
+    onAddDevice: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-	Column(
-		modifier = modifier,
-		horizontalAlignment = Alignment.CenterHorizontally,
-		verticalArrangement = Arrangement.Center
-	) {
-		Image(
-			painter = painterResource(Res.drawable.ic_no_devices),
-			contentDescription = "No devices present",
-			colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.secondary),
-			modifier = Modifier.size(200.dp)
-		)
-		Text(
-			text = stringResource(Res.string.devices_screen_list_empty),
-			style = MaterialTheme.typography.bodyMediumEmphasized,
-			color = MaterialTheme.colorScheme.onSurface,
-			textAlign = TextAlign.Center,
-			modifier = Modifier.width(200.dp),
-		)
-		Spacer(modifier = Modifier.height(12.dp))
-		ElevatedButton(
-			onClick = onAddDevice,
-			modifier = Modifier.heightIn(ButtonDefaults.MediumContainerHeight),
-			contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
-			shapes = ButtonDefaults.shapes(
-				shape = ButtonDefaults.shape,
-				pressedShape = ButtonDefaults.squareShape
-			)
-		) {
-			Text(text = stringResource(Res.string.action_add_new_device))
-		}
-	}
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Image(
+            painter = painterResource(Res.drawable.ic_no_devices),
+            contentDescription = "No devices present",
+            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.secondary),
+            modifier = Modifier.size(200.dp)
+        )
+        Text(
+            text = stringResource(Res.string.devices_screen_list_empty),
+            style = MaterialTheme.typography.bodyMediumEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(200.dp),
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        ElevatedButton(
+            onClick = onAddDevice,
+            modifier = Modifier.heightIn(ButtonDefaults.MediumContainerHeight),
+            contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
+            shapes = ButtonDefaults.shapes(
+                shape = ButtonDefaults.shape,
+                pressedShape = ButtonDefaults.squareShape
+            )
+        ) {
+            Text(text = stringResource(Res.string.action_add_new_device))
+        }
+    }
 }

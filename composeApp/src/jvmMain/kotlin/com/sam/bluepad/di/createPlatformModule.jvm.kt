@@ -1,9 +1,10 @@
 package com.sam.bluepad.di
 
-import com.sam.bluepad.data.ble.BLEAdvertisementCallback
 import com.sam.bluepad.data.ble.BLEAdvertisementImpl
 import com.sam.bluepad.data.ble.BLEConnectionManagerImpl
 import com.sam.bluepad.data.ble.BLEDiscoveryImpl
+import com.sam.bluepad.data.ble.BLESyncConnectionManagerImpl
+import com.sam.bluepad.data.ble.callbacks.BLEAdvertisementCallback
 import com.sam.bluepad.data.bluetooth.BluetoothStateProviderImpl
 import com.sam.bluepad.data.database.AppDBBuilder
 import com.sam.bluepad.data.datastore.DataStoreProvider
@@ -14,34 +15,39 @@ import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
+import com.sam.bluepad.domain.ble.BLESyncConnectionManager
 import com.sam.bluepad.domain.bluetooth.BluetoothStateProvider
 import com.sam.bluepad.domain.interactions.CopySketchInteraction
 import com.sam.bluepad.domain.interactions.ShareSketchInteraction
 import dev.icerock.moko.permissions.PermissionsController
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
 actual fun createPlatformModule(): Module = module {
-	//db
-	single { AppDBBuilder() }
-	// datastore
-	singleOf(::DataStoreProvider)
+    //db
+    single { AppDBBuilder() }
+    // datastore
+    singleOf(::DataStoreProvider)
 
-	//ble
-	singleOf(::BLEDiscoveryImpl) bind BLEDiscoveryManager::class
-	singleOf(::BLEConnectionManagerImpl) bind BLEConnectionManager::class
-	singleOf(::BLEAdvertisementImpl) bind BLEAdvertisementManager::class
-	singleOf(::BLEAdvertisementCallback)
+    //ble
+    singleOf(::BLEDiscoveryImpl) bind BLEDiscoveryManager::class
+    singleOf(::BLEConnectionManagerImpl) bind BLEConnectionManager::class
+    // advertiser
+    factoryOf(::BLEAdvertisementCallback)
+    singleOf(::BLEAdvertisementImpl) bind BLEAdvertisementManager::class
+    // ble sync connection manager
+    singleOf(::BLESyncConnectionManagerImpl) bind BLESyncConnectionManager::class
 
-	// permission controller
-	single { JVMPermissionController() } bind PermissionsController::class
-	// bluetooth state provider
-	singleOf(::BluetoothStateProviderImpl) bind BluetoothStateProvider::class
-	singleOf(::PlatformInfoProvider)
+    // permission controller
+    single { JVMPermissionController() } bind PermissionsController::class
+    // bluetooth state provider
+    singleOf(::BluetoothStateProviderImpl) bind BluetoothStateProvider::class
+    singleOf(::PlatformInfoProvider)
 
-	// interactions
-	singleOf(::ShareSketchInteractionImpl) bind ShareSketchInteraction::class
-	singleOf(::CopySketchInteractionImpl) bind CopySketchInteraction::class
+    // interactions
+    singleOf(::ShareSketchInteractionImpl) bind ShareSketchInteraction::class
+    singleOf(::CopySketchInteractionImpl) bind CopySketchInteraction::class
 }

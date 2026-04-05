@@ -3,32 +3,43 @@ package com.sam.bluepad.presentation.utils
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.models.DevicePlatformOS
 import com.sam.bluepad.domain.models.ExternalDeviceModel
+import com.sam.bluepad.domain.models.LocalDeviceInfoModel
 import com.sam.bluepad.domain.models.SketchModel
 import kotlinx.datetime.LocalDateTime
 import kotlin.uuid.Uuid
 
 object PreviewFakes {
 
-	val FAKE_EXTERNAL_MODEL = ExternalDeviceModel(
-		id = Uuid.random(),
-		displayName = "Some device",
-		pairedAt = LocalDateTime(2025, 1, 10, 4, 32),
-		lastSeenAt = LocalDateTime(2025, 1, 10, 4, 32),
-		deviceOs = DevicePlatformOS.ANDROID
-	)
+    val FAKE_LOCAL_DEVICE_MODEL = LocalDeviceInfoModel(deviceId = Uuid.random(), name = "Some_Name")
 
-	val FAKE_SKETCH_MODEL = SketchModel(
-		id = Uuid.random(),
-		createdAt = LocalDateTime(2025, 1, 10, 4, 32),
-		modifiedAt = LocalDateTime(2025, 1, 10, 4, 32),
-		title = "How to play outswing",
-		content = "Trent boult swinging the ball outside off stump and he hits a bouncer",
-		contentHash = "9306d63f963638711dd2e78b17259abdb45df3ca8fb6063b4f51cdcce93cb16b",
-	)
+    val FAKE_EXTERNAL_MODEL = ExternalDeviceModel(
+        id = Uuid.random(),
+        displayName = "Android device",
+        pairedAt = LocalDateTime(2025, 1, 10, 4, 32),
+        lastSeenAt = LocalDateTime(2025, 1, 10, 4, 32),
+        deviceOs = DevicePlatformOS.ANDROID,
+    )
 
-	val FAKE_BLE_PEER_MODEL = BLEPeerData(
-		deviceId = Uuid.random(),
-		deviceName = "Test device",
-		deviceOs = DevicePlatformOS.ANDROID
-	)
+    val FAKE_EXTERNAL_MODEL_2 = ExternalDeviceModel(
+        id = Uuid.random(),
+        displayName = "Windows device",
+        pairedAt = LocalDateTime(2025, 1, 10, 4, 32),
+        lastSeenAt = LocalDateTime(2025, 1, 10, 4, 32),
+        deviceOs = DevicePlatformOS.WINDOWS,
+    )
+
+    val FAKE_SKETCH_MODEL = SketchModel(
+        id = Uuid.random(),
+        createdAt = LocalDateTime(2025, 1, 10, 4, 32),
+        modifiedAt = LocalDateTime(2025, 1, 10, 4, 32),
+        title = "How to play outswing",
+        content = "Trent boult swinging the ball outside off stump and he hits a bouncer",
+        contentHash = "9306d63f963638711dd2e78b17259abdb45df3ca8fb6063b4f51cdcce93cb16b",
+    )
+
+    val FAKE_BLE_PEER_MODEL = BLEPeerData(
+        deviceId = Uuid.random(),
+        deviceName = "Test device",
+        deviceOs = DevicePlatformOS.ANDROID,
+    )
 }

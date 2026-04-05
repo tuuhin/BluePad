@@ -6,7 +6,6 @@ import com.juul.kable.Advertisement
 import com.juul.kable.Scanner
 import com.juul.kable.logs.Logging
 import com.sam.ble_common.BluetoothInfoProvider
-import com.sam.bluepad.domain.ble.BLEConnectionType
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
 import com.sam.bluepad.domain.ble.models.BLEPeerDevice
@@ -17,7 +16,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -27,6 +25,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
 
@@ -34,138 +33,128 @@ private const val TAG = "BLE_SCAN_DEVICES"
 
 actual class BLEDiscoveryImpl : BLEDiscoveryManager {
 
-	private val _isStopLock = Mutex()
+    private val _isStopLock = Mutex()
 
-	private val _peers = MutableStateFlow<List<BLEPeerDevice>>(emptyList())
-	private val _isScanning = MutableStateFlow(false)
+    private val _peers = MutableStateFlow<List<BLEPeerDevice>>(emptyList())
+    private val _isScanning = MutableStateFlow(false)
 
-	override val scanResults: Flow<Set<BLEPeerDevice>>
-		get() = _peers.map { it.toSet() }
+    override val scanResults: Flow<Set<BLEPeerDevice>>
+        get() = _peers.map { it.toSet() }
 
-	override val isScanning: Flow<Boolean>
-		get() = _isScanning
+    override val isScanning: Flow<Boolean>
+        get() = _isScanning
 
-	private val _scanner = Scanner {
-		logging {
-			this.format = Logging.Format.Compact
-			this.level = Logging.Level.Events
-		}
+    private val _scanner = Scanner {
+        logging {
+            this.format = Logging.Format.Compact
+            this.level = Logging.Level.Events
+        }
 
-		filters {
-			match {
-				services += listOf(BLEConstants.discoveryServiceId)
-			}
-		}
-	}
+        filters {
+            match {
+                services += listOf(BLEConstants.DEVICE_INFO_SERVICE_ID)
+            }
+        }
+    }
 
-	private var scanJob: Job? = null
+    private var _scanJob: Job? = null
 
-	override suspend fun startScan(connection: BLEConnectionType, timeout: Duration)
-			: Result<Unit> {
+    override suspend fun startScan(timeout: Duration): Result<Unit> {
 
-		if (!BluetoothInfoProvider.isBluetoothActive())
-			return Result.failure(BluetoothNotEnabledException())
+        return withContext(Dispatchers.IO) {
+            if (!BluetoothInfoProvider.isBluetoothActive())
+                return@withContext Result.failure(BluetoothNotEnabledException())
 
-		if (!BluetoothInfoProvider.isLEConnectionAllowed())
-			return Result.failure(BLENotSupportedException())
+            if (!BluetoothInfoProvider.isLEConnectionAllowed())
+                return@withContext Result.failure(BLENotSupportedException())
 
-		if (_isScanning.value) return Result.failure(BLEScanRunningException())
+            if (_isScanning.value) return@withContext Result.failure(BLEScanRunningException())
 
-		return try {
-			coroutineScope {
-				scanJob = launch(Dispatchers.IO) {
-					try {
-						withTimeout(timeout) {
-							_scanner.advertisements
-								.onStart { onStartAdvertisements() }
-								.onCompletion { onStopAdvertisements() }
-								.collect {
-									handleAdvertisement(it, connection)
-								}
-						}
-					} catch (_: TimeoutCancellationException) {
-						Logger.d(TAG) { "SCAN TIMEOUT" }
-					}
-				}
-				Logger.d(TAG) { "ADDING SCAN JOB" }
-				scanJob?.join()
-			}
-			Result.success(Unit)
-		} catch (e: CancellationException) {
-			Logger.d(TAG) { "SCAN CANCELLED" }
-			throw e
-		} catch (e: Exception) {
-			Logger.e(TAG, e) { "SOME EXCEPTION OCCURRED" }
-			Result.failure(e)
-		} finally {
-			stopScanning()
-		}
-	}
+            try {
+                _scanJob = launch(Dispatchers.IO) {
+                    try {
+                        withTimeout(timeout) {
+                            _scanner.advertisements
+                                .onStart { onStartAdvertisements() }
+                                .onCompletion { onStopAdvertisements() }
+                                .collect(::handleAdvertisement)
+                        }
+                    } catch (_: TimeoutCancellationException) {
+                        Logger.d(TAG) { "SCAN TIMEOUT" }
+                    }
+                }
+                Logger.d(TAG) { "ADDING SCAN JOB" }
+                _scanJob?.join()
+                Result.success(Unit)
+            } catch (e: CancellationException) {
+                Logger.d(TAG) { "SCAN CANCELLED" }
+                throw e
+            } catch (e: Exception) {
+                Logger.e(TAG, e) { "SOME EXCEPTION OCCURRED" }
+                Result.failure(e)
+            } finally {
+                stopScanning()
+            }
+        }
+    }
 
-	override suspend fun stopScanning() {
-		_isStopLock.withLock {
-			if (scanJob?.isActive == true) {
-				Logger.d(TAG) { " SCAN JOB WAS ACTIVE CANCELLING IT" }
-				scanJob?.cancel()
-				scanJob = null
-			}
-			_isScanning.value = false
-		}
-	}
+    override suspend fun stopScanning() {
+        _isStopLock.withLock {
+            if (_scanJob?.isActive == true) {
+                Logger.d(TAG) { " SCAN JOB WAS ACTIVE CANCELLING IT" }
+                _scanJob?.cancel()
+                _scanJob = null
+            }
+            _isScanning.value = false
+        }
+    }
 
-	override fun onClearScanResults() {
-		_peers.update { emptyList() }
-		Logger.d(TAG) { "PEER LIST CLEARED" }
-	}
+    override fun onClearScanResults() {
+        _peers.update { emptyList() }
+        Logger.d(TAG) { "PEER LIST CLEARED" }
+    }
 
-	private fun handleAdvertisement(advertisement: Advertisement, connection: BLEConnectionType) {
-		// only capture connective advertisements
-		if (advertisement.uuids.isEmpty()) return
+    private fun handleAdvertisement(advertisement: Advertisement) {
+        // only capture connective advertisements
+        if (advertisement.uuids.isEmpty()) return
 
-		// TODO: FILTERING VIA SERVICE DATA SHOULD BE WORKED BUT NOT SO LETS CONTINUE
-		// WITH JUST THE TRANSPORT SERVICE ID MATCH
+        // TODO: FILTERING VIA SERVICE DATA SHOULD BE WORKED BUT NOT SO LETS CONTINUE
+        // WITH JUST THE TRANSPORT SERVICE ID MATCH
 
 //		val appNameBytes = BuildKonfig.APP_ID.encodeToByteArray()
 //		if (!serviceData.contentEquals(appNameBytes)) return
 
-		val uuidToLookFor = when (connection) {
-			BLEConnectionType.DEVICE_DISCOVERY -> BLEConstants.discoveryServiceId
-			BLEConnectionType.PROXIMITY_AND_SYNC -> BLEConstants.syncServiceId
-		}
+        val containsUUID = advertisement.uuids.contains(BLEConstants.DEVICE_INFO_SERVICE_ID)
+        if (!containsUUID) return
 
-		Logger.d(TAG) { "SOME DATA!!" }
+        val address = advertisement.identifier.toString()
+        val peerAddress = _peers.value.map { it.deviceAddress }
+        if (address in peerAddress) {
+            _peers.update { oldPeers ->
+                oldPeers.fastMap { peer ->
+                    if (peer.deviceAddress == address) peer.copy(rssi = advertisement.rssi)
+                    else peer
+                }
+            }
+        } else {
+            advertisement.peripheralName
+            val updatedDevice = BLEPeerDevice(
+                bleDeviceName = advertisement.peripheralName,
+                deviceAddress = address,
+                rssi = advertisement.rssi
+            )
+            _peers.update { oldPeers -> (oldPeers + updatedDevice).distinctBy { it.deviceAddress } }
+            Logger.i(TAG) { "NEW DEVICE ADDED IDENTIFIER:${address}" }
+        }
+    }
 
-		val containsUUID = advertisement.uuids.contains(uuidToLookFor)
-		if (!containsUUID) return
+    private fun onStartAdvertisements() {
+        Logger.i(TAG) { "JVM BLE SCAN STARTED" }
+        _isScanning.update { true }
+    }
 
-		val address = advertisement.identifier.toString()
-		val peerAddress = _peers.value.map { it.deviceAddress }
-		if (address in peerAddress) {
-			_peers.update { oldPeers ->
-				oldPeers.fastMap { peer ->
-					if (peer.deviceAddress == address) peer.copy(rssi = advertisement.rssi)
-					else peer
-				}
-			}
-		} else {
-			advertisement.peripheralName
-			val updatedDevice = BLEPeerDevice(
-				bleDeviceName = advertisement.peripheralName,
-				deviceAddress = address,
-				rssi = advertisement.rssi
-			)
-			_peers.update { oldPeers -> (oldPeers + updatedDevice).distinctBy { it.deviceAddress } }
-			Logger.i(TAG) { "NEW DEVICE ADDED IDENTIFIER:${address}" }
-		}
-	}
-
-	private fun onStartAdvertisements() {
-		Logger.i(TAG) { "JVM BLE SCAN STARTED" }
-		_isScanning.update { true }
-	}
-
-	private fun onStopAdvertisements() {
-		Logger.i(TAG) { "JVM BLE SCAN STOPPED" }
-		_isScanning.update { false }
-	}
+    private fun onStopAdvertisements() {
+        Logger.i(TAG) { "JVM BLE SCAN STOPPED" }
+        _isScanning.update { false }
+    }
 }

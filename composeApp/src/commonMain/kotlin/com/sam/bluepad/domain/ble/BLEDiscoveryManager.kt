@@ -7,16 +7,13 @@ import kotlin.time.Duration.Companion.seconds
 
 interface BLEDiscoveryManager {
 
-	val scanResults: Flow<Set<BLEPeerDevice>>
+    val scanResults: Flow<Set<BLEPeerDevice>>
 
-	val isScanning: Flow<Boolean>
+    val isScanning: Flow<Boolean>
 
-	suspend fun startScan(
-		connection: BLEConnectionType = BLEConnectionType.DEVICE_DISCOVERY,
-		timeout: Duration = 20.seconds
-	): Result<Unit>
+    suspend fun startScan(timeout: Duration = 20.seconds): Result<Unit>
 
-	suspend fun stopScanning()
+    suspend fun stopScanning()
 
-	fun onClearScanResults()
+    fun onClearScanResults()
 }

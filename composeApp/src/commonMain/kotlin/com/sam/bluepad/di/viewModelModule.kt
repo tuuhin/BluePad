@@ -11,11 +11,12 @@ import com.sam.bluepad.presentation.feature_devices.viewmodel.ManageDeviceViewmo
 import com.sam.bluepad.presentation.feature_settings.SettingsViewmodel
 import com.sam.bluepad.presentation.feature_sketches.viewmodel.AddSketchViewModel
 import com.sam.bluepad.presentation.feature_sketches.viewmodel.SketchesViewmodel
-import com.sam.bluepad.presentation.feature_sync.viewmodel.ReceiveDeviceSyncViewModel
-import com.sam.bluepad.presentation.feature_sync.viewmodel.SendDeviceSyncViewModel
+import com.sam.bluepad.presentation.feature_sync.viewmodel.SyncConnectorViewModel
+import com.sam.bluepad.presentation.feature_sync.viewmodel.SyncReceiverViewmodel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
+import kotlin.uuid.Uuid
 
 val viewModelModule = module {
 	viewModelOf(::AppCommonViewModel)
@@ -23,9 +24,9 @@ val viewModelModule = module {
 	viewModelOf(::BLEAdvertisementViewmodel)
 	viewModelOf(::BLEScanDevicesViewModel)
 	viewModelOf(::BLEConnectDeviceViewmodel)
-	viewModel { params ->
+	viewModel { (sketchId: Uuid?) ->
 		AddSketchViewModel(
-			sketchId = params.getOrNull(),
+			sketchId = sketchId,
 			repository = get<SketchesRepository>(),
 			localDeviceProvider = get<LocalDeviceInfoProvider>()
 		)
@@ -34,7 +35,7 @@ val viewModelModule = module {
 	viewModelOf(::SettingsViewmodel)
 
 	// sync
-	viewModelOf(::SendDeviceSyncViewModel)
-	viewModelOf(::ReceiveDeviceSyncViewModel)
+	viewModelOf(::SyncConnectorViewModel)
+	viewModelOf(::SyncReceiverViewmodel)
 	viewModelOf(::BlackListedDevicesViewmodel)
 }

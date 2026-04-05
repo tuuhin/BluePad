@@ -36,8 +36,6 @@ fun main() = application {
 	if (BuildKonfig.IS_DEBUG)
 		Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.SourceInformation)
 
-	// WARN: NEED THIS TO RUN ON MY MACHINE IF NOT NEEDED CANNOT BE COMMENTED OUT
-	System.setProperty("skiko.renderApi", "OPENGL")
 	val deviceInfoProvider = koinInject<LocalDeviceInfoProvider>()
 
 	// APPLICATION CODE
