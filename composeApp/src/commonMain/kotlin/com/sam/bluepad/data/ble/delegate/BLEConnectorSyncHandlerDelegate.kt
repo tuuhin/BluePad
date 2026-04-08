@@ -45,16 +45,16 @@ class BLEConnectorSyncHandlerDelegate(
         val syncData = protoBuf.decodeFromByteArray<BLESyncHandshakeData.AdvertiseDeviceData>(value)
 
         if (!syncData.allowSync) {
-            Logger.e(TAG) { "SYNC FLAG MISSING" }
+            Logger.e(tag = TAG) { "SYNC FLAG MISSING" }
             throw SyncFlagMissingException()
         }
 
         val externalDevice = savedDevices(syncData.deviceId).getOrElse { err ->
-            Logger.w(TAG) { "CANNOT FIND THE GIVEN DEVICE " }
+            Logger.w(tag = TAG) { "CANNOT FIND THE GIVEN DEVICE " }
             return Result.failure(err)
         }
 
-        Logger.d(TAG) { "ADVERTISE DATA RECEIVED DEVICE_ID:${syncData.deviceId} VERIFIED" }
+        Logger.d(tag = TAG) { "ADVERTISE DATA RECEIVED DEVICE_ID:${syncData.deviceId} VERIFIED" }
         // on write notification fully active we will send the outgoing data
         onReadSuccess()
 
@@ -79,17 +79,17 @@ class BLEConnectorSyncHandlerDelegate(
     ): Result<ConnectorSyncEvent> {
         return runCatching {
             val result = protoBuf.decodeFromByteArray<BLESyncHandshakeData>(value)
-            Logger.i(TAG) { "HANDSHAKE ACK DATA FOUND" }
+            Logger.i(tag = TAG) { "HANDSHAKE ACK DATA FOUND" }
             // handle the result
             when (result) {
                 is BLESyncHandshakeData.HandshakeACKFailed -> {
                     val error = InvalidAcknowledgementException(result.reason)
-                    Logger.d(TAG, error) { "FAILED ACKNOWLEDGEMENT FOUND REASON:${result.reason}" }
+                    Logger.w(tag = TAG, throwable = error) { "FAILED ACKNOWLEDGEMENT FOUND REASON:${result.reason}" }
                     throw InvalidAcknowledgementException(result.reason)
                 }
 
                 is BLESyncHandshakeData.HandshakeACKSuccess -> {
-                    Logger.i(TAG) { "HANDSHAKE SUCCESSFUL TURING OFF ADVERTISEMENTS" }
+                    Logger.i(tag = TAG) { "HANDSHAKE SUCCESSFUL TURING OFF ADVERTISEMENTS" }
                     // send this after some time to clear the bluetooth stack
                     onHandshakeSuccess()
                 }
@@ -110,7 +110,7 @@ class BLEConnectorSyncHandlerDelegate(
     ) {
         try {
             val decodedData = protoBuf.decodeFromByteArray<BLESyncSession>(value)
-            Logger.d(TAG) { "SYNC DATA RECEIVED  | BLOCK_SIZE: ${value.size}" }
+            Logger.d(tag = TAG) { "SYNC DATA RECEIVED  | BLOCK_SIZE: ${value.size}" }
 
             val result = when (decodedData) {
                 is BLESyncSession.SyncSessionStartAck -> onSessionStartACK(decodedData, onWriteBytes)
@@ -119,16 +119,16 @@ class BLEConnectorSyncHandlerDelegate(
                 is BLESyncSession.BLESyncDataPacketEnd -> onDataPacketEnd(decodedData, onWriteBytes)
                 is BLESyncSession.SyncPacketTransition -> onPacketTransition(decodedData, onWriteBytes)
                 BLESyncSession.SyncSessionSuccessful -> runCatching {
-                    Logger.d(TAG) { "SYNC SESSION COMPLETED" }
+                    Logger.d(tag = TAG) { "SYNC SESSION COMPLETED" }
                 }
 
                 is BLESyncSession.SyncSessionFailed -> runCatching {
-                    Logger.d(TAG) { "SYNC SESSION FAILED" }
+                    Logger.d(tag = TAG) { "SYNC SESSION FAILED" }
                     onToggleNotification(characteristicId, false)
                 }
 
                 BLESyncSession.SyncPacketProcessing -> {
-                    Logger.d(TAG) { "REMOTE PROCESSING DATA RUNNING...." }
+                    Logger.d(tag = TAG) { "REMOTE PROCESSING DATA RUNNING...." }
                     onEvent(ConnectorSyncEvent.RemoteProcessing)
                     Result.success(true)
                 }
@@ -141,10 +141,10 @@ class BLEConnectorSyncHandlerDelegate(
                 return
             }
         } catch (_: SerializationException) {
-            Logger.e(TAG) { "INVALID DATA RECEIVED CANNOT DECODE IT" }
+            Logger.e(tag = TAG) { "INVALID DATA RECEIVED CANNOT DECODE IT" }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Logger.e(TAG, e) { "UNKNOWN EXCEPTION" }
+            Logger.e(tag = TAG, throwable = e) { "UNKNOWN EXCEPTION" }
         }
     }
 
@@ -157,10 +157,10 @@ class BLEConnectorSyncHandlerDelegate(
         val bytes = protoBuf.encodeToByteArray<BLESyncSession>(BLESyncSession.SyncPacketProcessing)
         onWriteBytes(bytes)
 
-        Logger.d(TAG) { "PACKET END MARKER RECEIVED TYPE:${data.type}" }
+        Logger.d(tag = TAG) { "PACKET END MARKER RECEIVED TYPE:${data.type}" }
         val result = inPayloadManager.processData().getOrThrow()
 
-        Logger.d(TAG) { "PROCESSED RESULT:$result" }
+        Logger.d(tag = TAG) { "PROCESSED RESULT:$result" }
         if (result is SyncDataPayload.Outgoing) outPayloadManager.prepareChunks(result)
 
         // handle the result
@@ -188,7 +188,7 @@ class BLEConnectorSyncHandlerDelegate(
         data: BLESyncSession.SyncPacketTransition,
         onWriteBytes: suspend (ByteArray) -> Boolean,
     ): Result<Boolean> {
-        Logger.d(TAG) { "PACKET TYPE TRANSITION TO ${data.newType} FROM :${data.prevType}" }
+        Logger.d(tag = TAG) { "PACKET TYPE TRANSITION TO ${data.newType} FROM :${data.prevType}" }
 
         return runCatching {
             val responseData = when {
@@ -197,20 +197,20 @@ class BLEConnectorSyncHandlerDelegate(
                     // clear the buffer and send ack
                     inPayloadManager.clearBuffer()
                     outPayloadManager.reset()
-                    Logger.w(TAG) { "REQUESTED TRANSITION REQUEST RESPONDING WITH ACK" }
+                    Logger.w(tag = TAG) { "REQUESTED TRANSITION REQUEST RESPONDING WITH ACK" }
                     data.copy(isRequested = false, isAck = true)
                 }
 
                 // if no ack flag found
                 !data.isAck -> {
-                    Logger.w(TAG) { "MISSING ACK FLAG STOPPING SYNC SESSION" }
+                    Logger.w(tag = TAG) { "MISSING ACK FLAG STOPPING SYNC SESSION" }
                     BLESyncSession.SyncSessionFailed(reason = BLESyncFailedReason.MISSING_FLAG, true)
                 }
 
                 // if no chunk data present
                 !outPayloadManager.getHasMoreChunks() -> {
                     // send we are done with sending metadata packet
-                    Logger.w(TAG) { "NO MORE CHUNKS TO WORK WITH SESSION DATA PACKET END" }
+                    Logger.w(tag = TAG) { "NO MORE CHUNKS TO WORK WITH SESSION DATA PACKET END" }
                     BLESyncSession.BLESyncDataPacketEnd(type = data.newType)
                 }
 
@@ -218,7 +218,7 @@ class BLEConnectorSyncHandlerDelegate(
                     // now send the response
                     val chunkResult = outPayloadManager.getNextChunk()
                     val chunk = chunkResult.getOrElse { err ->
-                        Logger.w(TAG, err) { "A CHUNK OF DATA SHOULD BE PRESENT" }
+                        Logger.w(tag = TAG, throwable = err) { "A CHUNK OF DATA SHOULD BE PRESENT" }
                         val session = BLESyncSession.SyncSessionFailed(reason = BLESyncFailedReason.INVALID_STATE, true)
                         val bytes = protoBuf.encodeToByteArray<BLESyncSession>(session)
                         return@runCatching onWriteBytes(bytes)
@@ -237,7 +237,7 @@ class BLEConnectorSyncHandlerDelegate(
         data: BLESyncSession.BLESyncDataPacket,
         onWriteBytes: suspend (ByteArray) -> Boolean,
     ): Result<Boolean> {
-        Logger.d(TAG) { "RECEIVED PACKET DATA FROM OTHER DEVICE TYPE:${data.type}" }
+        Logger.d(tag = TAG) { "RECEIVED PACKET DATA FROM OTHER DEVICE TYPE:${data.type}" }
 
         return runCatching {
             inPayloadManager.addIncomingPayloadChunk(data.sequenceNumber, data.payload)
@@ -251,7 +251,7 @@ class BLEConnectorSyncHandlerDelegate(
         data: BLESyncSession.BLESyncDataAck,
         onWriteBytes: suspend (ByteArray) -> Boolean,
     ): Result<Boolean> {
-        Logger.d(TAG) { "RECEIVED PACKET ACK DATA FROM OTHER DEVICE" }
+        Logger.d(tag = TAG) { "RECEIVED PACKET ACK DATA FROM OTHER DEVICE" }
         // mark the payload as consumed
         outPayloadManager.markChunkAck(data.sequenceNumber)
 
@@ -266,7 +266,7 @@ class BLEConnectorSyncHandlerDelegate(
         val chunkResult = outPayloadManager.getNextChunk()
         // we have a block
         val chunk = chunkResult.getOrElse { err ->
-            Logger.w(TAG, err) { "ISSUE WITH NEXT CHUNK" }
+            Logger.w(tag = TAG, throwable = err) { "ISSUE WITH NEXT CHUNK" }
             return Result.failure(err)
         }
         val response = BLESyncSession.BLESyncDataPacket(
@@ -289,7 +289,7 @@ class BLEConnectorSyncHandlerDelegate(
         if (!response.isAck) return Result.failure(SyncStarkNotAckException())
 
         outPayloadManager.prepareChunks(SyncDataPayload.Metadata).getOrElse { err ->
-            Logger.w(TAG) { "CANNOT PREPARE THE BLOCKS" }
+            Logger.w(tag = TAG) { "CANNOT PREPARE THE BLOCKS" }
             return Result.failure(err)
         }
 
@@ -297,12 +297,12 @@ class BLEConnectorSyncHandlerDelegate(
         if (!outPayloadManager.getHasMoreChunks()) return Result.failure(EmptyPayloadException())
         val chunk = outPayloadManager.getNextChunk()
             .getOrElse { err ->
-                Logger.w(TAG, err) { "ISSUE WITH NEXT CHUNK" }
+                Logger.w(tag = TAG, throwable = err) { "ISSUE WITH NEXT CHUNK" }
                 return Result.failure(err)
             }
         // we have a block
         val response = BLESyncSession.BLESyncDataPacket(BLESyncDataType.METADATA, chunk.seqNumber, chunk.payload)
-        Logger.d(TAG) { "SENDING FIRST BLOCK OF METADATA CHUNKS" }
+        Logger.d(tag = TAG) { "SENDING FIRST BLOCK OF METADATA CHUNKS" }
         // now send the response
         return runCatching {
             val bytes = protoBuf.encodeToByteArray<BLESyncSession>(response)
@@ -325,7 +325,7 @@ class BLEConnectorSyncHandlerDelegate(
                 val outgoingData = lock.withLock { handShakeDataMap[address] } ?: return
                 val syncWrite = protoBuf.encodeToByteArray<BLESyncHandshakeData.AdvertiseResponseData>(outgoingData)
                 val response = onWriteBytes(syncWrite)
-                Logger.d(TAG) { "WRITING ADVERTISING RESPONSE CHARACTERISTICS IS_SUCCESS:$response" }
+                Logger.d(tag = TAG) { "WRITING ADVERTISING RESPONSE CHARACTERISTICS IS_SUCCESS:$response" }
             }
 
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID -> {
@@ -334,22 +334,22 @@ class BLEConnectorSyncHandlerDelegate(
                     if (!isNotificationOn) return
                     hadShakeNotificationMap.remove(address)
                 }
-                Logger.d(TAG) { "TURNING OFF HANDSHAKE NOTIFICATION AND TURNING ON DATA NOTIFICATION" }
+                Logger.d(tag = TAG) { "TURNING OFF HANDSHAKE NOTIFICATION AND TURNING ON DATA NOTIFICATION" }
 
                 onToggleNotification(BLEConstants.SYNC_DATA_CHARACTERISTICS_ID, true)
             }
 
             BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if isEnabled -> {
-                Logger.d(TAG) { "STARTING CHARACTERISTICS NOTIFICATION TURNED ON" }
+                Logger.d(tag = TAG) { "STARTING CHARACTERISTICS NOTIFICATION TURNED ON" }
                 val sendData = BLESyncSession.SyncSessionStart
                 val bytesToSend = protoBuf.encodeToByteArray<BLESyncSession>(sendData)
                 onWriteBytes(bytesToSend)
             }
 
-            BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> Logger.d(TAG) { "SYNCING IS DONE NOW SYNC NOTIFICATION ARE DISMISSED" }
+            BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> Logger.d(tag = TAG) { "SYNCING IS DONE NOW SYNC NOTIFICATION ARE DISMISSED" }
             else -> {
                 val text = if (isEnabled) "ENABLED" else "DISABLED"
-                Logger.d(TAG) { "GATT NOTIFICATION $text  FOR CHARACTERISTICS :${characteristicId}" }
+                Logger.d(tag = TAG) { "GATT NOTIFICATION $text  FOR CHARACTERISTICS :${characteristicId}" }
             }
         }
 

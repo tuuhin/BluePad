@@ -72,7 +72,7 @@ actual class BLEConnectionManagerImpl(
     private val _localDeviceInfo = deviceInfoProvider.readDeviceInfo.stateIn(
         scope = _scope,
         started = SharingStarted.Eagerly,
-        initialValue = null
+        initialValue = null,
     )
 
     override fun connectAndReceiveData(
@@ -111,12 +111,12 @@ actual class BLEConnectionManagerImpl(
                         val peerData = try {
                             protoBuf.decodeFromByteArray<BLEPeerData>(bytes)
                         } catch (e: Exception) {
-                            Logger.e(TAG, e) { "UNABLE TO DECODE BYTES" }
+                            Logger.e(tag = TAG, throwable = e) { "UNABLE TO DECODE BYTES" }
                             trySend(Resource.Error(Exception("Cannot decode peer data")))
                             gatt.close()
                             return@DeviceConnectionCallback
                         }
-                        Logger.d(TAG) { "PEER DATA :$peerData" }
+                        Logger.d(tag = TAG) { "PEER DATA :$peerData" }
                         trySend(Resource.Success(peerData))
                         if (informReceiver) gatt.sendDeviceInfo(nonce = peerData.nonce)
                     }
@@ -159,7 +159,7 @@ actual class BLEConnectionManagerImpl(
             deviceId = info.deviceId,
             deviceName = info.name,
             deviceOs = platformInfoProvider.platformOS,
-            nonce = nonce
+            nonce = nonce,
         )
 
         val bytes = try {
@@ -173,17 +173,17 @@ actual class BLEConnectionManagerImpl(
             writeCharacteristic(
                 characteristics,
                 bytes,
-                BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+                BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE,
             ) == BluetoothStatusCodes.SUCCESS
         } else {
             characteristics.value = bytes
             writeCharacteristic(characteristics)
         }
-        Logger.d(TAG) { "SENDING CURRENT DEVICE INFO STATUS:$isSuccess " }
+        Logger.d(tag = TAG) { "SENDING CURRENT DEVICE INFO STATUS:$isSuccess " }
     }
 
     private fun connectAndWaitForExchange(address: String, gattCallback: BluetoothGattCallback)
-            : Result<BluetoothGatt> {
+        : Result<BluetoothGatt> {
         if (_bluetoothManager?.adapter?.isEnabled != true)
             return Result.failure(BluetoothNotEnabledException())
         if (!context.hasBLEScanPermission)
@@ -198,7 +198,7 @@ actual class BLEConnectionManagerImpl(
             // connect to the gatt server
             val gatt = device
                 .connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
-            Logger.d(TAG) { "CLIENT GATT CONNECTION STARTED" }
+            Logger.d(tag = TAG) { "CLIENT GATT CONNECTION STARTED" }
             // return success if there is no error
             Result.success(gatt)
         } catch (e: Exception) {
@@ -210,11 +210,11 @@ actual class BLEConnectionManagerImpl(
         try {
             if (_gattConnection != null) {
                 _gattConnection?.disconnect()
-                Logger.d(TAG) { "GATT CLIENT DISCONNECTED" }
+                Logger.d(tag = TAG) { "GATT CLIENT DISCONNECTED" }
                 _connectionState.update { BLEConnectionState.DISCONNECTED }
             }
         } catch (e: Exception) {
-            Logger.e(TAG, e) { "GATT CONNECTED FAILED TO CLOSE" }
+            Logger.e(tag = TAG, throwable = e) { "GATT CONNECTED FAILED TO CLOSE" }
         }
     }
 
@@ -222,10 +222,10 @@ actual class BLEConnectionManagerImpl(
         _scope.cancel()
         try {
             _gattConnection?.close()
-            Logger.d(TAG) { "GATT CLIENT CLOSED" }
+            Logger.d(tag = TAG) { "GATT CLIENT CLOSED" }
             _gattConnection = null
         } catch (e: Exception) {
-            Logger.e(TAG, e) { "GATT CONNECTED FAILED TO CLOSE" }
+            Logger.e(tag = TAG, throwable = e) { "GATT CONNECTED FAILED TO CLOSE" }
         }
     }
 }

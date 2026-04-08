@@ -56,11 +56,11 @@ class BLEGattAdvertiserConfig(
             .addServiceData(advertisementServiceId, serviceData)
             .build()
 
-        Logger.d(TAG) { "STARTING ADVERTISEMENT" }
+        Logger.d(tag = TAG) { "STARTING ADVERTISEMENT" }
         // start advertising
         advertiser.startAdvertisingSet(
             parameters, advertiseData, scanResponse,
-            null, null, callback
+            null, null, callback,
         )
     }
 
@@ -68,7 +68,7 @@ class BLEGattAdvertiserConfig(
     fun removeAdvertisingSet() {
         try {
             val advertiser = _bluetoothManager?.adapter?.bluetoothLeAdvertiser ?: return
-            Logger.i(TAG) { "STOPPING ADVERTISEMENT" }
+            Logger.i(tag = TAG) { "STOPPING ADVERTISEMENT" }
             advertiser.stopAdvertisingSet(callback)
         } finally {
             callback.setRunning(false)

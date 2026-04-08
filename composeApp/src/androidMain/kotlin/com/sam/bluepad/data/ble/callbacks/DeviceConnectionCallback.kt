@@ -37,11 +37,11 @@ class DeviceConnectionCallback(
             BluetoothGatt.STATE_DISCONNECTED -> BLEConnectionState.DISCONNECTED
             else -> return
         }
-        Logger.d(TAG) { "CONNECTION STATE CHANGED! :$domainState" }
+        Logger.d(tag = TAG) { "CONNECTION STATE CHANGED! :$domainState" }
 
         if (status != BluetoothGatt.GATT_SUCCESS) {
             onGAttFailed("Cannot read connection state")
-            Logger.w(TAG) { "CONNECTION STATUS FAILED :$domainState" }
+            Logger.w(tag = TAG) { "CONNECTION STATUS FAILED :$domainState" }
             // clear the queue if anything fails
             _readQueue.clear()
             return
@@ -63,7 +63,7 @@ class DeviceConnectionCallback(
 
     override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(TAG) { "CANNOT DISCOVER SERVICES" }
+            Logger.w(tag=TAG) { "CANNOT DISCOVER SERVICES" }
             onGAttFailed("Cannot discover services")
             return
         }
@@ -71,27 +71,27 @@ class DeviceConnectionCallback(
             ?.find { it.uuid.toKotlinUuid() == BLEConstants.DEVICE_INFO_SERVICE_ID } ?: run {
             gatt?.disconnect()
             gatt?.close()
-            Logger.w(TAG) { "INVALID CHARACTERISTICS FOUND CLOSING CONNECTION " }
+            Logger.w(tag=TAG) { "INVALID CHARACTERISTICS FOUND CLOSING CONNECTION " }
             return
         }
         // we read all the characteristics
         val requiredCharacteristics = service.characteristics.filter { it.uuid != null }
-        Logger.d(TAG) { "NO. OF CHARACTERISTICS FOUND STARTING READ :${requiredCharacteristics.size}" }
+        Logger.d(tag=TAG) { "NO. OF CHARACTERISTICS FOUND STARTING READ :${requiredCharacteristics.size}" }
         // read characteristic
         _readQueue.addAll(requiredCharacteristics)
         _readQueue.poll()?.let {
-            Logger.d(TAG) { "REQUESTING ${it.uuid} READ" }
+            Logger.d(tag=TAG) { "REQUESTING ${it.uuid} READ" }
             gatt.readCharacteristic(it)
         }
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(TAG) { "CANNOT DISCOVER SERVICES" }
+            Logger.w(tag=TAG) { "CANNOT DISCOVER SERVICES" }
             onGAttFailed("Cannot request higher mtu")
             return
         }
-        Logger.d(TAG) { "UPDATED MTU :$mtu" }
+        Logger.d(tag=TAG) { "UPDATED MTU :$mtu" }
         gatt?.discoverServices()
     }
 
@@ -114,11 +114,11 @@ class DeviceConnectionCallback(
     ) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
             onGAttFailed("Cannot read characteristics :${characteristic.uuid}")
-            Logger.w(TAG) { "CANNOT READ CHARACTERISTICS" }
+            Logger.w(tag=TAG) { "CANNOT READ CHARACTERISTICS" }
             return
         }
         coroutineScope.launch {
-            Logger.d(TAG) { "READING CHARACTERISTICS :${characteristic.uuid}" }
+            Logger.d(tag=TAG) { "READING CHARACTERISTICS :${characteristic.uuid}" }
             onReadCharacteristic(gatt, characteristic.uuid.toKotlinUuid(), value)
             // check if anything left on the queue
             _readQueue.poll()?.let { gatt.readCharacteristic(it) }
@@ -132,11 +132,11 @@ class DeviceConnectionCallback(
         status: Int
     ) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(TAG) { "WRITE CHARACTERISTICS FAILED" }
+            Logger.w(tag=TAG) { "WRITE CHARACTERISTICS FAILED" }
             return
         }
         coroutineScope.launch {
-            Logger.d(TAG) { "WRITE CHARACTERISTICS FOR :${characteristic.uuid} SUCCESS" }
+            Logger.d(tag=TAG) { "WRITE CHARACTERISTICS FOR :${characteristic.uuid} SUCCESS" }
             onWriteCharacteristic(gatt, characteristic.uuid.toKotlinUuid())
         }
     }

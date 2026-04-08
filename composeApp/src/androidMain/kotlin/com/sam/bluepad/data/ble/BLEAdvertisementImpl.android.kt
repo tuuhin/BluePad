@@ -71,24 +71,24 @@ actual class BLEAdvertisementImpl(
             return Result.failure(BLEAdvertiseUnsupportedException())
 
         _bleServer = _bluetoothManager?.openGattServer(context, connectionCallback)
-        Logger.i(TAG) { "GATT SERVER BEGUN!" }
+        Logger.i(tag = TAG) { "GATT SERVER BEGUN!" }
 
-        connectionCallback.setOnServiceAdded { Logger.d(TAG) { "SERVICE ADDED " } }
+        connectionCallback.setOnServiceAdded { Logger.d(tag = TAG) { "SERVICE ADDED " } }
         connectionCallback.setOnSendResponse { device, requestId, status, offset, value ->
             val isSuccess = _bleServer?.sendResponse(device, requestId, status, offset, value)
-            Logger.d(TAG) { "SERVER RESPONSE SEND SUCCESS: $isSuccess" }
+            Logger.d(tag = TAG) { "SERVER RESPONSE SEND SUCCESS: $isSuccess" }
         }
         connectionCallback.setNotifyCharacteristicsChanged(::onNotifyCharacteristics)
 
         when (type) {
             BLEConnectionType.DEVICE_DISCOVERY -> {
                 _bleServer?.addService(BLEServiceToGatt.deviceDiscoveryService)
-                Logger.d(TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
+                Logger.d(tag = TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
             }
 
             BLEConnectionType.PROXIMITY_AND_SYNC -> {
                 _bleServer?.addService(BLEServiceToGatt.deviceSyncService)
-                Logger.d(TAG) { "BLE ADVERTISEMENT FOR SYNC " }
+                Logger.d(tag = TAG) { "BLE ADVERTISEMENT FOR SYNC " }
             }
         }
 
@@ -126,10 +126,10 @@ actual class BLEAdvertisementImpl(
         try {
             advertizerConfig.removeAdvertisingSet()
             _bleServer?.clearServices()
-            Logger.d(TAG) { "STOPPING SERVER" }
+            Logger.d(tag = TAG) { "STOPPING SERVER" }
             _bleServer?.close()
         } catch (e: Exception) {
-            Logger.d(TAG, e) { "SOME EXCEPTIONS" }
+            Logger.w(tag = TAG, throwable = e) { "SOME EXCEPTIONS" }
         } finally {
             _bleServer = null
         }

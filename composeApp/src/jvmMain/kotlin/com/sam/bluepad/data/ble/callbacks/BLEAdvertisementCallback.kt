@@ -5,6 +5,7 @@ import com.sam.blejavaadvertise.callbacks.GATTServerCallback
 import com.sam.blejavaadvertise.models.GATTBluetoothError
 import com.sam.blejavaadvertise.models.GATTServiceAdvertisementStatus
 import com.sam.bluepad.data.ble.delegate.BLEAdvertiserSyncHandlerDelegate
+import com.sam.bluepad.data.sync.dto.BLESyncDataType
 import com.sam.bluepad.data.sync.dto.BLESyncSession
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
@@ -21,12 +22,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -87,8 +89,9 @@ class BLEAdvertisementCallback private constructor(
     private val _peerDevices = MutableStateFlow<List<BLEPeerData>>(emptyList())
     val incomingDeviceData: Flow<List<BLEPeerData>> = _peerDevices.asStateFlow()
 
-    private val _advertiserEvents = Channel<AdvertiserSyncEvent>(Channel.CONFLATED)
-    val syncRequestEvents: Flow<AdvertiserSyncEvent> = _advertiserEvents.receiveAsFlow()
+    private val _advertiserEvents =
+        MutableSharedFlow<AdvertiserSyncEvent>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val syncRequestEvents = _advertiserEvents.asSharedFlow()
 
     private val _activeSyncDeviceInfo = ConcurrentHashMap<String, ExternalDeviceModel>()
 
@@ -97,12 +100,12 @@ class BLEAdvertisementCallback private constructor(
         success: Boolean,
         error: GATTBluetoothError
     ) {
-        if (success) Logger.i(TAG) { "SERVICE :$serviceUuid ADDED SUCCESSFULLY" }
-        else Logger.i(TAG) { "SERVICE $serviceUuid FAILED ADDED ERROR CODE: $error" }
+        if (success) Logger.i(tag = TAG) { "SERVICE :$serviceUuid ADDED SUCCESSFULLY" }
+        else Logger.i(tag = TAG) { "SERVICE $serviceUuid FAILED ADDED ERROR CODE: $error" }
     }
 
     override fun onServiceStatusChange(status: GATTServiceAdvertisementStatus?) {
-        Logger.d(TAG) { "ADVERTISEMENT STATUS :$status" }
+        Logger.d(tag = TAG) { "ADVERTISEMENT STATUS :$status" }
         _isRunning.value = status == GATTServiceAdvertisementStatus.STARTED ||
             status == GATTServiceAdvertisementStatus.STARTED_WITHOUT_ADVERTISEMENT
     }
@@ -123,7 +126,7 @@ class BLEAdvertisementCallback private constructor(
         when (characteristicsId) {
             // HANDLE DEVICE DISCOVERY ADVERTISEMENT HERE
             BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID if (serviceId == BLEConstants.DEVICE_INFO_SERVICE_ID) -> {
-                Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicsId FROM DISCOVERY SERVICE" }
+                Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicsId FROM DISCOVERY SERVICE" }
 
                 val result = delegate.handleDeviceReadRequest(currentDeviceInfo = _deviceInfo.value)
                 return result.getOrNull()
@@ -131,7 +134,10 @@ class BLEAdvertisementCallback private constructor(
 
             // HANDLE SYNC SERVICE PROXIMITY CHECK ADVERTISEMENT HERE
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
-                Logger.d(TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicsId FROM SYNC SERVICE" }
+                Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicsId FROM SYNC SERVICE" }
+
+                // handshake requested
+                _advertiserEvents.tryEmit(AdvertiserSyncEvent.IncomingHandshakeRequest)
 
                 val result = runBlocking {
                     delegate.handleProximityReadRequest(
@@ -143,7 +149,7 @@ class BLEAdvertisementCallback private constructor(
             }
 
             else -> {
-                Logger.w(TAG) { "CANNOT FIND ANY CHARACTERISTICS:${characteristicsId} WITH SERVICE:${serviceId}" }
+                Logger.w(tag = TAG) { "CANNOT FIND ANY CHARACTERISTICS:${characteristicsId} WITH SERVICE:${serviceId}" }
                 return null
             }
         }
@@ -164,7 +170,7 @@ class BLEAdvertisementCallback private constructor(
         when (characteristicId) {
             // HANDLE DEVICE DISCOVERY ADVERTISEMENT HERE
             BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID if (serviceId == BLEConstants.DEVICE_INFO_SERVICE_ID) -> {
-                Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicId FROM DISCOVERY SERVICE" }
+                Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicId FROM DISCOVERY SERVICE" }
 
                 val result = delegate.handleDeviceWriteRequest(value = value)
                 val peerDevice = result.getOrNull() ?: return
@@ -173,7 +179,7 @@ class BLEAdvertisementCallback private constructor(
 
             // HANDLE SYNC AND PROXIMITY SERVICE FROM HERE
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
-                Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicId FROM SYNC SERVICE" }
+                Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicId FROM SYNC SERVICE" }
 
                 _scope.launch {
                     val result = delegate.handleProximityWriteRequest(
@@ -189,10 +195,10 @@ class BLEAdvertisementCallback private constructor(
                     result.fold(
                         onSuccess = { device ->
                             _activeSyncDeviceInfo[deviceAddress] = device
-                            _advertiserEvents.trySend(AdvertiserSyncEvent.HandshakeSuccess(device))
+                            _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeSuccess(device))
                         },
                         onFailure = { err ->
-                            _advertiserEvents.trySend(AdvertiserSyncEvent.HandshakeFailed("Handshake failed: ${err.message}"))
+                            _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeFailed("Handshake failed: ${err.message}"))
                         },
                     )
                 }
@@ -200,7 +206,7 @@ class BLEAdvertisementCallback private constructor(
 
             // HANDLE SYNC AND PROXIMITY SERVICE FROM HERE
             BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
-                Logger.d(TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicId FROM SYNC SERVICE" }
+                Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicId FROM SYNC SERVICE" }
 
                 _scope.launch {
                     val result = delegate.handleSyncDataWriteRequest(
@@ -215,23 +221,25 @@ class BLEAdvertisementCallback private constructor(
                             val device = _activeSyncDeviceInfo[deviceAddress] ?: return@fold
                             val event = when (session) {
                                 BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
-                                BLESyncSession.SyncSessionSuccessful -> AdvertiserSyncEvent.SyncCompleted(device)
-                                is BLESyncSession.SyncSessionFailed ->
-                                    AdvertiserSyncEvent.SyncFailed(device, session.reason.name)
+                                BLESyncSession.SyncSessionSuccessful ->
+                                    AdvertiserSyncEvent.SyncCompleted(device, isFull = true)
+
+                                is BLESyncSession.SyncSessionFailed -> AdvertiserSyncEvent.SyncFailed(session.reason.name)
+                                is BLESyncSession.SyncPacketTransition -> {
+                                    val isHalfDone =
+                                        session.prevType == BLESyncDataType.CONTENT && session.newType == BLESyncDataType.METADATA
+                                    if (!isHalfDone) return@fold
+                                    // half completed
+                                    AdvertiserSyncEvent.SyncCompleted(device, isFull = false)
+                                }
 
                                 else -> return@fold
                             }
-                            _advertiserEvents.trySend(event)
+                            _advertiserEvents.tryEmit(event)
                         },
                         onFailure = { error ->
-                            Logger.e(TAG, error) { "Failed to handle sync data write request" }
-                            val device = _activeSyncDeviceInfo[deviceAddress] ?: return@fold
-                            _advertiserEvents.trySend(
-                                AdvertiserSyncEvent.SyncFailed(
-                                    device,
-                                    error.message ?: "Unknown Error",
-                                ),
-                            )
+                            val event = AdvertiserSyncEvent.SyncFailed(error.message ?: "Unknown Error")
+                            _advertiserEvents.tryEmit(event)
                         },
                     )
                 }
@@ -251,7 +259,7 @@ class BLEAdvertisementCallback private constructor(
         if (deviceAddress == null || descriptorUuid == null || characteristicsUuid == null || serviceUuid == null)
             return null
 
-        Logger.i(TAG) { "READ REQUEST DESCRIPTOR ID $descriptorUuid CHARACTERISTIC ID : $characteristicsUuid" }
+        Logger.i(tag = TAG) { "READ REQUEST DESCRIPTOR ID $descriptorUuid CHARACTERISTIC ID : $characteristicsUuid" }
 
         val descriptorId = Uuid.parse(descriptorUuid)
         val characteristicsId = Uuid.parse(characteristicsUuid)
@@ -286,13 +294,13 @@ class BLEAdvertisementCallback private constructor(
     ) {
         if (deviceAddress == null || descriptorUuid == null || value == null || characteristicsUuid == null || serviceUuid == null) return
 
-        Logger.i(TAG) { "WRITE REQUEST DESCRIPTOR ID $descriptorUuid CHARACTERISTIC ID : $characteristicsUuid" }
+        Logger.i(tag = TAG) { "WRITE REQUEST DESCRIPTOR ID $descriptorUuid CHARACTERISTIC ID : $characteristicsUuid" }
 
         val descriptorId = Uuid.parse(descriptorUuid)
         val characteristicId = Uuid.parse(characteristicsUuid)
         val serviceId = Uuid.parse(serviceUuid)
 
-        Logger.d(TAG) { "WRITE REQUEST DESCRIPTOR ID $descriptorId CHARACTERISTIC ID : $characteristicId" }
+        Logger.d(tag = TAG) { "WRITE REQUEST DESCRIPTOR ID $descriptorId CHARACTERISTIC ID : $characteristicId" }
 
         // only handle sync service id
         if (serviceId != BLEConstants.SYNC_SERVICE_ID) return

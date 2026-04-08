@@ -83,25 +83,25 @@ actual class BLESyncConnectionManagerImpl(
 
         try {
             emit(Resource.Success(ConnectorSyncEvent.DiscoveryStarted))
-            Logger.i(TAG) { "SCANNING FOR DEVICES STATED" }
+            Logger.i(tag = TAG) { "SCANNING FOR DEVICES STATED" }
             val btDevice = withTimeout(timeout) {
                 runBLEDiscovery().first()
             }
-            Logger.i(TAG) { "SCAN RESULT FOUND" }
+            Logger.i(tag = TAG) { "SCAN RESULT FOUND" }
             val identifier = btDevice.address.toString()
             emit(Resource.Success(ConnectorSyncEvent.DeviceFound(identifier)))
             // deals with the connection
             val connectionFlow = handleConnection(btDevice)
             emitAll(connectionFlow.map { Resource.Success(it) })
         } catch (_: TimeoutCancellationException) {
-            Logger.w(TAG) { "SCAN TIMEOUT ADVERTISEMENT NOT FOUND FOR TIMEOUT: $timeout" }
+            Logger.w(tag = TAG) { "SCAN TIMEOUT ADVERTISEMENT NOT FOUND FOR TIMEOUT: $timeout" }
             emit(Resource.Success(ConnectorSyncEvent.DeviceScanTimeout))
         } catch (e: Exception) {
             if (e is CancellationException) {
-                Logger.d(TAG) { "CONNECTION JOB CANCELLED" }
+                Logger.d(tag = TAG) { "CONNECTION JOB CANCELLED" }
                 throw e
             }
-            Logger.e(TAG, e) { "SOME EXCEPTION OCCURRED" }
+            Logger.e(tag = TAG, throwable = e) { "SOME EXCEPTION OCCURRED" }
         }
     }.flowOn(Dispatchers.IO)
 
@@ -124,11 +124,11 @@ actual class BLESyncConnectionManagerImpl(
             .setLegacy(false)
             .build()
 
-        Logger.i(TAG) { "BLE SCAN STARTED" }
+        Logger.i(tag = TAG) { "BLE SCAN STARTED" }
         _btLEScanner?.startScan(scanFilters, scanSettings, scanCallback) ?: close()
 
         awaitClose {
-            Logger.i(TAG) { "BLE SCAN STOPPED" }
+            Logger.i(tag = TAG) { "BLE SCAN STOPPED" }
             _btLEScanner?.stopScan(scanCallback)
             scanCallback.clearCallbacks()
         }
@@ -140,12 +140,12 @@ actual class BLESyncConnectionManagerImpl(
         connectionCallback.onEvents { event -> trySend(event) }
         connectionCallback.onError { err ->
             if (err is GattInvalidStatusException) {
-                Logger.w(TAG) { "BLE GATT STATUS EXCEPTION ERROR TEXT:${err.statusMessage}" }
+                Logger.w(tag = TAG) { "BLE GATT STATUS EXCEPTION ERROR TEXT:${err.statusMessage}" }
             }
             close(err)
         }
 
-        Logger.d(TAG) { "OPENING GATT CONNECTION" }
+        Logger.d(tag = TAG) { "OPENING GATT CONNECTION" }
         val btGatt = device.connectGatt(
             context,
             false,
@@ -154,7 +154,7 @@ actual class BLESyncConnectionManagerImpl(
         )
 
         awaitClose {
-            Logger.d(TAG) { "CLOSING GATT CONNECTION" }
+            Logger.d(tag = TAG) { "CLOSING GATT CONNECTION" }
             btGatt.close()
             connectionCallback.onClearCallbacks()
         }
