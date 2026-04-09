@@ -10,8 +10,10 @@ import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.presentation.feature_sync.event.SyncReceiverScreenEvent
 import com.sam.bluepad.presentation.feature_sync.state.SyncReceiverScreenState
 import com.sam.bluepad.presentation.feature_sync.state.SyncUIState
+import com.sam.bluepad.presentation.feature_sync.state.SyncUIState.Failed
 import com.sam.bluepad.presentation.utils.AppViewModel
 import com.sam.bluepad.presentation.utils.UIEvents
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -30,6 +32,7 @@ class SyncReceiverViewmodel(
     private val platformProvider: PlatformInfoProvider,
 ) : AppViewModel() {
 
+    private val _hasAdvertisementStartedOnce = MutableStateFlow(false)
     private val _foreignDevice = MutableStateFlow<ExternalDeviceModel?>(null)
     private val _syncPhase = MutableStateFlow<SyncUIState>(SyncUIState.NotRunning)
 
@@ -38,13 +41,15 @@ class SyncReceiverViewmodel(
         _foreignDevice,
         _syncPhase,
         advertiser.isRunning,
-    ) { current, foreign, isSyncRunning, isRunning ->
+        _hasAdvertisementStartedOnce,
+    ) { current, foreign, isSyncRunning, isRunning, advertisedOnce ->
         SyncReceiverScreenState(
             currentDevice = current,
             localDevicePlatformOS = platformProvider.platformOS,
             foreignDevice = foreign,
             isReceiverRunning = isRunning,
             syncPhase = isSyncRunning,
+            advertisedAtLeastOnce = advertisedOnce,
         )
     }.onStart { readIncomingSyncEvents() }
         .stateIn(
@@ -53,6 +58,8 @@ class SyncReceiverViewmodel(
             initialValue = SyncReceiverScreenState(),
         )
 
+    private var _eventsJob: Job? = null
+
     private val _uiEvents = MutableSharedFlow<UIEvents>()
     override val uiEvent: SharedFlow<UIEvents>
         get() = _uiEvents
@@ -60,23 +67,24 @@ class SyncReceiverViewmodel(
 
     fun onEvent(event: SyncReceiverScreenEvent) {
         when (event) {
-            SyncReceiverScreenEvent.OnStartSyncConnection -> onStartSync()
             SyncReceiverScreenEvent.StartSyncReceiver -> onStartReceiver()
             SyncReceiverScreenEvent.StopSyncReceiver -> onStopReceiver()
-            SyncReceiverScreenEvent.OnRejectSyncConnection -> onRejectSyncConnection()
+            SyncReceiverScreenEvent.DisconnectAndReset -> onDisconnectAndReset()
+            SyncReceiverScreenEvent.NavigateToSketches -> viewModelScope.launch {
+                _uiEvents.emit(UIEvents.PopScreen)
+            }
         }
     }
 
-    private fun onStartSync() = viewModelScope.launch {
-        _uiEvents.emit(UIEvents.ShowSnackBar("Feature unavailable"))
-    }
-
-    private fun onRejectSyncConnection() = _foreignDevice.update { null }
-
     private fun onStartReceiver() = viewModelScope.launch {
         if (screenState.value.isReceiverRunning) return@launch
-        advertiser.startAdvertising(BLEConnectionType.PROXIMITY_AND_SYNC)
+
+        // set and clear the fields
+        _hasAdvertisementStartedOnce.update { true }
         _foreignDevice.update { null }
+
+        // start the advertisement
+        advertiser.startAdvertising(BLEConnectionType.PROXIMITY_AND_SYNC)
     }
 
     private fun onStopReceiver() {
@@ -84,18 +92,35 @@ class SyncReceiverViewmodel(
         advertiser.stopAdvertising()
     }
 
-    private fun readIncomingSyncEvents() = advertiser.serverSyncEvents
-        .onEach { event ->
+    private fun readIncomingSyncEvents() {
+        _eventsJob?.cancel()
+        _eventsJob = advertiser.serverSyncEvents.onEach { event ->
             when (event) {
+                AdvertiserSyncEvent.IncomingHandshakeRequest -> _syncPhase.update { SyncUIState.Started }
                 is AdvertiserSyncEvent.HandshakeFailed -> _uiEvents.emit(UIEvents.ShowSnackBar(event.message))
                 is AdvertiserSyncEvent.HandshakeSuccess -> _foreignDevice.update { event.device }
-                is AdvertiserSyncEvent.SyncCompleted -> _syncPhase.update { SyncUIState.Completed }
-                is AdvertiserSyncEvent.SyncFailed -> _syncPhase.update { SyncUIState.Failed(event.reason) }
+                is AdvertiserSyncEvent.SyncCompleted -> _syncPhase.update { if (event.isFull) SyncUIState.FullDuplex else SyncUIState.HalfDuplex }
+                is AdvertiserSyncEvent.SyncFailed -> _syncPhase.update { Failed(event.reason) }
                 is AdvertiserSyncEvent.SyncStarted -> _syncPhase.update { SyncUIState.Running }
             }
         }.launchIn(viewModelScope)
+    }
+
+    private fun onDisconnectAndReset() {
+        // cancel the job
+        _eventsJob?.cancel()
+        _eventsJob = null
+        // update the fields
+        _foreignDevice.update { null }
+        _syncPhase.update { SyncUIState.NotRunning }
+        // stop the advertisement
+        advertiser.stopAdvertising()
+    }
 
     override fun onCleared() {
         advertiser.cleanUp()
+        // clean up
+        _eventsJob?.cancel()
+        _eventsJob = null
     }
 }

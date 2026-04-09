@@ -26,7 +26,10 @@ fun EntryProviderScope<NavKey>.receiveSyncDataRouteEntry(
 
     val screenState by viewModel.screenState.collectAsStateWithLifecycle()
 
-    UiEventsHandler(eventsFlow = viewModel::uiEvent)
+    UiEventsHandler(
+        eventsFlow = viewModel::uiEvent,
+        onNavigateBack = { backStack.removeLastOrNull() },
+    )
 
     SyncReceiverScreen(
         state = screenState,
@@ -36,7 +39,7 @@ fun EntryProviderScope<NavKey>.receiveSyncDataRouteEntry(
                 IconButton(onClick = { backStack.removeLastOrNull() }) {
                     Icon(
                         painter = painterResource(Res.drawable.ic_back),
-                        contentDescription = stringResource(Res.string.action_back)
+                        contentDescription = stringResource(Res.string.action_back),
                     )
                 }
             }

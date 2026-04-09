@@ -10,4 +10,5 @@ data class SyncReceiverScreenState(
     val foreignDevice: ExternalDeviceModel? = null,
     val isReceiverRunning: Boolean = false,
     val syncPhase: SyncUIState = SyncUIState.NotRunning,
+    val advertisedAtLeastOnce: Boolean=false,
 )
