@@ -46,7 +46,7 @@ import kotlin.uuid.toKotlinUuid
 
 private const val TAG = "SERVER_CALLBACK"
 
-private typealias GATTSendResponse = (device: BluetoothDevice?, requestId: Int, status: Int, offset: Int, value: ByteArray?) -> Unit
+private typealias GATTSendResponse = (device: BluetoothDevice, requestId: Int, status: Int, offset: Int, value: ByteArray?) -> Unit
 private typealias GATTNotifyCharacteristicsChanged = (device: BluetoothDevice, characteristics: BluetoothGattCharacteristic, value: ByteArray) -> Boolean
 
 @SuppressLint("MissingPermission")
@@ -129,14 +129,10 @@ class ServerConnectionCallback private constructor(
             null
         }
 
-
         val state = when (newState) {
             BluetoothProfile.STATE_CONNECTED -> "CONNECTED"
             BluetoothProfile.STATE_DISCONNECTED -> "DISCONNECTED"
             else -> null
-        }
-        if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-            delegate.markDeviceDisconnectedAndClearCache(device.address)
         }
         Logger.i(tag = TAG) { "DEVICE IDENTIFIER:${device.address} BOND STATE:$bondState CONNECTION_STATE:$state" }
     }
@@ -185,7 +181,7 @@ class ServerConnectionCallback private constructor(
                 Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
 
                 // handshake requested
-                _advertiserEvents.tryEmit(AdvertiserSyncEvent.IncomingHandshakeRequest)
+                _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeStarted)
 
                 val result = delegate.handleProximityReadRequest(
                     address = device.address,
@@ -281,7 +277,7 @@ class ServerConnectionCallback private constructor(
                             val event = when (session) {
                                 BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
                                 BLESyncSession.SyncSessionSuccessful ->
-                                    AdvertiserSyncEvent.SyncCompleted(device, isFull = true)
+                                    AdvertiserSyncEvent.FullDuplexCompleted(device)
 
                                 is BLESyncSession.SyncSessionFailed -> AdvertiserSyncEvent.SyncFailed(session.reason.name)
                                 is BLESyncSession.SyncPacketTransition -> {
@@ -289,7 +285,7 @@ class ServerConnectionCallback private constructor(
                                         session.prevType == BLESyncDataType.CONTENT && session.newType == BLESyncDataType.METADATA
                                     if (!isHalfDone) return@fold
                                     // half completed
-                                    AdvertiserSyncEvent.SyncCompleted(device, isFull = false)
+                                    AdvertiserSyncEvent.HalfDuplexCompleted(device)
                                 }
 
                                 else -> return@fold
@@ -409,6 +405,7 @@ class ServerConnectionCallback private constructor(
         offset: Int,
         result: Result<ByteArray>,
     ) {
+        if (device == null) return
         if (result.isFailure) {
             val reason = result.exceptionOrNull()?.message
             reason?.let { Logger.w(tag = TAG) { "SENDING GATT READ FAILURE REASON:$it" } }
@@ -429,7 +426,7 @@ class ServerConnectionCallback private constructor(
         value: ByteArray?,
         result: Result<Unit>,
     ) {
-        if (!responseNeeded) return
+        if (device == null || !responseNeeded) return
 
         if (result.isFailure) {
             val reason = result.exceptionOrNull()?.message

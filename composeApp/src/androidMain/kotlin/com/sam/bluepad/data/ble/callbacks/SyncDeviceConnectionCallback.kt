@@ -11,9 +11,12 @@ import com.sam.bluepad.data.ble.delegate.BLEConnectorSyncHandlerDelegate
 import com.sam.bluepad.data.ble.exceptions.GattInvalidStatusException
 import com.sam.bluepad.data.ble.utils.toggleNotification
 import com.sam.bluepad.data.ble.utils.writeToCharacteristics
+import com.sam.bluepad.data.sync.dto.BLESyncDataType
+import com.sam.bluepad.data.sync.dto.BLESyncSession
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.ConnectorSyncEvent
 import com.sam.bluepad.domain.exceptions.InvalidServiceOrCharacteristicsException
+import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.sync.InPayloadManager
@@ -27,6 +30,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.protobuf.ProtoBuf
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.toJavaUuid
 import kotlin.uuid.toKotlinUuid
 
@@ -57,6 +61,8 @@ class SyncDeviceConnectionCallback private constructor(
 
     private val _scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    private val _receiverInfo = ConcurrentHashMap<String, ExternalDeviceModel>()
+
     private var _onEvents: ((ConnectorSyncEvent) -> Unit)? = null
     private var _onError: ((Throwable) -> Unit)? = null
 
@@ -77,7 +83,7 @@ class SyncDeviceConnectionCallback private constructor(
 
     override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(tag=TAG) { "CANNOT READ CONNECTION STATE" }
+            Logger.w(tag = TAG) { "CANNOT READ CONNECTION STATE" }
             _onError?.invoke(GattInvalidStatusException(status))
             return
         }
@@ -86,17 +92,17 @@ class SyncDeviceConnectionCallback private constructor(
             // device connected
             BluetoothGatt.STATE_CONNECTED -> {
                 _onEvents?.invoke(ConnectorSyncEvent.ConnectionSuccess)
-                Logger.i(tag=TAG) { "DEVICE:$deviceAddress CONNECTED" }
+                Logger.i(tag = TAG) { "DEVICE:$deviceAddress CONNECTED" }
 
                 val isMtuRequested = gatt?.requestMtu(BLEConstants.REQUESTED_MTU) ?: false
                 val isDiscoveryRequested = gatt?.discoverServices() ?: false
-                Logger.d(tag=TAG) { "REQUESTED SERVICE DISCOVERY STARTED:$isDiscoveryRequested" }
-                Logger.d(tag=TAG) { "REQUESTING HIGHER MTU: ${BLEConstants.REQUESTED_MTU} STATUS:$isMtuRequested" }
+                Logger.d(tag = TAG) { "REQUESTED SERVICE DISCOVERY STARTED:$isDiscoveryRequested" }
+                Logger.d(tag = TAG) { "REQUESTING HIGHER MTU: ${BLEConstants.REQUESTED_MTU} STATUS:$isMtuRequested" }
             }
 
             // device disconnected
             BluetoothGatt.STATE_DISCONNECTED -> {
-                Logger.i(tag=TAG) { "DEVICE:$deviceAddress DIS_CONNECTED" }
+                Logger.i(tag = TAG) { "DEVICE:$deviceAddress DIS_CONNECTED" }
                 _onEvents?.invoke(ConnectorSyncEvent.DeviceDisconnected)
             }
 
@@ -107,7 +113,7 @@ class SyncDeviceConnectionCallback private constructor(
     override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
         if (gatt == null) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(tag=TAG) { "CANNOT DISCOVER SERVICES" }
+            Logger.w(tag = TAG) { "CANNOT DISCOVER SERVICES" }
             _onError?.invoke(GattInvalidStatusException(status))
             return
         }
@@ -115,16 +121,16 @@ class SyncDeviceConnectionCallback private constructor(
             _onError?.invoke(err)
             return
         }
-        _onEvents?.invoke(ConnectorSyncEvent.ServicesDiscovered)
+        Logger.d(tag = TAG) { "SERVICES DISCOVERED" }
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(tag=TAG) { "CANNOT UPDATE MTU" }
+            Logger.w(tag = TAG) { "CANNOT UPDATE MTU" }
             _onError?.invoke(GattInvalidStatusException(status))
             return
         }
-        Logger.d(tag=TAG) { "GATT CONNECTION MTU UPDATED :$mtu" }
+        Logger.d(tag = TAG) { "GATT CONNECTION MTU UPDATED :$mtu" }
     }
 
     @Suppress("DEPRECATION")
@@ -146,7 +152,7 @@ class SyncDeviceConnectionCallback private constructor(
         status: Int,
     ) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(tag=TAG) { "CANNOT READ CHARACTERISTIC : ${characteristic.uuid}" }
+            Logger.w(tag = TAG) { "CANNOT READ CHARACTERISTIC : ${characteristic.uuid}" }
             _onError?.invoke(GattInvalidStatusException(status))
             return
         }
@@ -156,6 +162,11 @@ class SyncDeviceConnectionCallback private constructor(
 
         when (characteristicsId) {
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if serviceId == BLEConstants.SYNC_SERVICE_ID -> {
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    _onError?.invoke(WrongLifecycleRoutineException())
+                    return
+                }
                 _scope.launch {
                     val result = delegate.handleHandshakeRead(
                         deviceAddress = gatt.device.address,
@@ -164,15 +175,20 @@ class SyncDeviceConnectionCallback private constructor(
                         onReadSuccess = { gatt.toggleNotification(characteristic, true) },
                         savedDevices = { id -> externalDevicesRepository.getDeviceByUuid(id) },
                     )
-                    val model = result.getOrElse { err ->
-                        _onError?.invoke(err)
-                        return@launch
-                    }
-                    _onEvents?.invoke(ConnectorSyncEvent.AdvertisingDeviceRead(model))
+                    result.fold(
+                        onSuccess = { device ->
+                            val deviceAddress = gatt.device.address
+                            _receiverInfo[deviceAddress] = device
+                        },
+                        onFailure = { err -> _onEvents?.invoke(ConnectorSyncEvent.HandshakeFailed(err.message)) },
+                    )
                 }
             }
 
-            else -> Logger.w(tag=TAG) { "NO READ METHOD PRESENT FOR CHARACTERISTICS:$characteristicsId SERVICE:$serviceId" }
+            else -> {
+                Logger.w(tag = TAG) { "NO READ METHOD PRESENT FOR CHARACTERISTICS:$characteristicsId SERVICE:$serviceId" }
+                _onError?.invoke(InvalidCharacteristicsHandlerException())
+            }
         }
     }
 
@@ -184,7 +200,7 @@ class SyncDeviceConnectionCallback private constructor(
         if (gatt == null || characteristic == null) return
 
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(tag=TAG) { "WRITE RESPONSE FAILED" }
+            Logger.w(tag = TAG) { "WRITE RESPONSE FAILED" }
             _onError?.invoke(GattInvalidStatusException(status))
             return
         }
@@ -193,13 +209,15 @@ class SyncDeviceConnectionCallback private constructor(
         val serviceId = characteristic.service.uuid.toKotlinUuid()
 
         when (characteristicsId) {
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if serviceId == BLEConstants.SYNC_SERVICE_ID ->
-                _onEvents?.invoke(ConnectorSyncEvent.ConnectorDeviceDataResponseSend)
-
+            // proximity characteristics write handled no extra handler for it
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if serviceId == BLEConstants.SYNC_SERVICE_ID -> return
             // it's a provided characteristics but adding no handler
             BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if serviceId == BLEConstants.SYNC_SERVICE_ID -> return
 
-            else -> Logger.w(tag=TAG) { "NO WRITE RESPONSE EXCEPTED FROM CHARACTERISTICS:$characteristicsId SERVICE:$serviceId" }
+            else -> {
+                Logger.w(tag = TAG) { "NO WRITE RESPONSE EXCEPTED FROM CHARACTERISTICS:$characteristicsId SERVICE:$serviceId" }
+                _onError?.invoke(InvalidCharacteristicsHandlerException())
+            }
         }
     }
 
@@ -222,7 +240,7 @@ class SyncDeviceConnectionCallback private constructor(
         value: ByteArray,
     ) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(tag=TAG) { "DESCRIPTOR READ FAILED STATUS CODE:$status" }
+            Logger.w(tag = TAG) { "DESCRIPTOR READ FAILED STATUS CODE:$status" }
             return
         }
         val descriptorId = descriptor.uuid.toKotlinUuid()
@@ -230,18 +248,30 @@ class SyncDeviceConnectionCallback private constructor(
         val characteristic = descriptor.characteristic
 
         when (descriptorId) {
-            BLEConstants.CCC_DESCRIPTOR -> _scope.launch {
-                delegate.onEnabledDisabledCCCDescriptor(
-                    address = gatt.device.address,
-                    characteristicId = characteristic.uuid.toKotlinUuid(),
-                    bytes = value,
-                    onWriteBytes = { bytes -> gatt.writeToCharacteristics(characteristic, bytes) },
-                    onToggleNotification = { uuid, enable ->
-                        val notificationCharacteristic = gatt.getService(serviceId.toJavaUuid())
-                            .getCharacteristic(uuid.toJavaUuid()) ?: return@launch
-                        gatt.toggleNotification(notificationCharacteristic, enable)
-                    },
-                )
+            BLEConstants.CCC_DESCRIPTOR -> {
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    _onError?.invoke(WrongLifecycleRoutineException())
+                    return
+                }
+                _scope.launch {
+                    delegate.onEnabledDisabledCCCDescriptor(
+                        address = gatt.device.address,
+                        characteristicId = characteristic.uuid.toKotlinUuid(),
+                        bytes = value,
+                        onWriteBytes = { bytes -> gatt.writeToCharacteristics(characteristic, bytes) },
+                        onToggleNotification = { uuid, enable ->
+                            val notificationCharacteristic = gatt.getService(serviceId.toJavaUuid())
+                                .getCharacteristic(uuid.toJavaUuid()) ?: return@launch
+                            gatt.toggleNotification(notificationCharacteristic, enable)
+                        },
+                    )
+                }
+            }
+
+            else -> {
+                Logger.d(tag = TAG) { "DESCRIPTOR WRITE PERFORMED ON A NON CCC DESCRIPTOR" }
+                _onError?.invoke(InvalidCharacteristicsHandlerException())
             }
         }
     }
@@ -253,7 +283,7 @@ class SyncDeviceConnectionCallback private constructor(
     ) {
         if (gatt == null || descriptor == null) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(tag=TAG) { "DESCRIPTOR WRITE FAILED STATUS: $status" }
+            Logger.w(tag = TAG) { "DESCRIPTOR WRITE FAILED STATUS: $status" }
             return
         }
 
@@ -262,10 +292,15 @@ class SyncDeviceConnectionCallback private constructor(
 
         when (descriptorId) {
             BLEConstants.CCC_DESCRIPTOR -> {
-                Logger.d(tag=TAG) { "WRITE CCC DESCRIPTOR ENABLE/DISABLE SUCCEED ON CHARACTERISTICS:${characteristic.uuid}" }
+                Logger.d(tag = TAG) { "WRITE CCC DESCRIPTOR ENABLE/DISABLE SUCCEED ON CHARACTERISTICS:${characteristic.uuid}" }
                 // write was successful good now to know what is being written and
                 // manage then we read the characteristics
                 gatt.readDescriptor(descriptor)
+            }
+
+            else -> {
+                Logger.d(tag = TAG) { "DESCRIPTOR READ PERFORMED ON A NON CCC DESCRIPTOR" }
+                _onError?.invoke(InvalidCharacteristicsHandlerException())
             }
         }
     }
@@ -289,28 +324,43 @@ class SyncDeviceConnectionCallback private constructor(
     ) {
         val characteristicId = characteristic.uuid.toKotlinUuid()
         val serviceId = characteristic.service.uuid.toKotlinUuid()
+        val deviceAddress = gatt.device.address ?: return
 
         when (characteristicId) {
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) ->
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    _onError?.invoke(WrongLifecycleRoutineException())
+                    return
+                }
                 _scope.launch {
                     val event = delegate.handleHandshakeNotification(
                         value = value,
-                        onHandshakeSuccess = { gatt.toggleNotification(characteristic, false) },
-                    ).getOrElse { err ->
-                        _onError?.invoke(err)
+                        onHandshakeSuccess = {
+                            // connection handshake success
+                            _receiverInfo[deviceAddress]?.let { device ->
+                                _onEvents?.invoke(ConnectorSyncEvent.HandshakeSuccess(device))
+                            }
+                            gatt.toggleNotification(characteristic, false)
+                        },
+                    )
+                    if (event.isFailure) {
+                        val error = event.exceptionOrNull()
+                        _onEvents?.invoke(ConnectorSyncEvent.HandshakeFailed(error?.message))
                         return@launch
                     }
-                    _onEvents?.invoke(event)
                 }
+            }
 
             BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
                 if (!_scope.isActive) {
-                    Logger.w(tag=TAG) { "COROUTINE IS NOT ACTIVE" }
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    _onError?.invoke(WrongLifecycleRoutineException())
                     return
                 }
 
                 _scope.launch {
-                    delegate.handleSyncDataNotification(
+                    val result = delegate.handleSyncDataNotification(
                         characteristicId = characteristic.uuid.toKotlinUuid(),
                         value = value,
                         onWriteBytes = { bytes ->
@@ -322,13 +372,35 @@ class SyncDeviceConnectionCallback private constructor(
                             gatt.toggleNotification(notificationCharacteristic, enable)
                         },
                         onEvent = { event -> _onEvents?.invoke(event) },
-                        onError = { exp -> if (exp is Exception) _onError?.invoke(exp) },
+                    )
+
+                    result.fold(
+                        onSuccess = { (session, _) ->
+                            val device = _receiverInfo[deviceAddress] ?: return@fold
+                            val event = when (session) {
+                                BLESyncSession.SyncSessionStart -> ConnectorSyncEvent.SyncStarted(device)
+                                BLESyncSession.SyncSessionSuccessful -> ConnectorSyncEvent.FullDuplexCompleted(device)
+                                is BLESyncSession.SyncSessionFailed -> ConnectorSyncEvent.SyncFailed(session.reason.name)
+                                is BLESyncSession.SyncPacketTransition -> {
+                                    val isHalfDone = session.prevType == BLESyncDataType.CONTENT &&
+                                        session.newType == BLESyncDataType.METADATA
+                                    if (!isHalfDone) return@fold
+                                    // half completed
+                                    ConnectorSyncEvent.HalfDuplexCompleted(device)
+                                }
+
+                                else -> return@fold
+                            }
+                            _onEvents?.invoke(event)
+                        },
+                        onFailure = { err -> _onError?.invoke(err) },
                     )
                 }
             }
 
-            else -> Logger.w(tag=TAG) {
-                "NO HANDLER FOR CHARACTERISTIC:$characteristicId and SERVICE:$serviceId"
+            else -> {
+                Logger.w(tag = TAG) { "NO HANDLER FOR CHARACTERISTIC:$characteristicId and SERVICE:$serviceId" }
+                _onError?.invoke(InvalidCharacteristicsHandlerException())
             }
         }
     }
@@ -343,19 +415,26 @@ class SyncDeviceConnectionCallback private constructor(
             ?: throw InvalidServiceOrCharacteristicsException(false, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID)
 
         val isSuccess = gatt.readCharacteristic(characteristic)
-        Logger.d(tag=TAG) { "READ CHARACTERISTICS OP SUCCESS: $isSuccess" }
+        Logger.d(tag = TAG) { "READ CHARACTERISTICS OP SUCCESS: $isSuccess" }
     }
 
 
     fun onClearCallbacks() {
-        Logger.d(tag=TAG) { "CALLBACKS REMOVED" }
+        Logger.d(tag = TAG) { "CALLBACKS REMOVED" }
         _onError = null
         _onEvents = null
     }
 
     fun onClose() {
-        Logger.d(tag=TAG) { "CANCELLING SCOPE IS SCOPE ACTIVE:${_scope.isActive}" }
+        Logger.d(tag = TAG) { "CANCELLING SCOPE IS SCOPE ACTIVE:${_scope.isActive}" }
+        _receiverInfo.clear()
         _scope.cancel()
         onClearCallbacks()
     }
+
+    private class WrongLifecycleRoutineException :
+        IllegalStateException("Invalid Lifecycle state, the internal coroutine was cancelled")
+
+    private class InvalidCharacteristicsHandlerException :
+        IllegalStateException("Operation on invalid characteristics please report this")
 }

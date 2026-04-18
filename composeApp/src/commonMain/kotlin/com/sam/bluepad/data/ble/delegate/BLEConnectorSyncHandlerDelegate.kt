@@ -76,7 +76,7 @@ class BLEConnectorSyncHandlerDelegate(
     suspend inline fun handleHandshakeNotification(
         value: ByteArray,
         onHandshakeSuccess: suspend () -> Boolean
-    ): Result<ConnectorSyncEvent> {
+    ): Result<Unit> {
         return runCatching {
             val result = protoBuf.decodeFromByteArray<BLESyncHandshakeData>(value)
             Logger.i(tag = TAG) { "HANDSHAKE ACK DATA FOUND" }
@@ -96,7 +96,6 @@ class BLEConnectorSyncHandlerDelegate(
 
                 else -> throw InvalidHandshakeValueException()
             }
-            ConnectorSyncEvent.AdvertisingAcknowledgmentReceived
         }
     }
 
@@ -105,14 +104,13 @@ class BLEConnectorSyncHandlerDelegate(
         value: ByteArray,
         onEvent: (ConnectorSyncEvent) -> Unit,
         onWriteBytes: suspend (ByteArray) -> Boolean,
-        onToggleNotification: suspend (characteristics: Uuid, enable: Boolean) -> Unit,
-        onError: (Throwable?) -> Unit,
-    ) {
-        try {
+        onToggleNotification: suspend (characteristics: Uuid, enable: Boolean) -> Boolean,
+    ): Result<Pair<BLESyncSession, Boolean>> {
+        return try {
             val decodedData = protoBuf.decodeFromByteArray<BLESyncSession>(value)
             Logger.d(tag = TAG) { "SYNC DATA RECEIVED  | BLOCK_SIZE: ${value.size}" }
 
-            val result = when (decodedData) {
+            val result: Result<Boolean> = when (decodedData) {
                 is BLESyncSession.SyncSessionStartAck -> onSessionStartACK(decodedData, onWriteBytes)
                 is BLESyncSession.BLESyncDataPacket -> onDataPacketReceived(decodedData, onWriteBytes)
                 is BLESyncSession.BLESyncDataAck -> onDataPacketACKReceived(decodedData, onWriteBytes)
@@ -120,6 +118,7 @@ class BLEConnectorSyncHandlerDelegate(
                 is BLESyncSession.SyncPacketTransition -> onPacketTransition(decodedData, onWriteBytes)
                 BLESyncSession.SyncSessionSuccessful -> runCatching {
                     Logger.d(tag = TAG) { "SYNC SESSION COMPLETED" }
+                    true
                 }
 
                 is BLESyncSession.SyncSessionFailed -> runCatching {
@@ -127,24 +126,23 @@ class BLEConnectorSyncHandlerDelegate(
                     onToggleNotification(characteristicId, false)
                 }
 
-                BLESyncSession.SyncPacketProcessing -> {
+                BLESyncSession.SyncPacketProcessing -> runCatching {
                     Logger.d(tag = TAG) { "REMOTE PROCESSING DATA RUNNING...." }
                     onEvent(ConnectorSyncEvent.RemoteProcessing)
-                    Result.success(true)
+                    true
                 }
 
-                else -> Result.failure(InvalidSessionTypeException())
+                else -> return Result.failure(InvalidSessionTypeException())
             }
-
-            if (result.isFailure) {
-                onError(result.exceptionOrNull())
-                return
-            }
+            val isHandled = result.getOrElse { err -> return Result.failure(err) }
+            Result.success(decodedData to isHandled)
         } catch (_: SerializationException) {
             Logger.e(tag = TAG) { "INVALID DATA RECEIVED CANNOT DECODE IT" }
+            Result.failure(InvalidPayloadDataException())
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Logger.e(tag = TAG, throwable = e) { "UNKNOWN EXCEPTION" }
+            Result.failure(e)
         }
     }
 

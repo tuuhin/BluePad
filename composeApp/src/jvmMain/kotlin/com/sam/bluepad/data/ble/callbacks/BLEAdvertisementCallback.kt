@@ -137,7 +137,7 @@ class BLEAdvertisementCallback private constructor(
                 Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicsId FROM SYNC SERVICE" }
 
                 // handshake requested
-                _advertiserEvents.tryEmit(AdvertiserSyncEvent.IncomingHandshakeRequest)
+                _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeStarted)
 
                 val result = runBlocking {
                     delegate.handleProximityReadRequest(
@@ -221,8 +221,7 @@ class BLEAdvertisementCallback private constructor(
                             val device = _activeSyncDeviceInfo[deviceAddress] ?: return@fold
                             val event = when (session) {
                                 BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
-                                BLESyncSession.SyncSessionSuccessful ->
-                                    AdvertiserSyncEvent.SyncCompleted(device, isFull = true)
+                                BLESyncSession.SyncSessionSuccessful -> AdvertiserSyncEvent.FullDuplexCompleted(device)
 
                                 is BLESyncSession.SyncSessionFailed -> AdvertiserSyncEvent.SyncFailed(session.reason.name)
                                 is BLESyncSession.SyncPacketTransition -> {
@@ -230,7 +229,7 @@ class BLEAdvertisementCallback private constructor(
                                         session.prevType == BLESyncDataType.CONTENT && session.newType == BLESyncDataType.METADATA
                                     if (!isHalfDone) return@fold
                                     // half completed
-                                    AdvertiserSyncEvent.SyncCompleted(device, isFull = false)
+                                    AdvertiserSyncEvent.HalfDuplexCompleted(device)
                                 }
 
                                 else -> return@fold

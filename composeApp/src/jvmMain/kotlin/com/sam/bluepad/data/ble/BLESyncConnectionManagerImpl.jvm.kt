@@ -11,6 +11,8 @@ import com.juul.kable.WriteType
 import com.juul.kable.logs.Logging
 import com.sam.ble_common.BluetoothInfoProvider
 import com.sam.bluepad.data.ble.delegate.BLEConnectorSyncHandlerDelegate
+import com.sam.bluepad.data.sync.dto.BLESyncDataType
+import com.sam.bluepad.data.sync.dto.BLESyncSession
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLESyncConnectionManager
 import com.sam.bluepad.domain.ble.ResourcesSyncDataEvents
@@ -18,6 +20,7 @@ import com.sam.bluepad.domain.ble.events.ConnectorSyncEvent
 import com.sam.bluepad.domain.exceptions.BLENotSupportedException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.exceptions.InvalidServiceOrCharacteristicsException
+import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.sync.InPayloadManager
@@ -45,6 +48,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.protobuf.ProtoBuf
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
@@ -86,6 +90,8 @@ actual class BLESyncConnectionManagerImpl private constructor(
         }
     }
 
+    private val _receiverInfo = ConcurrentHashMap<String, ExternalDeviceModel>()
+
     override fun discoverAndConnect(timeout: Duration): Flow<ResourcesSyncDataEvents> =
         flow<ResourcesSyncDataEvents> {
 
@@ -101,29 +107,29 @@ actual class BLESyncConnectionManagerImpl private constructor(
 
             try {
                 emit(Resource.Success(ConnectorSyncEvent.DiscoveryStarted))
-                Logger.i(TAG) { "SCANNING FOR DEVICES STATED" }
+                Logger.i(tag = TAG) { "SCANNING FOR DEVICES STATED" }
                 val firstAdvertisement = withTimeout(timeout) {
                     _scanner.advertisements
                         // an extra delay for the hardware to cool down
                         .onEach { delay(100) }
                         .first()
                 }
-                Logger.i(TAG) { "SCAN RESULT FOUND" }
+                Logger.i(tag = TAG) { "SCAN RESULT FOUND" }
                 val identifier = firstAdvertisement.identifier.toString()
                 emit(Resource.Success(ConnectorSyncEvent.DeviceFound(identifier)))
                 // deals with the connection
                 val connectionFlow = handleConnection(firstAdvertisement)
                 emitAll(connectionFlow.map { Resource.Success(it) })
             } catch (_: TimeoutCancellationException) {
-                Logger.w(TAG) { "SCAN TIMEOUT ADVERTISEMENT NOT FOUND FOR TIMEOUT: $timeout" }
+                Logger.w(tag = TAG) { "SCAN TIMEOUT ADVERTISEMENT NOT FOUND FOR TIMEOUT: $timeout" }
                 emit(Resource.Success(ConnectorSyncEvent.DeviceScanTimeout))
             } catch (e: Exception) {
                 if (e is CancellationException) {
-                    Logger.d(TAG) { "CONNECTION JOB CANCELLED" }
+                    Logger.d(tag = TAG) { "CONNECTION JOB CANCELLED" }
                     throw e
                 }
                 emit(Resource.Error(e))
-                Logger.e(TAG, e) { "Some exception" }
+                Logger.e(tag = TAG, throwable = e) { "Some exception" }
             }
         }.flowOn(Dispatchers.IO)
 
@@ -143,12 +149,14 @@ actual class BLESyncConnectionManagerImpl private constructor(
             }
             // exception handler
             observationExceptionHandler { exp ->
-                Logger.e(TAG, exp) { "EXCEPTION HAPPENED" }
+                Logger.e(tag = TAG, throwable = exp) { "EXCEPTION HAPPENED" }
             }
             onServicesDiscovered {
-                Logger.d(TAG) { "SERVICE DISCOVERED SERVICE" }
+                Logger.d(tag = TAG) { "SERVICE DISCOVERED SERVICE" }
             }
         }
+
+        val deviceAddress = peripheral.identifier.toString()
 
         return channelFlow {
             try {
@@ -156,11 +164,11 @@ actual class BLESyncConnectionManagerImpl private constructor(
                     peripheral.connect()
                     peripheral.maximumWriteValueLengthForType(WriteType.WithoutResponse)
                     send(ConnectorSyncEvent.ConnectionSuccess)
-                    Logger.i(TAG) { "PERIPHERAL CONNECTION ESTABLISHED" }
+                    Logger.i(tag = TAG) { "PERIPHERAL CONNECTION ESTABLISHED" }
                 }
             } catch (_: TimeoutCancellationException) {
                 send(ConnectorSyncEvent.DeviceScanTimeout)
-                Logger.i(TAG) { "FAILED TO CONNECT TO THE DEVICE TIMEOUT OCCURRED" }
+                Logger.i(tag = TAG) { "FAILED TO CONNECT TO THE DEVICE TIMEOUT OCCURRED" }
                 close()
             }
 
@@ -179,9 +187,8 @@ actual class BLESyncConnectionManagerImpl private constructor(
                 val syncDataJob = launch(start = CoroutineStart.LAZY) {
                     syncDataCharacteristics.observeNotifications(
                         peripheral = peripheral,
-                        onToggleNotification = { uuid, enable -> },
                         onObserveBytes = { bytes ->
-                            delegate.handleSyncDataNotification(
+                            val result = delegate.handleSyncDataNotification(
                                 characteristicId = BLEConstants.SYNC_DATA_CHARACTERISTICS_ID,
                                 value = bytes,
                                 onWriteBytes = { dataBytes ->
@@ -190,10 +197,33 @@ actual class BLESyncConnectionManagerImpl private constructor(
                                 onToggleNotification = { _, enable ->
                                     if (enable) Unit
                                     else cancel()
+                                    true
                                 },
-                                onError = { err -> close(err) },
                                 onEvent = { event -> trySend(event) },
                             )
+
+                            if (result.isFailure) {
+                                close(result.exceptionOrNull())
+                                return@observeNotifications
+                            }
+
+                            val (session, _) = result.getOrThrow()
+                            val device = _receiverInfo[deviceAddress] ?: return@observeNotifications
+                            val event = when (session) {
+                                BLESyncSession.SyncSessionStart -> ConnectorSyncEvent.SyncStarted(device)
+                                BLESyncSession.SyncSessionSuccessful -> ConnectorSyncEvent.FullDuplexCompleted(device)
+                                is BLESyncSession.SyncSessionFailed -> ConnectorSyncEvent.SyncFailed(session.reason.name)
+                                is BLESyncSession.SyncPacketTransition -> {
+                                    val isHalfDone = session.prevType == BLESyncDataType.CONTENT &&
+                                        session.newType == BLESyncDataType.METADATA
+                                    if (!isHalfDone) return@observeNotifications
+                                    // half completed
+                                    ConnectorSyncEvent.HalfDuplexCompleted(device)
+                                }
+
+                                else -> return@observeNotifications
+                            }
+                            trySend(event)
                         },
                     )
                 }
@@ -210,56 +240,68 @@ actual class BLESyncConnectionManagerImpl private constructor(
                             }
                         },
                         onObserveBytes = { bytes ->
-                            delegate.handleHandshakeNotification(
+                            val event = delegate.handleHandshakeNotification(
                                 value = bytes,
                                 onHandshakeSuccess = {
                                     if (this.isActive) {
-                                        Logger.d(TAG) { "HANDSHAKE IS DONE WE CAN CANCEL IT NOW" }
+                                        _receiverInfo[deviceAddress]?.let { device ->
+                                            trySend(ConnectorSyncEvent.HandshakeSuccess(device))
+                                        }
+                                        Logger.d(tag = TAG) { "HANDSHAKE IS DONE WE CAN CANCEL IT NOW" }
                                         cancel()
                                     }
                                     return@handleHandshakeNotification true
                                 },
                             )
+                            if (event.isFailure) {
+                                val error = event.exceptionOrNull()
+                                trySend(ConnectorSyncEvent.HandshakeFailed(error?.message))
+                                return@observeNotifications
+                            }
                         },
                     )
                 }
 
                 val bytes = peripheral.read(handshakeCharacteristics)
+
+
                 val deviceResult = delegate.handleHandshakeRead(
-                    deviceAddress = peripheral.identifier.toString(),
+                    deviceAddress = deviceAddress,
                     value = bytes,
                     deviceInfo = localDeviceProvider.readDeviceInfo.first(),
                     savedDevices = externalDevicesRepository::getDeviceByUuid,
                     onReadSuccess = {
                         // start the handshake notification reader
-                        Logger.d(TAG) { "HANDSHAKE SUCCESSFULLY WAITING FOR APPROVAL " }
+                        Logger.d(tag = TAG) { "HANDSHAKE SUCCESSFULLY WAITING FOR APPROVAL " }
                         handshakeJob.start()
                     },
                 )
+                deviceResult.fold(
+                    onSuccess = { device -> _receiverInfo[deviceAddress] = device },
+                    onFailure = { err ->
+                        trySend(ConnectorSyncEvent.HandshakeFailed(err.message))
+                        close(err)
+                        return@channelFlow
+                    },
+                )
 
-                if (deviceResult.isFailure) {
-                    close(deviceResult.exceptionOrNull())
-                    return@channelFlow
-                }
-
-                trySend(ConnectorSyncEvent.ConnectorDeviceDataResponseSend)
                 // now join the handshake notification one
                 handshakeJob.join()
                 syncDataJob.join()
 
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                Logger.e(TAG, e) { "UNKNOWN EXCEPTION MESSAGE:$e" }
+                Logger.e(tag = TAG, throwable = e) { "UNKNOWN EXCEPTION MESSAGE:$e" }
             } finally {
                 try {
-                    Logger.i(TAG) { "DISCONNECTING THE PERIPHERAL" }
+                    Logger.i(tag = TAG) { "DISCONNECTING THE PERIPHERAL" }
                     peripheral.disconnect()
                 } catch (_: CancellationException) {
-                    Logger.w(TAG) { "FAILED TO DISCONNECT THE PERIPHERAL" }
+                    Logger.w(tag = TAG) { "FAILED TO DISCONNECT THE PERIPHERAL" }
                 }
             }
             awaitClose {
-                Logger.i(TAG) { "PERIPHERAL CONNECTION CLOSED" }
+                Logger.i(tag = TAG) { "PERIPHERAL CONNECTION CLOSED" }
                 peripheral.close()
             }
         }.flowOn(Dispatchers.IO)
@@ -302,7 +344,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
 
     private suspend fun DiscoveredCharacteristic.observeNotifications(
         peripheral: Peripheral,
-        onToggleNotification: (Uuid, Boolean) -> Unit,
+        onToggleNotification: (Uuid, Boolean) -> Unit = { _, _ -> },
         onObserveBytes: suspend (ByteArray) -> Unit,
     ) = coroutineScope {
 
@@ -313,7 +355,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
             .observe(
                 characteristic = this@observeNotifications,
                 onSubscription = {
-                    Logger.d(TAG) { "READY TO OBSERVE NOTIFICATIONS" }
+                    Logger.d(tag = TAG) { "READY TO OBSERVE NOTIFICATIONS" }
                     // mostly ccc will be enabled here
                     delegate.onEnabledDisabledCCCDescriptor(
                         address = peripheral.identifier.toString(),
@@ -324,9 +366,9 @@ actual class BLESyncConnectionManagerImpl private constructor(
                     )
                 },
             )
-            .onStart { Logger.d(TAG) { "CHARACTERISTICS:${characteristicUuid} NOTIFICATION OBSERVER STARTED" } }
+            .onStart { Logger.d(tag = TAG) { "CHARACTERISTICS:${characteristicUuid} NOTIFICATION OBSERVER STARTED" } }
             .onCompletion {
-                Logger.d(TAG) { "CHARACTERISTICS:${characteristicUuid} NOTIFICATION OBSERVER STOPPED" }
+                Logger.d(tag = TAG) { "CHARACTERISTICS:${characteristicUuid} NOTIFICATION OBSERVER STOPPED" }
                 // mostly ccc will be disabled here
                 delegate.onEnabledDisabledCCCDescriptor(
                     address = peripheral.toString(),
