@@ -8,6 +8,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.tooling.preview.Preview
@@ -40,14 +43,17 @@ fun SyncReceiverScreen(
     val scrollBehaviour = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackBarHostState = LocalSnackBarState.current
 
+    val isSyncRunning by remember(state) {
+        derivedStateOf { state.syncPhase.isSyncing }
+    }
+
     Scaffold(
         topBar = {
             ReceiverScreenTopAppbar(
                 scrollBehaviour = scrollBehaviour,
-                isAdvertising = state.isReceiverRunning,
+                isSyncRunning = isSyncRunning,
                 navigation = navigation,
-                onStartAdvertising = { onEvent(SyncReceiverScreenEvent.StartSyncReceiver) },
-                onStopAdvertising = { onEvent(SyncReceiverScreenEvent.StopSyncReceiver) },
+                onStopOrCancelSync = { onEvent(SyncReceiverScreenEvent.StopSyncReceiver) },
             )
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
@@ -77,7 +83,14 @@ private class SyncReceiverScreenStatePreviewParams :
                 foreignDevice = PreviewFakes.FAKE_EXTERNAL_MODEL_2,
                 localDevicePlatformOS = DevicePlatformOS.ANDROID,
                 isReceiverRunning = true,
-                syncPhase = SyncUIState.HalfDuplex,
+                syncPhase = SyncUIState.HalfDuplexCompleted,
+            ),
+            SyncReceiverScreenState(
+                currentDevice = PreviewFakes.FAKE_LOCAL_DEVICE_MODEL,
+                foreignDevice = PreviewFakes.FAKE_EXTERNAL_MODEL_2,
+                localDevicePlatformOS = DevicePlatformOS.ANDROID,
+                isReceiverRunning = true,
+                syncPhase = SyncUIState.FullSyncSuccessFull,
             ),
         )
 }

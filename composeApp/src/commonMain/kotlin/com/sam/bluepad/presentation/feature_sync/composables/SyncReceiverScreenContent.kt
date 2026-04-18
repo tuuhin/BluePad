@@ -1,7 +1,6 @@
 package com.sam.bluepad.presentation.feature_sync.composables
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -34,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.sam.bluepad.domain.models.DevicePlatformOS
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.models.LocalDeviceInfoModel
 import com.sam.bluepad.presentation.feature_sync.event.SyncReceiverScreenEvent
@@ -45,22 +42,20 @@ import com.sam.bluepad.resources.ic_antenna
 import com.sam.bluepad.resources.ic_sync_failed
 import com.sam.bluepad.resources.receiver_sync_devices_empty_text
 import com.sam.bluepad.resources.receiver_sync_devices_empty_title
-import com.sam.bluepad.resources.receiver_sync_devices_receiver_running_text
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-private sealed class ScreenState {
+private sealed interface ReceiverScreenState {
 
-    data class ScannerNotStarted(val isChecked: Boolean = false) : ScreenState()
-    data object ScanRunning : ScreenState()
+    data object ScanRunning : ReceiverScreenState
+    data object ScannerNotStarted : ReceiverScreenState
 
     data class ContentSyncing(
         val device: ExternalDeviceModel,
         val currentDevice: LocalDeviceInfoModel,
-        val localDevicePlatformOS: DevicePlatformOS
-    ) : ScreenState()
+    ) : ReceiverScreenState
 
-    data class SyncFailed(val message: String) : ScreenState()
+    data class SyncFailed(val message: String) : ReceiverScreenState
 }
 
 @Composable
@@ -75,60 +70,65 @@ fun SyncReceiverScreenContent(
 
     val state by remember(screenState) {
         derivedStateOf {
-            when {
-                screenState.isReceiverRunning && screenState.foreignDevice != null && screenState.currentDevice != null ->
-                    ScreenState.ContentSyncing(
-                        screenState.foreignDevice,
-                        screenState.currentDevice,
-                        screenState.localDevicePlatformOS,
-                    )
 
-                screenState.isReceiverRunning -> ScreenState.ScanRunning
-                screenState.syncPhase is SyncUIState.Failed -> ScreenState.SyncFailed(screenState.syncPhase.message)
-                else -> ScreenState.ScannerNotStarted(isChecked = screenState.advertisedAtLeastOnce)
+            val foreignDevice = screenState.foreignDevice
+            val currentDevice = screenState.currentDevice
+            val isReceiverRunning = screenState.isReceiverRunning
+
+            when {
+                isReceiverRunning && foreignDevice != null && currentDevice != null ->
+                    ReceiverScreenState.ContentSyncing(foreignDevice, currentDevice)
+
+                isReceiverRunning -> ReceiverScreenState.ScanRunning
+                screenState.syncPhase is SyncUIState.Failed -> ReceiverScreenState.SyncFailed(screenState.syncPhase.message)
+                else -> ReceiverScreenState.ScannerNotStarted
             }
         }
     }
 
-    AnimatedContent(
-        targetState = state,
+    Box(
         modifier = modifier.padding(contentPadding),
         contentAlignment = Alignment.Center,
-        transitionSpec = {
-            scaleIn(animationSpec = motionScheme.defaultSpatialSpec()) +
-                fadeIn(animationSpec = motionScheme.slowEffectsSpec()) togetherWith
-                shrinkOut(animationSpec = motionScheme.defaultSpatialSpec()) +
-                fadeOut(animationSpec = motionScheme.slowEffectsSpec())
-        },
-    ) { uiState ->
-        Box(
-            modifier = Modifier.fillMaxSize(),
+    ) {
+        AnimatedContent(
+            targetState = state,
             contentAlignment = Alignment.Center,
-        ) {
+            transitionSpec = {
+                scaleIn(animationSpec = motionScheme.defaultSpatialSpec()) +
+                    fadeIn(animationSpec = motionScheme.slowEffectsSpec()) togetherWith
+                    shrinkOut(animationSpec = motionScheme.defaultSpatialSpec()) +
+                    fadeOut(animationSpec = motionScheme.slowEffectsSpec())
+            },
+        ) { uiState ->
             when (uiState) {
-                is ScreenState.ContentSyncing -> ReceiverSyncingDataContainer(
+                is ReceiverScreenState.ContentSyncing -> ReceiverSyncingDataContainer(
                     externalDevice = uiState.device,
                     currentDevice = uiState.currentDevice,
-                    currentDevicePlatform = uiState.localDevicePlatformOS,
+                    currentDevicePlatform = screenState.localDevicePlatformOS,
                     syncState = screenState.syncPhase,
                     contentPadding = PaddingValues(16.dp),
                     onCheckSketches = { onEvent(SyncReceiverScreenEvent.NavigateToSketches) },
-                    modifier = Modifier.fillMaxSize(),
+                    onDisconnectAndReset = { onEvent(SyncReceiverScreenEvent.DisconnectAndReset) },
                 )
 
-                ScreenState.ScanRunning -> ReceiverRunningContainer(
-                    onStop = { onEvent(SyncReceiverScreenEvent.StopSyncReceiver) },
-                )
+                ReceiverScreenState.ScanRunning -> {
+                    ReceiverRunningContainer(
+                        onStop = { onEvent(SyncReceiverScreenEvent.StopSyncReceiver) },
+                    )
+                }
 
-                is ScreenState.ScannerNotStarted -> StartReceiverContainer(
-                    isRetry = uiState.isChecked,
-                    onStart = { onEvent(SyncReceiverScreenEvent.StartSyncReceiver) },
-                )
+                ReceiverScreenState.ScannerNotStarted -> {
+                    StartReceiverContainer(
+                        onStart = { onEvent(SyncReceiverScreenEvent.StartSyncReceiver) },
+                    )
+                }
 
-                is ScreenState.SyncFailed -> ReceiverSyncFailedContent(
-                    message = uiState.message,
-                    onDisconnect = { onEvent(SyncReceiverScreenEvent.DisconnectAndReset) },
-                )
+                is ReceiverScreenState.SyncFailed -> {
+                    ReceiverSyncFailedContent(
+                        message = uiState.message,
+                        onDisconnect = { onEvent(SyncReceiverScreenEvent.DisconnectAndReset) },
+                    )
+                }
             }
         }
     }
@@ -188,7 +188,6 @@ private fun ReceiverSyncFailedContent(
 private fun StartReceiverContainer(
     onStart: () -> Unit,
     modifier: Modifier = Modifier,
-    isRetry: Boolean = false,
 ) {
     Column(
         modifier = modifier,
@@ -209,18 +208,11 @@ private fun StartReceiverContainer(
         )
         Text(
             text = "Receiver will scan for saved devices in close proximity and start sync if found",
-            style = MaterialTheme.typography.bodySmallEmphasized,
+            style = MaterialTheme.typography.bodyMediumEmphasized,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.widthIn(min = 220.dp),
             textAlign = TextAlign.Center,
         )
-        AnimatedVisibility(isRetry) {
-            Text(
-                text = stringResource(Res.string.receiver_sync_devices_receiver_running_text),
-                style = MaterialTheme.typography.labelMediumEmphasized,
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
         Spacer(modifier = Modifier.height(8.dp))
         Button(
             onClick = onStart,

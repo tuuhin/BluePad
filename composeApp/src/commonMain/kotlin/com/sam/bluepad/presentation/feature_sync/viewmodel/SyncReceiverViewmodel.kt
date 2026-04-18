@@ -10,9 +10,9 @@ import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.presentation.feature_sync.event.SyncReceiverScreenEvent
 import com.sam.bluepad.presentation.feature_sync.state.SyncReceiverScreenState
 import com.sam.bluepad.presentation.feature_sync.state.SyncUIState
-import com.sam.bluepad.presentation.feature_sync.state.SyncUIState.Failed
 import com.sam.bluepad.presentation.utils.AppViewModel
 import com.sam.bluepad.presentation.utils.UIEvents
+import com.sam.bluepad.presentation.utils.UIEvents.ShowSnackBar
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,8 +28,8 @@ import kotlinx.coroutines.launch
 
 class SyncReceiverViewmodel(
     localDeviceProvider: LocalDeviceInfoProvider,
+    platformProvider: PlatformInfoProvider,
     private val advertiser: BLEAdvertisementManager,
-    private val platformProvider: PlatformInfoProvider,
 ) : AppViewModel() {
 
     private val _hasAdvertisementStartedOnce = MutableStateFlow(false)
@@ -96,12 +96,13 @@ class SyncReceiverViewmodel(
         _eventsJob?.cancel()
         _eventsJob = advertiser.serverSyncEvents.onEach { event ->
             when (event) {
-                AdvertiserSyncEvent.IncomingHandshakeRequest -> _syncPhase.update { SyncUIState.Started }
-                is AdvertiserSyncEvent.HandshakeFailed -> _uiEvents.emit(UIEvents.ShowSnackBar(event.message))
+                is AdvertiserSyncEvent.HandshakeFailed -> _uiEvents.emit(ShowSnackBar(event.message))
                 is AdvertiserSyncEvent.HandshakeSuccess -> _foreignDevice.update { event.device }
-                is AdvertiserSyncEvent.SyncCompleted -> _syncPhase.update { if (event.isFull) SyncUIState.FullDuplex else SyncUIState.HalfDuplex }
-                is AdvertiserSyncEvent.SyncFailed -> _syncPhase.update { Failed(event.reason) }
+                is AdvertiserSyncEvent.SyncFailed -> _syncPhase.update { SyncUIState.Failed(event.reason) }
                 is AdvertiserSyncEvent.SyncStarted -> _syncPhase.update { SyncUIState.Running }
+                is AdvertiserSyncEvent.FullDuplexCompleted -> _syncPhase.update { SyncUIState.FullSyncSuccessFull }
+                is AdvertiserSyncEvent.HalfDuplexCompleted -> _syncPhase.update { SyncUIState.HalfDuplexCompleted }
+                AdvertiserSyncEvent.HandshakeStarted -> _syncPhase.update { SyncUIState.Started }
             }
         }.launchIn(viewModelScope)
     }
