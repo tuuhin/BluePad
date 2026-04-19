@@ -101,11 +101,12 @@ fun SyncReceiverScreenContent(
             },
         ) { uiState ->
             when (uiState) {
-                is ReceiverScreenState.ContentSyncing -> ReceiverSyncingDataContainer(
+                is ReceiverScreenState.ContentSyncing -> SyncingRunningDataContainer(
                     externalDevice = uiState.device,
                     currentDevice = uiState.currentDevice,
                     currentDevicePlatform = screenState.localDevicePlatformOS,
                     syncState = screenState.syncPhase,
+                    isLocalDeviceReceiver = true,
                     contentPadding = PaddingValues(16.dp),
                     onCheckSketches = { onEvent(SyncReceiverScreenEvent.NavigateToSketches) },
                     onDisconnectAndReset = { onEvent(SyncReceiverScreenEvent.DisconnectAndReset) },

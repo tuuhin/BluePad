@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,9 +23,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
@@ -46,12 +54,13 @@ import com.sam.bluepad.resources.ic_receiver_action_reset
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
-fun ReceiverSyncingDataContainer(
+fun SyncingRunningDataContainer(
     externalDevice: ExternalDeviceModel,
     currentDevice: LocalDeviceInfoModel,
     onCheckSketches: () -> Unit,
     onDisconnectAndReset: () -> Unit,
     modifier: Modifier = Modifier,
+    isLocalDeviceReceiver: Boolean = false,
     currentDevicePlatform: DevicePlatformOS = DevicePlatformOS.UNKNOWN,
     syncState: SyncUIState = SyncUIState.NotRunning,
     contentPadding: PaddingValues = PaddingValues.Zero,
@@ -63,11 +72,31 @@ fun ReceiverSyncingDataContainer(
         contentPadding = contentPadding,
     ) {
         item {
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.onTertiaryContainer),
+            ) {
+                Box(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = syncState.connectionStatus,
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        }
+        item {
             ReceiverCardUIHeroContainer(
                 externalDevice = externalDevice,
                 currentDevice = currentDevice,
                 currentDevicePlatform = currentDevicePlatform,
                 syncState = syncState,
+                isLocalDeviceReceiver = isLocalDeviceReceiver,
             )
             Spacer(modifier = Modifier.height(4.dp))
         }
@@ -77,12 +106,12 @@ fun ReceiverSyncingDataContainer(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = syncState.receiverTitleText,
+                    text = syncState.title,
                     style = MaterialTheme.typography.titleMediumEmphasized,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = syncState.receiverDescText,
+                    text = syncState.description,
                     style = MaterialTheme.typography.bodyLargeEmphasized,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -92,43 +121,71 @@ fun ReceiverSyncingDataContainer(
         if (syncState is SyncUIState.FullSyncSuccessFull) {
             item {
                 Modifier.height(24.dp)
-                Row(
+                ActionsList(
+                    isReceiver = isLocalDeviceReceiver,
+                    onDisconnectAndReset = onDisconnectAndReset,
+                    onCheckSketches = onCheckSketches,
                     modifier = Modifier.animateItem(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(
-                        onClick = onDisconnectAndReset,
-                        modifier = Modifier.minimumInteractiveComponentSize()
-                            .size(IconButtonDefaults.mediumContainerSize(IconButtonDefaults.IconButtonWidthOption.Wide)),
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                        ),
-                        shape = IconButtonDefaults.largeRoundShape,
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_receiver_action_reset),
-                            contentDescription = "Reset Receiver",
-                        )
-                    }
-
-                    Button(
-                        onClick = onCheckSketches,
-                        modifier = Modifier.heightIn(ButtonDefaults.MediumContainerHeight),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
-                        shapes = ButtonDefaults.shapes(
-                            shape = ButtonDefaults.elevatedShape,
-                            pressedShape = ButtonDefaults.mediumPressedShape,
-                        ),
-                    ) {
-                        Text("Check Sketches", style = MaterialTheme.typography.titleMediumEmphasized)
-                    }
-                }
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun ActionsList(
+    onDisconnectAndReset: () -> Unit,
+    onCheckSketches: () -> Unit,
+    modifier: Modifier = Modifier,
+    isReceiver: Boolean = false,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TooltipBox(
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(positioning = TooltipAnchorPosition.Above),
+            tooltip = {
+                PlainTooltip {
+                    Text(text = if (isReceiver) "Reset" else "Disconnect")
+                }
+            },
+            state = rememberTooltipState(),
+        ) {
+            IconButton(
+                onClick = onDisconnectAndReset,
+                modifier = Modifier.minimumInteractiveComponentSize()
+                    .size(IconButtonDefaults.mediumContainerSize(IconButtonDefaults.IconButtonWidthOption.Wide)),
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
+                shape = IconButtonDefaults.largeRoundShape,
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_receiver_action_reset),
+                    contentDescription = "Reset Receiver",
+                )
+            }
+        }
+
+        Button(
+            onClick = onCheckSketches,
+            modifier = Modifier.heightIn(ButtonDefaults.MediumContainerHeight),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ),
+            shapes = ButtonDefaults.shapes(
+                shape = ButtonDefaults.elevatedShape,
+                pressedShape = ButtonDefaults.mediumPressedShape,
+            ),
+        ) {
+            Text(
+                text = "Check Sketches",
+                style = MaterialTheme.typography.titleMediumEmphasized,
+            )
         }
     }
 }
@@ -138,6 +195,7 @@ private fun ReceiverCardUIHeroContainer(
     externalDevice: ExternalDeviceModel,
     currentDevice: LocalDeviceInfoModel,
     modifier: Modifier = Modifier,
+    isLocalDeviceReceiver: Boolean = false,
     currentDevicePlatform: DevicePlatformOS = DevicePlatformOS.UNKNOWN,
     syncState: SyncUIState = SyncUIState.NotRunning,
 ) {
@@ -165,13 +223,23 @@ private fun ReceiverCardUIHeroContainer(
 
     val devicesContent = remember {
         movableContentOf { syncUiState: SyncUIState, isLarge: Boolean ->
-            LocalDeviceUICard(
+
+            if (isLocalDeviceReceiver) {
+                ReceiverDeviceUICard(
+                    device = externalDevice,
+                    modifier = Modifier.widthIn(max = 300.dp)
+                        .graphicsLayer {
+                            scaleX = receiverCardScale
+                            scaleY = receiverCardScale
+                        },
+                )
+            } else LocalDeviceUICard(
                 device = currentDevice,
                 platformOS = currentDevicePlatform,
                 modifier = Modifier.widthIn(max = 300.dp)
                     .graphicsLayer {
-                        scaleX = senderCardScale
-                        scaleY = senderCardScale
+                        scaleX = receiverCardScale
+                        scaleY = receiverCardScale
                     },
             )
 
@@ -187,8 +255,8 @@ private fun ReceiverCardUIHeroContainer(
                         modifier = Modifier.size(48.dp)
                             .graphicsLayer {
                                 if (!isLarge) rotationZ = 90f
-                                if (!isLarge) translationY = (-20).dp.toPx()
-                                if (isLarge) translationX = (-20).dp.toPx()
+                                if (!isLarge) translationY = 20.dp.toPx()
+                                if (isLarge) translationX = 20.dp.toPx()
                             },
                     )
 
@@ -199,8 +267,8 @@ private fun ReceiverCardUIHeroContainer(
                         modifier = Modifier.size(48.dp)
                             .graphicsLayer {
                                 if (!isLarge) rotationZ = 90f
-                                if (!isLarge) translationY = 20.dp.toPx()
-                                if (isLarge) translationX = 20.dp.toPx()
+                                if (!isLarge) translationY = -20.dp.toPx()
+                                if (isLarge) translationX = -20.dp.toPx()
                             },
                     )
 
@@ -216,12 +284,23 @@ private fun ReceiverCardUIHeroContainer(
                     else -> {}
                 }
             }
-            ReceiverDeviceUICard(
-                device = externalDevice,
+
+            if (!isLocalDeviceReceiver) {
+                ReceiverDeviceUICard(
+                    device = externalDevice,
+                    modifier = Modifier.widthIn(max = 300.dp)
+                        .graphicsLayer {
+                            scaleX = senderCardScale
+                            scaleY = senderCardScale
+                        },
+                )
+            } else LocalDeviceUICard(
+                device = currentDevice,
+                platformOS = currentDevicePlatform,
                 modifier = Modifier.widthIn(max = 300.dp)
                     .graphicsLayer {
-                        scaleX = receiverCardScale
-                        scaleY = receiverCardScale
+                        scaleX = senderCardScale
+                        scaleY = senderCardScale
                     },
             )
         }

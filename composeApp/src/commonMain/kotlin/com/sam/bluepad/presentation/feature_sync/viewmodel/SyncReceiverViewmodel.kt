@@ -100,8 +100,8 @@ class SyncReceiverViewmodel(
                 is AdvertiserSyncEvent.HandshakeSuccess -> _foreignDevice.update { event.device }
                 is AdvertiserSyncEvent.SyncFailed -> _syncPhase.update { SyncUIState.Failed(event.reason) }
                 is AdvertiserSyncEvent.SyncStarted -> _syncPhase.update { SyncUIState.Running }
-                is AdvertiserSyncEvent.FullDuplexCompleted -> _syncPhase.update { SyncUIState.FullSyncSuccessFull }
                 is AdvertiserSyncEvent.HalfDuplexCompleted -> _syncPhase.update { SyncUIState.HalfDuplexCompleted }
+                is AdvertiserSyncEvent.FullDuplexCompleted -> _syncPhase.update { SyncUIState.FullSyncSuccessFull }
                 AdvertiserSyncEvent.HandshakeStarted -> _syncPhase.update { SyncUIState.Started }
             }
         }.launchIn(viewModelScope)

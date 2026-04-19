@@ -17,26 +17,37 @@ sealed class SyncUIState {
     val isSyncing: Boolean
         get() = this is Running || this is HalfDuplexCompleted
 
-
-    val receiverTitleText: String
+    val title: String
         @Composable
         get() = when (this) {
+            is NotRunning -> "Ready to Sync"
+            is Started -> "Establishing Connection"
+            is Running -> "Transferring Data"
+            is HalfDuplexCompleted -> "Finalizing Sync"
+            is FullSyncSuccessFull -> "Sync Complete"
             is Failed -> "Sync Failed"
-            FullSyncSuccessFull -> "Sync Completed"
-            HalfDuplexCompleted -> "Receiving data from other deivce"
-            NotRunning -> "Sync Not Started"
-            Running -> "Sending data to other device"
-            Started -> "Sync Started"
         }
 
-    val receiverDescText: String
+
+    val description: String
         @Composable
         get() = when (this) {
-            is Failed -> "Failed :${this.message}"
-            FullSyncSuccessFull -> "Sync completed both of the devices have exchanged the data"
-            HalfDuplexCompleted -> "Current device data is send waiting for data from other device"
-            NotRunning -> "Sync is not running"
-            Running -> "Sending data to the foreign device"
-            Started -> "Sync Started , waiting for handshake to complete"
+            is NotRunning -> "Sync is currently idle."
+            is Started -> "Connecting to the other device. Please wait..."
+            is Running -> "Sending data to the remote device..."
+            is HalfDuplexCompleted -> "Data sent successfully. Receiving updates from the other device..."
+            is FullSyncSuccessFull -> "Success! Both devices are now up to date."
+            is Failed -> "An error occurred: $message"
         }
+
+    val connectionStatus: String
+        @Composable
+        get() = when (this) {
+            NotRunning -> "Disconnected"
+            Started -> "Handshaking..."
+            Running, HalfDuplexCompleted -> "Connected"
+            FullSyncSuccessFull -> "Finished"
+            is Failed -> "Failed"
+        }
+
 }
