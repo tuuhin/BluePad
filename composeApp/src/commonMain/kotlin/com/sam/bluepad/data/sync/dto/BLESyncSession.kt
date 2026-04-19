@@ -96,6 +96,14 @@ sealed class BLESyncSession {
     @SerialName("ssc")
     data object SyncSessionSuccessful : BLESyncSession()
 
+    /**
+     * When [SyncSessionSuccessful] is responded to the other party [BLESyncSession.SyncSessionSuccessfulAck] need to received
+     * to mark that the content sync is completed
+     */
+    @Serializable
+    @SerialName("ssak")
+    data object SyncSessionSuccessfulAck : BLESyncSession()
+
 
     /**
      * Sent when the session must terminate due to an error.

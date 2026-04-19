@@ -11,8 +11,6 @@ import com.sam.bluepad.data.ble.delegate.BLEConnectorSyncHandlerDelegate
 import com.sam.bluepad.data.ble.exceptions.GattInvalidStatusException
 import com.sam.bluepad.data.ble.utils.toggleNotification
 import com.sam.bluepad.data.ble.utils.writeToCharacteristics
-import com.sam.bluepad.data.sync.dto.BLESyncDataType
-import com.sam.bluepad.data.sync.dto.BLESyncSession
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.ConnectorSyncEvent
 import com.sam.bluepad.domain.exceptions.InvalidServiceOrCharacteristicsException
@@ -363,36 +361,18 @@ class SyncDeviceConnectionCallback private constructor(
                     val result = delegate.handleSyncDataNotification(
                         characteristicId = characteristic.uuid.toKotlinUuid(),
                         value = value,
-                        onWriteBytes = { bytes ->
-                            gatt.writeToCharacteristics(characteristic, bytes)
-                        },
+                        onWriteBytes = { bytes -> gatt.writeToCharacteristics(characteristic, bytes) },
                         onToggleNotification = { uuid, enable ->
                             val notificationCharacteristic = gatt.getService(serviceId.toJavaUuid())
                                 .getCharacteristic(uuid.toJavaUuid()) ?: return@launch
                             gatt.toggleNotification(notificationCharacteristic, enable)
                         },
                         onEvent = { event -> _onEvents?.invoke(event) },
+                        onReadDevice = { _receiverInfo[deviceAddress] },
                     )
 
                     result.fold(
-                        onSuccess = { (session, _) ->
-                            val device = _receiverInfo[deviceAddress] ?: return@fold
-                            val event = when (session) {
-                                BLESyncSession.SyncSessionStart -> ConnectorSyncEvent.SyncStarted(device)
-                                BLESyncSession.SyncSessionSuccessful -> ConnectorSyncEvent.FullDuplexCompleted(device)
-                                is BLESyncSession.SyncSessionFailed -> ConnectorSyncEvent.SyncFailed(session.reason.name)
-                                is BLESyncSession.SyncPacketTransition -> {
-                                    val isHalfDone = session.prevType == BLESyncDataType.CONTENT &&
-                                        session.newType == BLESyncDataType.METADATA
-                                    if (!isHalfDone) return@fold
-                                    // half completed
-                                    ConnectorSyncEvent.HalfDuplexCompleted(device)
-                                }
-
-                                else -> return@fold
-                            }
-                            _onEvents?.invoke(event)
-                        },
+                        onSuccess = {},
                         onFailure = { err -> _onError?.invoke(err) },
                     )
                 }

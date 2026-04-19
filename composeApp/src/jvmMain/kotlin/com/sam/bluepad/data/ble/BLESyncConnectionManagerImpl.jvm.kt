@@ -11,8 +11,6 @@ import com.juul.kable.WriteType
 import com.juul.kable.logs.Logging
 import com.sam.ble_common.BluetoothInfoProvider
 import com.sam.bluepad.data.ble.delegate.BLEConnectorSyncHandlerDelegate
-import com.sam.bluepad.data.sync.dto.BLESyncDataType
-import com.sam.bluepad.data.sync.dto.BLESyncSession
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLESyncConnectionManager
 import com.sam.bluepad.domain.ble.ResourcesSyncDataEvents
@@ -200,30 +198,13 @@ actual class BLESyncConnectionManagerImpl private constructor(
                                     true
                                 },
                                 onEvent = { event -> trySend(event) },
+                                onReadDevice = { _receiverInfo[deviceAddress] },
                             )
 
                             if (result.isFailure) {
                                 close(result.exceptionOrNull())
                                 return@observeNotifications
                             }
-
-                            val (session, _) = result.getOrThrow()
-                            val device = _receiverInfo[deviceAddress] ?: return@observeNotifications
-                            val event = when (session) {
-                                BLESyncSession.SyncSessionStart -> ConnectorSyncEvent.SyncStarted(device)
-                                BLESyncSession.SyncSessionSuccessful -> ConnectorSyncEvent.FullDuplexCompleted(device)
-                                is BLESyncSession.SyncSessionFailed -> ConnectorSyncEvent.SyncFailed(session.reason.name)
-                                is BLESyncSession.SyncPacketTransition -> {
-                                    val isHalfDone = session.prevType == BLESyncDataType.CONTENT &&
-                                        session.newType == BLESyncDataType.METADATA
-                                    if (!isHalfDone) return@observeNotifications
-                                    // half completed
-                                    ConnectorSyncEvent.HalfDuplexCompleted(device)
-                                }
-
-                                else -> return@observeNotifications
-                            }
-                            trySend(event)
                         },
                     )
                 }
@@ -237,6 +218,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
                                 syncDataCharacteristics.characteristicUuid if (enable) -> syncDataJob.start()
                                 syncDataCharacteristics.characteristicUuid -> syncDataJob.cancel()
                                 handshakeCharacteristics.characteristicUuid if !enable -> cancel()
+                                else -> {}
                             }
                         },
                         onObserveBytes = { bytes ->

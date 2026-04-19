@@ -52,6 +52,10 @@ object SerializationProtocols {
                     BLESyncSession.SyncSessionSuccessful.serializer(),
                 )
                 subclass(
+                    BLESyncSession.SyncSessionSuccessfulAck::class,
+                    BLESyncSession.SyncSessionSuccessfulAck.serializer(),
+                )
+                subclass(
                     BLESyncSession.SyncSessionFailed::class,
                     BLESyncSession.SyncSessionFailed.serializer(),
                 )

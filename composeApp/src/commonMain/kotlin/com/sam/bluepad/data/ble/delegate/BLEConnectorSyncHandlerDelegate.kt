@@ -23,6 +23,8 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlin.uuid.Uuid
 
+private typealias SessionResult = Pair<BLESyncSession?, Boolean>
+
 class BLEConnectorSyncHandlerDelegate(
     val protoBuf: ProtoBuf,
     val outPayloadManager: OutPayloadManager,
@@ -104,38 +106,65 @@ class BLEConnectorSyncHandlerDelegate(
         value: ByteArray,
         onEvent: (ConnectorSyncEvent) -> Unit,
         onWriteBytes: suspend (ByteArray) -> Boolean,
+        onReadDevice: () -> ExternalDeviceModel?,
         onToggleNotification: suspend (characteristics: Uuid, enable: Boolean) -> Boolean,
-    ): Result<Pair<BLESyncSession, Boolean>> {
+    ): Result<Boolean> {
         return try {
             val decodedData = protoBuf.decodeFromByteArray<BLESyncSession>(value)
-            Logger.d(tag = TAG) { "SYNC DATA RECEIVED  | BLOCK_SIZE: ${value.size}" }
+            Logger.d(tag = TAG) { "SYNC DATA RECEIVED TYPE: ${decodedData::class.simpleName} | BLOCK_SIZE:${value.size}" }
 
-            val result: Result<Boolean> = when (decodedData) {
+            val device = onReadDevice()
+
+            val eventIn = when (decodedData) {
+                is BLESyncSession.SyncSessionStartAck if (device != null) -> ConnectorSyncEvent.SyncStarted(device)
+                is BLESyncSession.SyncSessionFailed -> ConnectorSyncEvent.SyncFailed(decodedData.reason.name)
+                else -> null
+            }
+
+            if (eventIn != null) onEvent(eventIn)
+
+            val result = when (decodedData) {
                 is BLESyncSession.SyncSessionStartAck -> onSessionStartACK(decodedData, onWriteBytes)
                 is BLESyncSession.BLESyncDataPacket -> onDataPacketReceived(decodedData, onWriteBytes)
                 is BLESyncSession.BLESyncDataAck -> onDataPacketACKReceived(decodedData, onWriteBytes)
                 is BLESyncSession.BLESyncDataPacketEnd -> onDataPacketEnd(decodedData, onWriteBytes)
                 is BLESyncSession.SyncPacketTransition -> onPacketTransition(decodedData, onWriteBytes)
-                BLESyncSession.SyncSessionSuccessful -> runCatching {
-                    Logger.d(tag = TAG) { "SYNC SESSION COMPLETED" }
-                    true
+                BLESyncSession.SyncSessionSuccessfulAck -> runCatching {
+                    Logger.d(tag = TAG) { "SYNC SESSION COMPLETED AND ACK" }
+                    decodedData to true
                 }
 
                 is BLESyncSession.SyncSessionFailed -> runCatching {
                     Logger.d(tag = TAG) { "SYNC SESSION FAILED" }
-                    onToggleNotification(characteristicId, false)
+                    decodedData to onToggleNotification(characteristicId, false)
                 }
 
                 BLESyncSession.SyncPacketProcessing -> runCatching {
                     Logger.d(tag = TAG) { "REMOTE PROCESSING DATA RUNNING...." }
                     onEvent(ConnectorSyncEvent.RemoteProcessing)
-                    true
+                    BLESyncSession.SyncPacketProcessing to true
                 }
 
                 else -> return Result.failure(InvalidSessionTypeException())
             }
-            val isHandled = result.getOrElse { err -> return Result.failure(err) }
-            Result.success(decodedData to isHandled)
+
+            val (sessionResult, handled) = result.getOrElse { err -> return Result.failure(err) }
+
+            val eventOut = when (sessionResult) {
+                BLESyncSession.SyncSessionSuccessfulAck if (device != null) ->
+                    ConnectorSyncEvent.FullDuplexCompleted(device)
+                is BLESyncSession.SyncSessionFailed -> ConnectorSyncEvent.SyncFailed(sessionResult.reason.name)
+                is BLESyncSession.SyncPacketTransition if (device != null) -> {
+                    val isHalfDone = sessionResult.prevType == BLESyncDataType.CONTENT &&
+                        sessionResult.newType == BLESyncDataType.METADATA
+                    if (isHalfDone) ConnectorSyncEvent.HalfDuplexCompleted(device)
+                    else null
+                }
+
+                else -> null
+            }
+            if (eventOut != null) onEvent(eventOut)
+            Result.success(handled)
         } catch (_: SerializationException) {
             Logger.e(tag = TAG) { "INVALID DATA RECEIVED CANNOT DECODE IT" }
             Result.failure(InvalidPayloadDataException())
@@ -150,7 +179,7 @@ class BLEConnectorSyncHandlerDelegate(
     suspend inline fun onDataPacketEnd(
         data: BLESyncSession.BLESyncDataPacketEnd,
         onWriteBytes: suspend (ByteArray) -> Boolean,
-    ) = runCatching {
+    ): Result<SessionResult> = runCatching {
 
         val bytes = protoBuf.encodeToByteArray<BLESyncSession>(BLESyncSession.SyncPacketProcessing)
         onWriteBytes(bytes)
@@ -171,21 +200,21 @@ class BLEConnectorSyncHandlerDelegate(
 
             is SyncDataPayload.SuccessAndNoAction -> {
                 val packetBytes = protoBuf.encodeToByteArray<BLESyncSession>(BLESyncSession.SyncSessionSuccessful)
-                return@runCatching onWriteBytes(packetBytes)
+                return@runCatching null to onWriteBytes(packetBytes)
             }
 
             else -> throw InvalidPayloadDataException()
         }
 
         val packetBytes = protoBuf.encodeToByteArray<BLESyncSession>(transitionPacket)
-        onWriteBytes(packetBytes)
+        return@runCatching transitionPacket to onWriteBytes(packetBytes)
     }
 
 
     suspend inline fun onPacketTransition(
         data: BLESyncSession.SyncPacketTransition,
         onWriteBytes: suspend (ByteArray) -> Boolean,
-    ): Result<Boolean> {
+    ): Result<SessionResult> {
         Logger.d(tag = TAG) { "PACKET TYPE TRANSITION TO ${data.newType} FROM :${data.prevType}" }
 
         return runCatching {
@@ -219,7 +248,7 @@ class BLEConnectorSyncHandlerDelegate(
                         Logger.w(tag = TAG, throwable = err) { "A CHUNK OF DATA SHOULD BE PRESENT" }
                         val session = BLESyncSession.SyncSessionFailed(reason = BLESyncFailedReason.INVALID_STATE, true)
                         val bytes = protoBuf.encodeToByteArray<BLESyncSession>(session)
-                        return@runCatching onWriteBytes(bytes)
+                        return@runCatching session to onWriteBytes(bytes)
                     }
 
                     // now send the response
@@ -227,28 +256,28 @@ class BLEConnectorSyncHandlerDelegate(
                 }
             }
             val bytes = protoBuf.encodeToByteArray<BLESyncSession>(responseData)
-            onWriteBytes(bytes)
+            responseData to onWriteBytes(bytes)
         }
     }
 
     suspend inline fun onDataPacketReceived(
         data: BLESyncSession.BLESyncDataPacket,
         onWriteBytes: suspend (ByteArray) -> Boolean,
-    ): Result<Boolean> {
+    ): Result<SessionResult> {
         Logger.d(tag = TAG) { "RECEIVED PACKET DATA FROM OTHER DEVICE TYPE:${data.type}" }
 
         return runCatching {
             inPayloadManager.addIncomingPayloadChunk(data.sequenceNumber, data.payload)
             val data = BLESyncSession.BLESyncDataAck(data.type, data.sequenceNumber)
             val sessionData = protoBuf.encodeToByteArray<BLESyncSession>(data)
-            onWriteBytes(sessionData)
+            data to onWriteBytes(sessionData)
         }
     }
 
     suspend inline fun onDataPacketACKReceived(
         data: BLESyncSession.BLESyncDataAck,
         onWriteBytes: suspend (ByteArray) -> Boolean,
-    ): Result<Boolean> {
+    ): Result<SessionResult> {
         Logger.d(tag = TAG) { "RECEIVED PACKET ACK DATA FROM OTHER DEVICE" }
         // mark the payload as consumed
         outPayloadManager.markChunkAck(data.sequenceNumber)
@@ -258,7 +287,7 @@ class BLEConnectorSyncHandlerDelegate(
             return runCatching {
                 val response = BLESyncSession.BLESyncDataPacketEnd(type = data.type)
                 val bytes = protoBuf.encodeToByteArray<BLESyncSession>(response)
-                onWriteBytes(bytes)
+                response to onWriteBytes(bytes)
             }
         }
         val chunkResult = outPayloadManager.getNextChunk()
@@ -275,14 +304,14 @@ class BLEConnectorSyncHandlerDelegate(
         // now send the response
         return runCatching {
             val bytes = protoBuf.encodeToByteArray<BLESyncSession>(response)
-            onWriteBytes(bytes)
+            response to onWriteBytes(bytes)
         }
     }
 
     suspend inline fun onSessionStartACK(
         response: BLESyncSession.SyncSessionStartAck,
         onWriteBytes: suspend (ByteArray) -> Boolean,
-    ): Result<Boolean> {
+    ): Result<SessionResult> {
         // response ack flag should be true
         if (!response.isAck) return Result.failure(SyncStarkNotAckException())
 
@@ -304,7 +333,7 @@ class BLEConnectorSyncHandlerDelegate(
         // now send the response
         return runCatching {
             val bytes = protoBuf.encodeToByteArray<BLESyncSession>(response)
-            onWriteBytes(bytes)
+            response to onWriteBytes(bytes)
         }
     }
 

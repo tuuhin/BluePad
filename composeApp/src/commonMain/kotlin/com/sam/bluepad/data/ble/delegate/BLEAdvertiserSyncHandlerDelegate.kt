@@ -138,6 +138,7 @@ class BLEAdvertiserSyncHandlerDelegate(
             is BLESyncSession.BLESyncDataAck -> manageSyncSessionDataPacketAck(response, onNotify)
             is BLESyncSession.BLESyncDataPacketEnd -> markSyncSessionPacketEnded(response, onNotify)
             is BLESyncSession.SyncPacketTransition -> checkTransitionAckAndSendDataPacket(response, onNotify)
+            BLESyncSession.SyncSessionSuccessful -> onSyncSuccessful(onNotify)
             BLESyncSession.SyncPacketProcessing -> runCatching {
                 Logger.d(tag = TAG) { "PROCESSING" }
                 true
@@ -147,12 +148,6 @@ class BLEAdvertiserSyncHandlerDelegate(
                 Logger.d(tag = TAG) { "SYNC SESSION FAILED :${response.reason}" }
                 true
             }
-
-            BLESyncSession.SyncSessionSuccessful -> runCatching {
-                Logger.d(tag = TAG) { "SYNC SESSION SUCCESSFULLY" }
-                true
-            }
-
             else -> throw UnsupportedSyncSessionException(response)
         }
         Logger.d(tag = TAG) { "INCOMING SYNC DATA :${response::class.simpleName}" }
@@ -163,6 +158,14 @@ class BLEAdvertiserSyncHandlerDelegate(
     }.onFailure { err ->
         if (err is CancellationException) throw err
         Logger.e(tag = TAG, throwable = err) { "CANNOT HANDLE THIS OPERATION ${err.message}" }
+    }
+
+    suspend inline fun onSyncSuccessful(onNotify: suspend (ByteArray) -> Boolean): Result<Boolean> {
+        return runCatching {
+            Logger.d(tag = TAG) { "SYNC SESSION SUCCESSFULLY" }
+            val data = protoBuf.encodeToByteArray<BLESyncSession>(BLESyncSession.SyncSessionSuccessfulAck)
+            onNotify(data)
+        }
     }
 
     suspend inline fun manageSyncSessionDataPacketAck(
@@ -236,9 +239,6 @@ class BLEAdvertiserSyncHandlerDelegate(
 
             SyncDataPayload.SuccessAndNoAction -> {
                 // Half duplex sync done
-                val successBytes = protoBuf.encodeToByteArray<BLESyncSession>(BLESyncSession.SyncSessionSuccessful)
-                onNotify(successBytes)
-
                 Logger.d(tag = TAG) { "STARTING THE SECOND HALF-DUPLEX SYNC" }
                 // NOW WE NEED TO SEND THE METADATA FROM THE ADVERTISER
                 outPayloadManager.prepareChunks(SyncDataPayload.Metadata)
