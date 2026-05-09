@@ -17,8 +17,6 @@ class FakeSketchesRepoImpl : SketchesRepository {
 
     private val sketches = mutableListOf<SketchModel>()
 
-    init {
-    }
 
     override fun getSketches(): Flow<Resource<List<SketchModel>, Exception>> =
         flow {
