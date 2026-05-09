@@ -6,6 +6,8 @@ import com.sam.bluepad.data.ble.BLEDiscoveryImpl
 import com.sam.bluepad.data.ble.BLESyncConnectionManagerImpl
 import com.sam.bluepad.data.ble.callbacks.BLEAdvertisementCallback
 import com.sam.bluepad.data.bluetooth.BluetoothStateProviderImpl
+import com.sam.bluepad.data.crypto.encryption.KeyEncryptionManagerImpl
+import com.sam.bluepad.data.crypto.files.CryptoFilePathProviderImpl
 import com.sam.bluepad.data.database.AppDBBuilder
 import com.sam.bluepad.data.datastore.DataStoreProvider
 import com.sam.bluepad.data.interactions.CopySketchInteractionImpl
@@ -17,6 +19,8 @@ import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
 import com.sam.bluepad.domain.ble.BLESyncConnectionManager
 import com.sam.bluepad.domain.bluetooth.BluetoothStateProvider
+import com.sam.bluepad.domain.crypto.KeyEncryptionManager
+import com.sam.bluepad.domain.crypto.files.CryptoFilePathProvider
 import com.sam.bluepad.domain.interactions.CopySketchInteraction
 import com.sam.bluepad.domain.interactions.ShareSketchInteraction
 import dev.icerock.moko.permissions.PermissionsController
@@ -50,4 +54,8 @@ actual fun createPlatformModule(): Module = module {
     // interactions
     singleOf(::ShareSketchInteractionImpl) bind ShareSketchInteraction::class
     singleOf(::CopySketchInteractionImpl) bind CopySketchInteraction::class
+
+    // crypto
+    singleOf(::CryptoFilePathProviderImpl) bind CryptoFilePathProvider::class
+    factoryOf(::KeyEncryptionManagerImpl) bind KeyEncryptionManager::class
 }

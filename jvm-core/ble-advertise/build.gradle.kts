@@ -1,12 +1,16 @@
 plugins {
-	id("java-library")
-	kotlin("jvm")
+    kotlin("jvm")
 }
 java {
-	toolchain {
-		languageVersion.set(JavaLanguageVersion.of(17))
-	}
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
 }
+
+kotlin {
+    jvmToolchain(25)
+}
+
 dependencies {
-	implementation(project(":jvm-core:ble-common"))
+    implementation(project(":jvm-core:ble-common"))
 }

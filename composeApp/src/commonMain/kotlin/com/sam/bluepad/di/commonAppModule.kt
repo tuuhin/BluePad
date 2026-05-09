@@ -2,6 +2,10 @@ package com.sam.bluepad.di
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import com.sam.bluepad.data.crypto.EncryptionSessionManagerImpl
+import com.sam.bluepad.data.crypto.encryption.AESCBCEncryptionManager
+import com.sam.bluepad.data.crypto.files.KeyFileManagerImpl
+import com.sam.bluepad.data.crypto.files.SyncDiffFileManagerImpl
 import com.sam.bluepad.data.database.AppDBBuilder
 import com.sam.bluepad.data.database.BluePadDB
 import com.sam.bluepad.data.datastore.DataStoreProvider
@@ -13,12 +17,18 @@ import com.sam.bluepad.data.serialization.SerializationProtocols
 import com.sam.bluepad.data.sync.IncomingPayloadManagerImpl
 import com.sam.bluepad.data.sync.OutgoingPayloadManagerImpl
 import com.sam.bluepad.data.sync.SyncManagerImpl
+import com.sam.bluepad.data.sync_diff.SyncDiffManagerImpl
+import com.sam.bluepad.domain.crypto.EncryptionManager
+import com.sam.bluepad.domain.crypto.EncryptionSessionManager
+import com.sam.bluepad.domain.crypto.KeyFileManager
+import com.sam.bluepad.domain.crypto.SyncDiffFileManager
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.repository.SketchesRepository
 import com.sam.bluepad.domain.sync.InPayloadManager
 import com.sam.bluepad.domain.sync.OutPayloadManager
 import com.sam.bluepad.domain.sync.SyncManager
+import com.sam.bluepad.domain.sync_diff.SyncDiffManager
 import com.sam.bluepad.domain.use_cases.BytesEncoder
 import com.sam.bluepad.domain.use_cases.HashGenerator
 import com.sam.bluepad.domain.use_cases.RandomGenerator
@@ -62,4 +72,16 @@ val commonAppModule = module(true) {
     // repository
     factoryOf(::ExternalDevicesRepoImpl) bind ExternalDevicesRepository::class
     factoryOf(::SketchesRepoImpl) bind SketchesRepository::class
+
+    // sync diffs
+    factoryOf(::SyncDiffManagerImpl) bind SyncDiffManager::class
+
+    // files
+    singleOf(::KeyFileManagerImpl) bind KeyFileManager::class
+    factoryOf(::SyncDiffFileManagerImpl) bind SyncDiffFileManager::class
+
+    // crypto
+    factoryOf(::AESCBCEncryptionManager) bind EncryptionManager::class
+    factoryOf(::EncryptionSessionManagerImpl)
+    factoryOf(::EncryptionSessionManagerImpl) bind EncryptionSessionManager::class
 }

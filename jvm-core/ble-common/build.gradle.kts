@@ -1,23 +1,19 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
-	kotlin("jvm")
+    kotlin("jvm")
 }
 
 group = "com.sam.ble_common"
 
 java {
-	toolchain {
-		languageVersion.set(JavaLanguageVersion.of(17))
-	}
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
 }
 
 kotlin {
-	compilerOptions {
-		jvmTarget = JvmTarget.JVM_17
-	}
+    jvmToolchain(25)
 }
 
 dependencies {
-	api(libs.kermit)
+    api(libs.kermit)
 }
