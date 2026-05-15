@@ -14,7 +14,7 @@ interface SyncManager {
      * @param metadata A list of metadata from the remote source.
      * @return A [Result] containing a list of [Uuid]s for items that require content exchange.
      */
-    suspend fun computeUpdatedOrNewItems(metadata: List<SyncMetadataModel>): Result<List<Uuid>>
+    suspend fun readChangedItemsIds(metadata: List<SyncMetadataModel>): Result<List<Uuid>>
 
     /**
      * Integrates and persists new content data received from a peer into the local repository.

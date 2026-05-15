@@ -79,7 +79,7 @@ class IncomingPayloadManagerImpl private constructor(
             is SyncPayloadSequence.MetaData -> {
                 // process the metadata and provide content id query
                 val metadata = sequence.toSyncMetadataList(timezone)
-                val result = syncManager.computeUpdatedOrNewItems(metadata)
+                val result = syncManager.readChangedItemsIds(metadata)
                 val uuids = result.getOrThrow()
                 SyncDataPayload.ContentIdsQuery(uuids)
             }
