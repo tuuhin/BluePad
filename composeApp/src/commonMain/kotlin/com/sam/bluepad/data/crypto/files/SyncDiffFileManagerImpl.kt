@@ -1,9 +1,10 @@
 package com.sam.bluepad.data.crypto.files
 
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.domain.crypto.SyncDiffFileManager
 import com.sam.bluepad.domain.crypto.files.CryptoFilePathProvider
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import okio.FileSystem
 import kotlin.uuid.Uuid
@@ -12,6 +13,7 @@ private const val TAG = "SYNC_DIFF_FILE_MANAGER"
 
 class SyncDiffFileManagerImpl(
     private val fileProvider: CryptoFilePathProvider,
+    private val dispatchers: PlatformDispatcherProvider,
 ) : SyncDiffFileManager {
 
     private val fs by lazy { FileSystem.SYSTEM }
@@ -23,13 +25,14 @@ class SyncDiffFileManagerImpl(
 
         val filePath = diffFileFolder / "$sessionId.sync"
 
-        return withContext(Dispatchers.IO) {
+        return withContext(dispatchers.io) {
             try {
                 Logger.d(tag = TAG) { "SAVING SYNC DIFF FILE" }
                 fs.write(filePath) {
                     write(data)
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Logger.w(tag = TAG, throwable = e) { "FAILED TO SAVED THE SYNC FILE" }
             }
         }
@@ -40,13 +43,14 @@ class SyncDiffFileManagerImpl(
 
         val filePath = diffFileFolder / "$sessionId.sync"
 
-        return withContext(Dispatchers.IO) {
+        return withContext(dispatchers.io) {
             try {
                 Logger.d(tag = TAG) { "SAVING SYNC DIFF FILE" }
                 fs.read(filePath) {
                     readByteArray()
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Logger.w(tag = TAG, throwable = e) { "FAILED TO SAVED THE SYNC FILE" }
                 byteArrayOf()
             }
@@ -58,10 +62,11 @@ class SyncDiffFileManagerImpl(
 
         if (!fs.exists(filePath)) return
 
-        return withContext(Dispatchers.IO) {
+        return withContext(dispatchers.io) {
             try {
                 fs.delete(filePath)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Logger.w(tag = TAG, throwable = e) { "FAILED TO DELETE THE DIFF FILE" }
                 byteArrayOf()
             }
@@ -69,7 +74,7 @@ class SyncDiffFileManagerImpl(
     }
 
     private suspend fun createDirectoryIfMissing() {
-        withContext(Dispatchers.IO) {
+        withContext(dispatchers.io) {
             if (fs.exists(diffFileFolder)) return@withContext
             Logger.d(tag = TAG) { "MISSING DIRECTORIES CREATING" }
             FileSystem.SYSTEM.createDirectories(diffFileFolder)

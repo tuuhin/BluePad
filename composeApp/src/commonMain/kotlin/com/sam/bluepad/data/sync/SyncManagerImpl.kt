@@ -9,7 +9,7 @@ import com.sam.bluepad.domain.repository.SketchesRepository
 import com.sam.bluepad.domain.sync.SyncManager
 import com.sam.bluepad.domain.sync.models.SyncContentDataModel
 import com.sam.bluepad.domain.sync.models.SyncMetadataModel
-import com.sam.bluepad.domain.sync_diff.SyncChangesCalculator
+import com.sam.bluepad.domain.sync_diff.SyncDiffCalculator
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -19,7 +19,7 @@ private const val TAG = "SYNC_MANAGER_IMPL"
 
 class SyncManagerImpl(
     private val repo: SketchesRepository,
-    private val diffManagerImpl: SyncChangesCalculator,
+    private val diffManagerImpl: SyncDiffCalculator,
     private val protoBuf: ProtoBuf,
     private val encryptedSessionManger: EncryptionSessionManager,
 ) : SyncManager {

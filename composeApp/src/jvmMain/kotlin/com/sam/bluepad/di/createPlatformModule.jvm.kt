@@ -13,6 +13,7 @@ import com.sam.bluepad.data.datastore.DataStoreProvider
 import com.sam.bluepad.data.interactions.CopySketchInteractionImpl
 import com.sam.bluepad.data.interactions.ShareSketchInteractionImpl
 import com.sam.bluepad.data.utils.JVMPermissionController
+import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConnectionManager
@@ -35,6 +36,9 @@ actual fun createPlatformModule(): Module = module {
     single { AppDBBuilder() }
     // datastore
     singleOf(::DataStoreProvider)
+
+    // coroutines dispatchers
+    singleOf(::PlatformDispatcherProvider)
 
     //ble
     singleOf(::BLEDiscoveryImpl) bind BLEDiscoveryManager::class

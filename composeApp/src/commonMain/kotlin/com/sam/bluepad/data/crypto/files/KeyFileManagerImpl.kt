@@ -1,11 +1,11 @@
 package com.sam.bluepad.data.crypto.files
 
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.domain.crypto.KeyFileManager
 import com.sam.bluepad.domain.crypto.exception.MissingKeyFileException
 import com.sam.bluepad.domain.crypto.files.CryptoFilePathProvider
 import com.sam.bluepad.domain.crypto.models.KeyEncryptionResult
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okio.FileSystem
 
@@ -13,6 +13,7 @@ private const val TAG = "SESSION_KEY_PROVIDER"
 
 class KeyFileManagerImpl(
     private val fileProvider: CryptoFilePathProvider,
+    private val dispatchers: PlatformDispatcherProvider,
 ) : KeyFileManager {
 
     private val fs by lazy { FileSystem.SYSTEM }
@@ -28,7 +29,7 @@ class KeyFileManagerImpl(
         // check if key present
         if (!fs.exists(filePath)) throw MissingKeyFileException()
 
-        return withContext(Dispatchers.IO) {
+        return withContext(dispatchers.io) {
             fs.read(filePath) {
                 val ivSize = readInt()
                 val ivBytes = ByteArray(ivSize)
@@ -54,7 +55,7 @@ class KeyFileManagerImpl(
 
         Logger.d(tag = TAG) { "SAVING ENCRYPTION KEY" }
 
-        withContext(Dispatchers.IO) {
+        withContext(dispatchers.io) {
 
             fs.write(filePath) {
                 // enter the iv size
@@ -65,7 +66,7 @@ class KeyFileManagerImpl(
                 writeInt(keyResult.encryptedSize)
                 write(keyResult.encrypted)
 
-                Logger.d(TAG) { "IV SIZE:${keyResult.ivSize} ENCRYPTED SIZE:${keyResult.encryptedSize}" }
+                Logger.d(tag = TAG) { "IV SIZE:${keyResult.ivSize} ENCRYPTED SIZE:${keyResult.encryptedSize}" }
             }
         }
     }
@@ -73,7 +74,7 @@ class KeyFileManagerImpl(
     override suspend fun deleteSavedKey() {
         val filePath = directoryPath / SESSION_KEY_FILE_NAME
 
-        withContext(Dispatchers.IO) {
+        withContext(dispatchers.io) {
 
             if (!fs.exists(filePath)) {
                 Logger.d(tag = TAG) { "FILE MISSING NO KEY FILE FOUND" }
@@ -86,7 +87,7 @@ class KeyFileManagerImpl(
     }
 
     private suspend fun createDirectoryIfMissing() {
-        withContext(Dispatchers.IO) {
+        withContext(dispatchers.io) {
             if (fs.exists(directoryPath)) return@withContext
             Logger.d(tag = TAG) { "MISSING DIRECTORIES CREATING" }
             FileSystem.SYSTEM.createDirectories(directoryPath)

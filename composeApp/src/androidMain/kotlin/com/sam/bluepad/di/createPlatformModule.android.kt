@@ -16,6 +16,7 @@ import com.sam.bluepad.data.database.AppDBBuilder
 import com.sam.bluepad.data.datastore.DataStoreProvider
 import com.sam.bluepad.data.interactions.CopySketchInteractionImpl
 import com.sam.bluepad.data.interactions.ShareSketchInteractionImpl
+import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConnectionManager
@@ -38,6 +39,10 @@ import org.koin.dsl.module
 actual fun createPlatformModule(): Module = module {
     // db provider
     single { AppDBBuilder(androidContext()) }
+
+    // coroutines provider
+    singleOf(::PlatformDispatcherProvider)
+
     // datastore provider
     singleOf(::DataStoreProvider)
     // ble provider
