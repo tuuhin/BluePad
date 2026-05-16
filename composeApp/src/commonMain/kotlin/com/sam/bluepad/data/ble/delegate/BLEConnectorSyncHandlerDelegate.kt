@@ -35,6 +35,8 @@ class BLEConnectorSyncHandlerDelegate(
     val handShakeDataMap = HashMap<String, BLESyncHandshakeData.AdvertiseResponseData>()
     val hadShakeNotificationMap = HashMap<String, Boolean>()
 
+    var currentSessionId: Uuid? = null
+
     suspend inline fun handleHandshakeRead(
         deviceAddress: String,
         value: ByteArray,
@@ -129,7 +131,7 @@ class BLEConnectorSyncHandlerDelegate(
                 is BLESyncSession.BLESyncDataAck -> onDataPacketACKReceived(decodedData, onWriteBytes)
                 is BLESyncSession.BLESyncDataPacketEnd -> onDataPacketEnd(decodedData, onWriteBytes)
                 is BLESyncSession.SyncPacketTransition -> onPacketTransition(decodedData, onWriteBytes)
-                BLESyncSession.SyncSessionSuccessfulAck -> runCatching {
+                is BLESyncSession.SyncSessionSuccessfulAck -> runCatching {
                     Logger.d(tag = TAG) { "SYNC SESSION COMPLETED AND ACK" }
                     decodedData to true
                 }
@@ -139,10 +141,10 @@ class BLEConnectorSyncHandlerDelegate(
                     decodedData to onToggleNotification(characteristicId, false)
                 }
 
-                BLESyncSession.SyncPacketProcessing -> runCatching {
+                is BLESyncSession.SyncPacketProcessing -> runCatching {
                     Logger.d(tag = TAG) { "REMOTE PROCESSING DATA RUNNING...." }
                     onEvent(ConnectorSyncEvent.RemoteProcessing)
-                    BLESyncSession.SyncPacketProcessing to true
+                    decodedData to true
                 }
 
                 else -> return Result.failure(InvalidSessionTypeException())
@@ -151,8 +153,9 @@ class BLEConnectorSyncHandlerDelegate(
             val (sessionResult, handled) = result.getOrElse { err -> return Result.failure(err) }
 
             val eventOut = when (sessionResult) {
-                BLESyncSession.SyncSessionSuccessfulAck if (device != null) ->
+                is BLESyncSession.SyncSessionSuccessfulAck if (device != null) ->
                     ConnectorSyncEvent.FullDuplexCompleted(device)
+
                 is BLESyncSession.SyncSessionFailed -> ConnectorSyncEvent.SyncFailed(sessionResult.reason.name)
                 is BLESyncSession.SyncPacketTransition if (device != null) -> {
                     val isHalfDone = sessionResult.prevType == BLESyncDataType.CONTENT &&
@@ -181,11 +184,13 @@ class BLEConnectorSyncHandlerDelegate(
         onWriteBytes: suspend (ByteArray) -> Boolean,
     ): Result<SessionResult> = runCatching {
 
-        val bytes = protoBuf.encodeToByteArray<BLESyncSession>(BLESyncSession.SyncPacketProcessing)
+        val bytes = protoBuf.encodeToByteArray<BLESyncSession>(
+            BLESyncSession.SyncPacketProcessing(data.sessionId),
+        )
         onWriteBytes(bytes)
 
         Logger.d(tag = TAG) { "PACKET END MARKER RECEIVED TYPE:${data.type}" }
-        val result = inPayloadManager.processData().getOrThrow()
+        val result = inPayloadManager.processData(data.sessionId).getOrThrow()
 
         Logger.d(tag = TAG) { "PROCESSED RESULT:$result" }
         if (result is SyncDataPayload.Outgoing) outPayloadManager.prepareChunks(result)
@@ -193,14 +198,23 @@ class BLEConnectorSyncHandlerDelegate(
         // handle the result
         val transitionPacket = when (result) {
             is SyncDataPayload.ContentPayload if (data.type == BLESyncDataType.CONTENT_REQUEST) ->
-                BLESyncSession.SyncPacketTransition(BLESyncDataType.CONTENT_REQUEST, BLESyncDataType.CONTENT)
+                BLESyncSession.SyncPacketTransition(
+                    prevType = BLESyncDataType.CONTENT_REQUEST,
+                    newType = BLESyncDataType.CONTENT,
+                    sessionId = data.sessionId,
+                )
 
             is SyncDataPayload.ContentIdsQuery if (data.type == BLESyncDataType.METADATA) ->
-                BLESyncSession.SyncPacketTransition(BLESyncDataType.METADATA, BLESyncDataType.CONTENT_REQUEST)
+                BLESyncSession.SyncPacketTransition(
+                    prevType = BLESyncDataType.METADATA,
+                    newType = BLESyncDataType.CONTENT_REQUEST,
+                    sessionId = data.sessionId,
+                )
 
-            is SyncDataPayload.SuccessAndNoAction -> {
-                val packetBytes = protoBuf.encodeToByteArray<BLESyncSession>(BLESyncSession.SyncSessionSuccessful)
-                return@runCatching null to onWriteBytes(packetBytes)
+            is SyncDataPayload.SyncSessionSuccess -> {
+                val transition = BLESyncSession.SyncSessionSuccessful(data.sessionId)
+                val packetBytes = protoBuf.encodeToByteArray<BLESyncSession>(transition)
+                return@runCatching transition to onWriteBytes(packetBytes)
             }
 
             else -> throw InvalidPayloadDataException()
@@ -231,14 +245,18 @@ class BLEConnectorSyncHandlerDelegate(
                 // if no ack flag found
                 !data.isAck -> {
                     Logger.w(tag = TAG) { "MISSING ACK FLAG STOPPING SYNC SESSION" }
-                    BLESyncSession.SyncSessionFailed(reason = BLESyncFailedReason.MISSING_FLAG, true)
+                    BLESyncSession.SyncSessionFailed(
+                        reason = BLESyncFailedReason.MISSING_FLAG,
+                        isCritical = true,
+                        sessionId = data.sessionId,
+                    )
                 }
 
                 // if no chunk data present
                 !outPayloadManager.getHasMoreChunks() -> {
                     // send we are done with sending metadata packet
                     Logger.w(tag = TAG) { "NO MORE CHUNKS TO WORK WITH SESSION DATA PACKET END" }
-                    BLESyncSession.BLESyncDataPacketEnd(type = data.newType)
+                    BLESyncSession.BLESyncDataPacketEnd(type = data.newType, sessionId = data.sessionId)
                 }
 
                 else -> {
@@ -246,13 +264,23 @@ class BLEConnectorSyncHandlerDelegate(
                     val chunkResult = outPayloadManager.getNextChunk()
                     val chunk = chunkResult.getOrElse { err ->
                         Logger.w(tag = TAG, throwable = err) { "A CHUNK OF DATA SHOULD BE PRESENT" }
-                        val session = BLESyncSession.SyncSessionFailed(reason = BLESyncFailedReason.INVALID_STATE, true)
+                        val session = BLESyncSession.SyncSessionFailed(
+                            reason = BLESyncFailedReason.INVALID_STATE,
+                            isCritical = true,
+                            sessionId = data.sessionId,
+                        )
                         val bytes = protoBuf.encodeToByteArray<BLESyncSession>(session)
+                        onWriteBytes(bytes)
                         return@runCatching session to onWriteBytes(bytes)
                     }
 
                     // now send the response
-                    BLESyncSession.BLESyncDataPacket(BLESyncDataType.CONTENT_REQUEST, chunk.seqNumber, chunk.payload)
+                    BLESyncSession.BLESyncDataPacket(
+                        type = BLESyncDataType.CONTENT_REQUEST,
+                        sequenceNumber = chunk.seqNumber,
+                        payload = chunk.payload,
+                        sessionId = data.sessionId,
+                    )
                 }
             }
             val bytes = protoBuf.encodeToByteArray<BLESyncSession>(responseData)
@@ -268,9 +296,13 @@ class BLEConnectorSyncHandlerDelegate(
 
         return runCatching {
             inPayloadManager.addIncomingPayloadChunk(data.sequenceNumber, data.payload)
-            val data = BLESyncSession.BLESyncDataAck(data.type, data.sequenceNumber)
-            val sessionData = protoBuf.encodeToByteArray<BLESyncSession>(data)
-            data to onWriteBytes(sessionData)
+            val response = BLESyncSession.BLESyncDataAck(
+                type = data.type,
+                sequenceNumber = data.sequenceNumber,
+                sessionId = data.sessionId,
+            )
+            val sessionData = protoBuf.encodeToByteArray<BLESyncSession>(response)
+            response to onWriteBytes(sessionData)
         }
     }
 
@@ -285,7 +317,7 @@ class BLEConnectorSyncHandlerDelegate(
         if (!outPayloadManager.getHasMoreChunks()) {
             // send we are done with sending metadata packet
             return runCatching {
-                val response = BLESyncSession.BLESyncDataPacketEnd(type = data.type)
+                val response = BLESyncSession.BLESyncDataPacketEnd(type = data.type, sessionId = data.sessionId)
                 val bytes = protoBuf.encodeToByteArray<BLESyncSession>(response)
                 response to onWriteBytes(bytes)
             }
@@ -300,6 +332,7 @@ class BLEConnectorSyncHandlerDelegate(
             type = data.type,
             sequenceNumber = chunk.seqNumber,
             payload = chunk.payload,
+            sessionId = data.sessionId,
         )
         // now send the response
         return runCatching {
@@ -328,12 +361,17 @@ class BLEConnectorSyncHandlerDelegate(
                 return Result.failure(err)
             }
         // we have a block
-        val response = BLESyncSession.BLESyncDataPacket(BLESyncDataType.METADATA, chunk.seqNumber, chunk.payload)
+        val responseData = BLESyncSession.BLESyncDataPacket(
+            type = BLESyncDataType.METADATA,
+            sequenceNumber = chunk.seqNumber,
+            payload = chunk.payload,
+            sessionId = response.sessionId,
+        )
         Logger.d(tag = TAG) { "SENDING FIRST BLOCK OF METADATA CHUNKS" }
         // now send the response
         return runCatching {
-            val bytes = protoBuf.encodeToByteArray<BLESyncSession>(response)
-            response to onWriteBytes(bytes)
+            val bytes = protoBuf.encodeToByteArray<BLESyncSession>(responseData)
+            responseData to onWriteBytes(bytes)
         }
     }
 
@@ -341,10 +379,10 @@ class BLEConnectorSyncHandlerDelegate(
         address: String,
         characteristicId: Uuid,
         bytes: ByteArray,
-        onWriteBytes: (ByteArray) -> Boolean,
-        onToggleNotification: (characteristics: Uuid, enable: Boolean) -> Unit,
+        onWriteBytes: suspend (ByteArray) -> Boolean,
+        onToggleNotification: suspend (characteristics: Uuid, enable: Boolean) -> Boolean,
     ) {
-        val isEnabled = bytes.isCCCDescriptorEnabled
+        val isEnabled = bytes.btDescriptorsNotificationOrIndicationEnabled
 
         when (characteristicId) {
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if isEnabled -> {
@@ -368,9 +406,13 @@ class BLEConnectorSyncHandlerDelegate(
 
             BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if isEnabled -> {
                 Logger.d(tag = TAG) { "STARTING CHARACTERISTICS NOTIFICATION TURNED ON" }
-                val sendData = BLESyncSession.SyncSessionStart
-                val bytesToSend = protoBuf.encodeToByteArray<BLESyncSession>(sendData)
-                onWriteBytes(bytesToSend)
+                lock.withLock {
+                    val sessionId = Uuid.random()
+                    currentSessionId = sessionId
+                    val sendData = BLESyncSession.SyncSessionStart(sessionId = sessionId)
+                    val bytesToSend = protoBuf.encodeToByteArray<BLESyncSession>(sendData)
+                    onWriteBytes(bytesToSend)
+                }
             }
 
             BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> Logger.d(tag = TAG) { "SYNCING IS DONE NOW SYNC NOTIFICATION ARE DISMISSED" }

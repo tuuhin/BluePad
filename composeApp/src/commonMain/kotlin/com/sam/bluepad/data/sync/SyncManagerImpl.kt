@@ -49,7 +49,10 @@ class SyncManagerImpl(
 
     }
 
-    override suspend fun performSyncResultsOperation(results: List<SyncContentDataModel>): Result<Unit> {
+    override suspend fun performSyncResultsOperation(
+        sessionId: Uuid,
+        results: List<SyncContentDataModel>
+    ): Result<Unit> {
         return runCatching {
             Logger.d(tag = TAG) { "SAVING REMOTE DATA CONTENT AS CACHE" }
 
@@ -57,12 +60,7 @@ class SyncManagerImpl(
                 .getOrElse { err -> return Result.failure(err) }
 
             val dto = DiffChangesList(diffs = syncChanges.map { it.toDTO() }.toSet())
-
             val bytes = protoBuf.encodeToByteArray<DiffChangesList>(dto)
-
-            // TODO: Include a session id later for the whole sync process
-            val sessionId = Uuid.random()
-
             encryptedSessionManger.encryptDataAndSave(sessionId, bytes)
         }
     }

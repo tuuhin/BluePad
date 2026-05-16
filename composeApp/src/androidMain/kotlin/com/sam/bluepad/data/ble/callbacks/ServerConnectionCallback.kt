@@ -275,8 +275,8 @@ class ServerConnectionCallback private constructor(
                         onSuccess = { session ->
                             val device = _activeSyncDeviceInfo[device.address] ?: return@fold
                             val event = when (session) {
-                                BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
-                                BLESyncSession.SyncSessionSuccessful ->
+                                is BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
+                                is BLESyncSession.SyncSessionSuccessful ->
                                     AdvertiserSyncEvent.FullDuplexCompleted(device)
 
                                 is BLESyncSession.SyncSessionFailed -> AdvertiserSyncEvent.SyncFailed(session.reason.name)

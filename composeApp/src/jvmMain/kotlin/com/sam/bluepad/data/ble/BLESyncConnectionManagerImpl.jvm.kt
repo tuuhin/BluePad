@@ -206,6 +206,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
                                 return@observeNotifications
                             }
                         },
+                        onToggleNotification = { _, _ -> false },
                     )
                 }
 
@@ -220,6 +221,8 @@ actual class BLESyncConnectionManagerImpl private constructor(
                                 handshakeCharacteristics.characteristicUuid if !enable -> cancel()
                                 else -> {}
                             }
+                            // no marker present thus directly marking its as true
+                           true
                         },
                         onObserveBytes = { bytes ->
                             val event = delegate.handleHandshakeNotification(
@@ -326,7 +329,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
 
     private suspend fun DiscoveredCharacteristic.observeNotifications(
         peripheral: Peripheral,
-        onToggleNotification: (Uuid, Boolean) -> Unit = { _, _ -> },
+        onToggleNotification: suspend (Uuid, Boolean) -> Boolean,
         onObserveBytes: suspend (ByteArray) -> Unit,
     ) = coroutineScope {
 

@@ -220,8 +220,8 @@ class BLEAdvertisementCallback private constructor(
                         onSuccess = { session ->
                             val device = _activeSyncDeviceInfo[deviceAddress] ?: return@fold
                             val event = when (session) {
-                                BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
-                                BLESyncSession.SyncSessionSuccessful -> AdvertiserSyncEvent.FullDuplexCompleted(device)
+                                is BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
+                                is BLESyncSession.SyncSessionSuccessful -> AdvertiserSyncEvent.FullDuplexCompleted(device)
 
                                 is BLESyncSession.SyncSessionFailed -> AdvertiserSyncEvent.SyncFailed(session.reason.name)
                                 is BLESyncSession.SyncPacketTransition -> {

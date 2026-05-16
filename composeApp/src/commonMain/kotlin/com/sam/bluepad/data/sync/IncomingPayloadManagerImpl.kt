@@ -12,11 +12,14 @@ import com.sam.bluepad.domain.sync.models.SyncDataPayload
 import com.sam.bluepad.domain.sync.models.toContentModel
 import com.sam.bluepad.domain.use_cases.BytesEncoder
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import kotlin.uuid.Uuid
 
 private const val TAG = "SYNC_IN_PAYLOAD"
 
@@ -28,7 +31,12 @@ class IncomingPayloadManagerImpl private constructor(
     private val timezone: TimeZone,
 ) : InPayloadManager {
 
-    constructor(protoBuf: ProtoBuf, syncManager: SyncManager, encoder: BytesEncoder, repo: SketchesRepository) : this(
+    constructor(
+        protoBuf: ProtoBuf,
+        syncManager: SyncManager,
+        encoder: BytesEncoder,
+        repo: SketchesRepository
+    ) : this(
         protoBuf = protoBuf,
         syncManager = syncManager,
         encoder = encoder,
@@ -47,7 +55,7 @@ class IncomingPayloadManagerImpl private constructor(
         _incomingData[seq] = payload
     }
 
-    override suspend fun processData(): Result<SyncDataPayload.ProcessedResult> {
+    override suspend fun processData(sessionId: Uuid): Result<SyncDataPayload.ProcessedResult> {
 
         val data = _mutex.withLock {
             _incomingData.toSortedMap().values
@@ -64,42 +72,46 @@ class IncomingPayloadManagerImpl private constructor(
         val decoded = protoBuf.decodeFromByteArray<SyncPayloadSequence>(data)
 
         return try {
-            Result.success(handleDataProcessing(decoded))
+            Result.success(handleDataProcessing(sessionId, decoded))
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Logger.e(tag = TAG, throwable = e) { "FAILED TO EXECUTE DECODING" }
             Result.failure(e)
         } finally {
-            clearBuffer()
+            withContext(NonCancellable) {
+                clearBuffer()
+            }
         }
     }
 
-    private suspend fun handleDataProcessing(sequence: SyncPayloadSequence): SyncDataPayload.ProcessedResult {
-        return when (sequence) {
-            is SyncPayloadSequence.MetaData -> {
-                // process the metadata and provide content id query
-                val metadata = sequence.toSyncMetadataList(timezone)
-                val result = syncManager.readChangedItemsIds(metadata)
-                val uuids = result.getOrThrow()
-                SyncDataPayload.ContentIdsQuery(uuids)
-            }
-
-            is SyncPayloadSequence.ContentRequests -> {
-                // so take the content ids and query the content and send the content
-                val ids = sequence.data.map { it.contentId }
-                val results = sketchRepository.readSketchesByUUID(ids)
-                val sketches = results.getOrThrow()
-                val payload = sketches.map { it.toContentModel() }
-                SyncDataPayload.ContentPayload(payload)
-            }
-
-            is SyncPayloadSequence.Content -> {
-                // sync manager now handles the content data
-                val data = sequence.toContentList(timezone)
-                syncManager.performSyncResultsOperation(data).getOrThrow()
-                SyncDataPayload.SuccessAndNoAction
-            }
+    private suspend fun handleDataProcessing(
+        sessionId: Uuid,
+        sequence: SyncPayloadSequence
+    ) = when (sequence) {
+        is SyncPayloadSequence.MetaData -> {
+            // process the metadata and provide content id query
+            val metadata = sequence.toSyncMetadataList(timezone)
+            val result = syncManager.readChangedItemsIds(metadata)
+            val uuids = result.getOrThrow()
+            SyncDataPayload.ContentIdsQuery(uuids)
         }
+
+        is SyncPayloadSequence.ContentRequests -> {
+            // so take the content ids and query the content and send the content
+            val ids = sequence.data.map { it.contentId }
+            val results = sketchRepository.readSketchesByUUID(ids)
+            val sketches = results.getOrThrow()
+            val payload = sketches.map { it.toContentModel() }
+            SyncDataPayload.ContentPayload(payload)
+        }
+
+        is SyncPayloadSequence.Content -> {
+            // sync manager now handles the content data
+            val data = sequence.toContentList(timezone)
+            syncManager.performSyncResultsOperation(sessionId = sessionId, data)
+            SyncDataPayload.SyncSessionSuccess(sessionId)
+        }
+
     }
 
     override suspend fun clearBuffer() {

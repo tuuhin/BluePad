@@ -36,6 +36,8 @@ class PayloadManagerTest : KoinTest {
     private val syncInManager by inject<InPayloadManager>()
     private val fakeRepo by inject<FakeSketchesRepoImpl>()
 
+    private val syncSessionId  = Uuid.random()
+
     @get:Rule
     val koinTestRule = KoinTestRule.create {
         modules(
@@ -86,7 +88,7 @@ class PayloadManagerTest : KoinTest {
             syncInManager.addIncomingPayloadChunk(chunkData.seqNumber, chunkData.payload)
         }
 
-        val processedResult = syncInManager.processData()
+        val processedResult = syncInManager.processData(syncSessionId)
         assertThat(processedResult).isSuccess()
 
         val metadataResult = processedResult.getOrThrow()

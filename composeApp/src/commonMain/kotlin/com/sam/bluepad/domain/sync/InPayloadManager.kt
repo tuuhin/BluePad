@@ -8,22 +8,22 @@ import kotlin.uuid.Uuid
  */
 interface InPayloadManager {
 
-	/**
-	 * Buffers an incoming chunk.
-	 * @param seq The order index of the chunk.
-	 * @param payload The raw data string.
-	 */
-	suspend fun addIncomingPayloadChunk(seq: Int, payload: String)
+    /**
+     * Buffers an incoming chunk.
+     * @param seq The order index of the chunk.
+     * @param payload The raw data string.
+     */
+    suspend fun addIncomingPayloadChunk(seq: Int, payload: String)
 
-	/**
-	 * Processes buffered chunks to extract Metadata IDs.
-	 * Clears the buffer automatically upon successful processing.
-	 * @return [Uuid]s for which the metadata aren't thing
-	 */
-	suspend fun processData(): Result<SyncDataPayload.ProcessedResult>
+    /**
+     * Processes buffered chunks to extract Metadata IDs.
+     * Clears the buffer automatically upon successful processing.
+     * @return [Uuid]s for which the metadata aren't thing
+     */
+    suspend fun processData(sessionId: Uuid): Result<SyncDataPayload.ProcessedResult>
 
-	/**
-	 * Forcefully clears all buffered chunks.
-	 */
-	suspend fun clearBuffer()
+    /**
+     * Forcefully clears all buffered chunks.
+     */
+    suspend fun clearBuffer()
 }
