@@ -7,17 +7,20 @@ import com.sam.bluepad.domain.ble.BLEConnectionType
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
+import com.sam.bluepad.presentation.feature_sync.event.SyncWorkflowEvent
 import com.sam.bluepad.presentation.feature_sync.event.SyncReceiverScreenEvent
 import com.sam.bluepad.presentation.feature_sync.state.SyncReceiverScreenState
 import com.sam.bluepad.presentation.feature_sync.state.SyncUIState
 import com.sam.bluepad.presentation.utils.AppViewModel
 import com.sam.bluepad.presentation.utils.UIEvents
-import com.sam.bluepad.presentation.utils.UIEvents.ShowSnackBar
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -25,6 +28,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.uuid.Uuid
 
 class SyncReceiverViewmodel(
     localDeviceProvider: LocalDeviceInfoProvider,
@@ -32,24 +36,22 @@ class SyncReceiverViewmodel(
     private val advertiser: BLEAdvertisementManager,
 ) : AppViewModel() {
 
-    private val _hasAdvertisementStartedOnce = MutableStateFlow(false)
     private val _foreignDevice = MutableStateFlow<ExternalDeviceModel?>(null)
     private val _syncPhase = MutableStateFlow<SyncUIState>(SyncUIState.NotRunning)
+    private val _syncSessionId = MutableStateFlow<Uuid?>(null)
 
     val screenState = combine(
         localDeviceProvider.readDeviceInfo,
         _foreignDevice,
         _syncPhase,
         advertiser.isRunning,
-        _hasAdvertisementStartedOnce,
-    ) { current, foreign, isSyncRunning, isRunning, advertisedOnce ->
+    ) { localDevice, foreignDevice, syncPhase, isReceiverRunning ->
         SyncReceiverScreenState(
-            currentDevice = current,
+            currentDevice = localDevice,
             localDevicePlatformOS = platformProvider.platformOS,
-            foreignDevice = foreign,
-            isReceiverRunning = isRunning,
-            syncPhase = isSyncRunning,
-            advertisedAtLeastOnce = advertisedOnce,
+            foreignDevice = foreignDevice,
+            syncPhase = syncPhase,
+            isReceiverRunning = isReceiverRunning,
         )
     }.onStart { readIncomingSyncEvents() }
         .stateIn(
@@ -64,14 +66,17 @@ class SyncReceiverViewmodel(
     override val uiEvent: SharedFlow<UIEvents>
         get() = _uiEvents
 
+    private val _workflowEvent = MutableSharedFlow<SyncWorkflowEvent>()
+    val workflowEvent = _workflowEvent.asSharedFlow()
 
     fun onEvent(event: SyncReceiverScreenEvent) {
         when (event) {
             SyncReceiverScreenEvent.StartSyncReceiver -> onStartReceiver()
             SyncReceiverScreenEvent.StopSyncReceiver -> onStopReceiver()
             SyncReceiverScreenEvent.DisconnectAndReset -> onDisconnectAndReset()
-            SyncReceiverScreenEvent.NavigateToSketches -> viewModelScope.launch {
-                _uiEvents.emit(UIEvents.PopScreen)
+            SyncReceiverScreenEvent.ShowSyncChangeList -> viewModelScope.launch {
+                val sessionId = _syncSessionId.value ?: return@launch
+                _workflowEvent.emit(SyncWorkflowEvent.ReadyForReview(sessionId))
             }
         }
     }
@@ -79,8 +84,6 @@ class SyncReceiverViewmodel(
     private fun onStartReceiver() = viewModelScope.launch {
         if (screenState.value.isReceiverRunning) return@launch
 
-        // set and clear the fields
-        _hasAdvertisementStartedOnce.update { true }
         _foreignDevice.update { null }
 
         // start the advertisement
@@ -96,14 +99,22 @@ class SyncReceiverViewmodel(
         _eventsJob?.cancel()
         _eventsJob = advertiser.serverSyncEvents.onEach { event ->
             when (event) {
-                is AdvertiserSyncEvent.HandshakeFailed -> _uiEvents.emit(ShowSnackBar(event.message))
+                is AdvertiserSyncEvent.HandshakeFailed -> _uiEvents.emit(UIEvents.ShowSnackBar(event.message))
                 is AdvertiserSyncEvent.HandshakeSuccess -> _foreignDevice.update { event.device }
                 is AdvertiserSyncEvent.SyncFailed -> _syncPhase.update { SyncUIState.Failed(event.reason) }
                 is AdvertiserSyncEvent.SyncStarted -> _syncPhase.update { SyncUIState.Running }
                 is AdvertiserSyncEvent.HalfDuplexCompleted -> _syncPhase.update { SyncUIState.HalfDuplexCompleted }
-                is AdvertiserSyncEvent.FullDuplexCompleted -> _syncPhase.update { SyncUIState.FullSyncSuccessFull }
+                is AdvertiserSyncEvent.FullDuplexCompleted -> {
+                    _syncSessionId.update { event.sessionId }
+                    _syncPhase.update { SyncUIState.FullSyncSuccessFull }
+                }
+
                 AdvertiserSyncEvent.HandshakeStarted -> _syncPhase.update { SyncUIState.Started }
             }
+        }.catch { err ->
+            val message = err.message ?: "Unknown error with receiving data"
+            if (err !is CancellationException)
+                _uiEvents.emit(UIEvents.ShowSnackBar(message))
         }.launchIn(viewModelScope)
     }
 

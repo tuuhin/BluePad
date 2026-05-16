@@ -12,7 +12,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import com.sam.bluepad.presentation.navigation.dialogs.advertiseDeviceEntry
 import com.sam.bluepad.presentation.navigation.dialogs.connectDeviceEntry
-import com.sam.bluepad.presentation.navigation.dialogs.syncDeviceRouteEntry
+import com.sam.bluepad.presentation.navigation.screens.syncDeviceRouteEntry
 import com.sam.bluepad.presentation.navigation.nav_graph.AssociatedNavGraph
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
 import com.sam.bluepad.presentation.navigation.screens.associatedNavGraphEntry
@@ -20,6 +20,7 @@ import com.sam.bluepad.presentation.navigation.screens.blackListedDevicesRoute
 import com.sam.bluepad.presentation.navigation.screens.createOrUpdateSketchesEntry
 import com.sam.bluepad.presentation.navigation.screens.receiveSyncDataRouteEntry
 import com.sam.bluepad.presentation.navigation.screens.searchDevicesEntry
+import com.sam.bluepad.presentation.navigation.sheets.syncChangesListRouteEntry
 import com.sam.bluepad.presentation.navigation.utils.BottomSheetSceneStrategy
 
 @Composable
@@ -53,6 +54,7 @@ fun AppRootNavHost(modifier: Modifier = Modifier) {
             // sync routes
             receiveSyncDataRouteEntry(backStack)
             syncDeviceRouteEntry(backStack)
+            syncChangesListRouteEntry(backStack)
         },
     )
 }

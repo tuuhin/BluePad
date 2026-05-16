@@ -71,8 +71,7 @@ fun SyncReceiverScreen(
     }
 }
 
-private class SyncReceiverScreenStatePreviewParams :
-    PreviewParameterProvider<SyncReceiverScreenState> {
+private class SyncReceiverScreenStatePreviewParams : PreviewParameterProvider<SyncReceiverScreenState> {
 
     override val values: Sequence<SyncReceiverScreenState>
         get() = sequenceOf(

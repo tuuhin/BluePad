@@ -108,7 +108,7 @@ fun SyncReceiverScreenContent(
                     syncState = screenState.syncPhase,
                     isLocalDeviceReceiver = true,
                     contentPadding = PaddingValues(16.dp),
-                    onCheckSketches = { onEvent(SyncReceiverScreenEvent.NavigateToSketches) },
+                    onCheckSketches = { onEvent(SyncReceiverScreenEvent.ShowSyncChangeList) },
                     onDisconnectAndReset = { onEvent(SyncReceiverScreenEvent.DisconnectAndReset) },
                 )
 

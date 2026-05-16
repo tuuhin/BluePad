@@ -5,4 +5,5 @@ sealed interface SyncConnectorScreenEvent {
     data object StopClientConnection : SyncConnectorScreenEvent
     data object StartSync : SyncConnectorScreenEvent
     data object StopSync : SyncConnectorScreenEvent
+    data object ShowSyncChangesList : SyncConnectorScreenEvent
 }

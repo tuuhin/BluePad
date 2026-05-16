@@ -29,7 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
@@ -199,7 +199,7 @@ private fun ReceiverCardUIHeroContainer(
     currentDevicePlatform: DevicePlatformOS = DevicePlatformOS.UNKNOWN,
     syncState: SyncUIState = SyncUIState.NotRunning,
 ) {
-    val windowInfo = currentWindowAdaptiveInfo()
+    val windowInfo = currentWindowAdaptiveInfoV2()
     val isLargeWindow = windowInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
 
 
