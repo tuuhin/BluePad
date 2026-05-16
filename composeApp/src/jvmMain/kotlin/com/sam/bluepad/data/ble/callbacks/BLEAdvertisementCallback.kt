@@ -181,6 +181,10 @@ class BLEAdvertisementCallback private constructor(
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
                 Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicId FROM SYNC SERVICE" }
 
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    return
+                }
                 _scope.launch {
                     val result = delegate.handleProximityWriteRequest(
                         value = value,
@@ -208,6 +212,10 @@ class BLEAdvertisementCallback private constructor(
             BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
                 Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicId FROM SYNC SERVICE" }
 
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    return
+                }
                 _scope.launch {
                     val result = delegate.handleSyncDataWriteRequest(
                         value = value,
@@ -221,7 +229,8 @@ class BLEAdvertisementCallback private constructor(
                             val device = _activeSyncDeviceInfo[deviceAddress] ?: return@fold
                             val event = when (session) {
                                 is BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
-                                is BLESyncSession.SyncSessionSuccessful -> AdvertiserSyncEvent.FullDuplexCompleted(device)
+                                is BLESyncSession.SyncSessionSuccessful ->
+                                    AdvertiserSyncEvent.FullDuplexCompleted(device, session.sessionId)
 
                                 is BLESyncSession.SyncSessionFailed -> AdvertiserSyncEvent.SyncFailed(session.reason.name)
                                 is BLESyncSession.SyncPacketTransition -> {
@@ -305,13 +314,19 @@ class BLEAdvertisementCallback private constructor(
         if (serviceId != BLEConstants.SYNC_SERVICE_ID) return
 
         when (characteristicId) {
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> _scope.launch {
-                delegate.handleCCCWriteRequest(
-                    address = deviceAddress,
-                    descriptorUuid = descriptorId,
-                    characteristicsId = characteristicId,
-                    value = value,
-                )
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    return
+                }
+                _scope.launch {
+                    delegate.handleCCCWriteRequest(
+                        address = deviceAddress,
+                        descriptorUuid = descriptorId,
+                        characteristicsId = characteristicId,
+                        value = value,
+                    )
+                }
             }
 
             else -> {}

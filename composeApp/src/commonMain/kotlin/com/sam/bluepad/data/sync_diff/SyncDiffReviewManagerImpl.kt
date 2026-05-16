@@ -8,6 +8,7 @@ import com.sam.bluepad.domain.sync_diff.SyncChanges
 import com.sam.bluepad.domain.sync_diff.SyncDiffReviewManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.decodeFromByteArray
@@ -39,10 +40,16 @@ class SyncDiffReviewManagerImpl private constructor(
                 protoBuf.decodeFromByteArray<DiffChangesList>(rawBytes)
             }
             val mappedResult = changesList.diffs.map { it.toSyncChange(timeZone) }
+
             Result.success(mappedResult)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Result.failure(e)
+        } finally {
+            withContext(NonCancellable) {
+                // it's a single read only content once read we delete the content
+                sessionManager.deleteSessionData(session)
+            }
         }
     }
 

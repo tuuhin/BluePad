@@ -93,8 +93,6 @@ class SyncDeviceConnectionCallback private constructor(
                 Logger.i(tag = TAG) { "DEVICE:$deviceAddress CONNECTED" }
 
                 val isMtuRequested = gatt?.requestMtu(BLEConstants.REQUESTED_MTU) ?: false
-                val isDiscoveryRequested = gatt?.discoverServices() ?: false
-                Logger.d(tag = TAG) { "REQUESTED SERVICE DISCOVERY STARTED:$isDiscoveryRequested" }
                 Logger.d(tag = TAG) { "REQUESTING HIGHER MTU: ${BLEConstants.REQUESTED_MTU} STATUS:$isMtuRequested" }
             }
 
@@ -115,11 +113,9 @@ class SyncDeviceConnectionCallback private constructor(
             _onError?.invoke(GattInvalidStatusException(status))
             return
         }
-        requestHandshakeCharacteristics(gatt = gatt).getOrElse { err ->
-            _onError?.invoke(err)
-            return
-        }
         Logger.d(tag = TAG) { "SERVICES DISCOVERED" }
+        val response = requestHandshakeCharacteristics(gatt = gatt)
+        response.getOrElse { err -> _onError?.invoke(err) }
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
@@ -128,7 +124,10 @@ class SyncDeviceConnectionCallback private constructor(
             _onError?.invoke(GattInvalidStatusException(status))
             return
         }
-        Logger.d(tag = TAG) { "GATT CONNECTION MTU UPDATED :$mtu" }
+        Logger.d(tag = TAG) { "GATT CONNECTION MTU UPDATED TO :$mtu" }
+        // requesting service discovery after mtu updated
+        val isDiscoveryRequested = gatt?.discoverServices() ?: false
+        Logger.d(tag = TAG) { "REQUESTED SERVICE DISCOVERY STARTED:$isDiscoveryRequested" }
     }
 
     @Suppress("DEPRECATION")

@@ -1,6 +1,7 @@
 package com.sam.bluepad.domain.ble.events
 
 import com.sam.bluepad.domain.models.ExternalDeviceModel
+import kotlin.uuid.Uuid
 
 sealed interface AdvertiserSyncEvent {
 
@@ -35,7 +36,7 @@ sealed interface AdvertiserSyncEvent {
     /**
      * Full duplex synchronization (two-way) completed successfully.
      */
-    data class FullDuplexCompleted(val device: ExternalDeviceModel) : AdvertiserSyncEvent
+    data class FullDuplexCompleted(val device: ExternalDeviceModel, val sessionId: Uuid) : AdvertiserSyncEvent
 
     /**
      * Synchronization failed.

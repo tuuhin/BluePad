@@ -154,7 +154,7 @@ class BLEConnectorSyncHandlerDelegate(
 
             val eventOut = when (sessionResult) {
                 is BLESyncSession.SyncSessionSuccessfulAck if (device != null) ->
-                    ConnectorSyncEvent.FullDuplexCompleted(device)
+                    ConnectorSyncEvent.FullDuplexCompleted(device, sessionResult.sessionId)
 
                 is BLESyncSession.SyncSessionFailed -> ConnectorSyncEvent.SyncFailed(sessionResult.reason.name)
                 is BLESyncSession.SyncPacketTransition if (device != null) -> {
