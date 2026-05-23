@@ -1,67 +1,65 @@
 package com.sam.bluepad.presentation.feature_sync
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.Image
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
-import com.sam.bluepad.presentation.feature_sync.composables.SyncChangesItemList
+import com.sam.bluepad.domain.sync_diff.SyncChanges
+import com.sam.bluepad.presentation.feature_sync.composables.SyncChangesItemsBoxWrapper
 import com.sam.bluepad.presentation.feature_sync.event.SyncChangesScreenEvent
-import com.sam.bluepad.presentation.feature_sync.state.SyncDiffListUIState
+import com.sam.bluepad.presentation.feature_sync.state.ReviewSyncChangesScreenState
+import com.sam.bluepad.presentation.utils.PreviewFakes
 import com.sam.bluepad.resources.Res
-import com.sam.bluepad.resources.ic_basic_diff
-import com.sam.bluepad.resources.ic_file_not_found
-import com.sam.bluepad.resources.ic_receiver_action_reset
+import com.sam.bluepad.resources.ic_cancel
+import com.sam.bluepad.resources.ic_double_tick
+import com.sam.bluepad.theme.BluePadTheme
 import com.sam.bluepad.theme.Dimensions
+import kotlinx.collections.immutable.persistentListOf
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
-fun SyncChangesSheetContent(
-    state: SyncDiffListUIState,
+fun ReviewSyncChangesSheetContent(
+    state: ReviewSyncChangesScreenState,
     onEvent: (SyncChangesScreenEvent) -> Unit,
     modifier: Modifier = Modifier
 ) {
 
-    val screenMode by remember(state) {
-        derivedStateOf {
-            when {
-                state.isLoaded -> SyncChangesScreenModes.Loading
-                state.isError && state.errorMessage != null -> SyncChangesScreenModes.Error(state.errorMessage)
-                state.syncList.isEmpty() -> SyncChangesScreenModes.EmptySyncChanges
-                else -> SyncChangesScreenModes.SyncChangesList
-            }
-        }
+    val isSaveEnabled by remember(state) {
+        derivedStateOf { state.syncList.isNotEmpty() }
     }
 
     Column(
-        modifier = modifier.padding(
-            horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
-            vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING,
-        ),
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
@@ -70,53 +68,75 @@ fun SyncChangesSheetContent(
             color = MaterialTheme.colorScheme.onSurface,
         )
         HorizontalDivider()
-        SyncChangesContentWrapper(
-            screenMode = screenMode,
-            modifier = Modifier.fillMaxWidth().heightIn(200.dp),
+        SyncChangesItemsBoxWrapper(
+            state = state,
+            onEvent = onEvent,
+            modifier = Modifier.fillMaxWidth()
+                .heightIn(min = 240.dp)
+                .weight(1f, fill = isSaveEnabled),
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        AnimatedVisibility(
+            visible = state.isLoaded,
+            enter = expandVertically(),
+            exit = shrinkVertically(),
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            SyncChangesItemList(items = state.syncList)
+            Text(
+                text = "Its a one time sync changes preview exiting the screen will invalidate the changes and need to sync once again to preview or save",
+                style = MaterialTheme.typography.labelSmallEmphasized,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
         }
-        // action list
-        HorizontalDivider()
-        SubmitSyncChangesActionList(
+        SubmitOrChangesActions(
             onSaveSelectedChanges = { onEvent(SyncChangesScreenEvent.OnApproveAction) },
             onCancel = { onEvent(SyncChangesScreenEvent.OnCancelAction) },
+            isSaveEnabled = isSaveEnabled,
+            isCancelEnabled = state.isLoaded,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
         )
     }
 }
 
 @Composable
-private fun SubmitSyncChangesActionList(
+private fun SubmitOrChangesActions(
     onSaveSelectedChanges: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true,
+    isCancelEnabled: Boolean = true,
+    isSaveEnabled: Boolean = true,
 ) {
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(
+        Button(
             onClick = onCancel,
-            modifier = Modifier.minimumInteractiveComponentSize()
-                .size(IconButtonDefaults.mediumContainerSize(IconButtonDefaults.IconButtonWidthOption.Wide)),
-            colors = IconButtonDefaults.iconButtonColors(
+            modifier = Modifier.heightIn(ButtonDefaults.ExtraSmallContainerHeight),
+            colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.errorContainer,
                 contentColor = MaterialTheme.colorScheme.onErrorContainer,
             ),
             shape = IconButtonDefaults.largeRoundShape,
-            enabled = enabled,
+            enabled = isCancelEnabled,
         ) {
             Icon(
-                painter = painterResource(Res.drawable.ic_receiver_action_reset),
+                painter = painterResource(Res.drawable.ic_cancel),
                 contentDescription = "Reset Receiver",
+                modifier = Modifier.size(ButtonDefaults.IconSize),
+            )
+            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+            Text(
+                text = "Cancel",
+                style = MaterialTheme.typography.titleMediumEmphasized,
             )
         }
 
         Button(
             onClick = onSaveSelectedChanges,
-            modifier = Modifier.heightIn(ButtonDefaults.MediumContainerHeight),
+            modifier = Modifier.heightIn(ButtonDefaults.ExtraSmallContainerHeight),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -125,85 +145,58 @@ private fun SubmitSyncChangesActionList(
                 shape = ButtonDefaults.elevatedShape,
                 pressedShape = ButtonDefaults.mediumPressedShape,
             ),
-            enabled = enabled,
+            enabled = isSaveEnabled,
         ) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_double_tick),
+                contentDescription = "Reset Receiver",
+                modifier = Modifier.size(ButtonDefaults.IconSize),
+            )
+            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
             Text(
-                text = "Save",
+                text = "Save Changes",
                 style = MaterialTheme.typography.titleMediumEmphasized,
             )
         }
     }
 }
 
-@Composable
-private fun SyncChangesContentWrapper(
-    screenMode: SyncChangesScreenModes,
-    modifier: Modifier = Modifier,
-    listContent: @Composable () -> Unit,
-) {
-    AnimatedContent(
-        targetState = screenMode,
-        modifier = modifier.animateContentSize(),
-        contentAlignment = Alignment.Center,
-    ) { mode ->
-        when (mode) {
-            SyncChangesScreenModes.SyncChangesList -> listContent()
-            SyncChangesScreenModes.Loading -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                LoadingIndicator()
-                Text(
-                    text = "Loading",
-                    style = MaterialTheme.typography.bodyMediumEmphasized,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-
-            SyncChangesScreenModes.EmptySyncChanges -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Image(
-                    painter = painterResource(Res.drawable.ic_basic_diff),
-                    contentDescription = "Simple Diff icon",
-                    modifier = Modifier.size(48.dp),
-                )
-                Spacer(modifier = Modifier.heightIn(4.dp))
-                Text(
-                    text = "No changes found",
-                    style = MaterialTheme.typography.titleSmallEmphasized,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = "Content on both of the device is same",
-                    style = MaterialTheme.typography.titleSmallEmphasized,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-
-            is SyncChangesScreenModes.Error -> {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Image(
-                        painter = painterResource(Res.drawable.ic_file_not_found),
-                        contentDescription = "Missing sync file",
-                        modifier = Modifier.size(48.dp),
-                    )
-                    Spacer(modifier = Modifier.heightIn(4.dp))
-                    Text(
-                        text = "Failed to read the sync changes",
-                        style = MaterialTheme.typography.titleSmallEmphasized,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        text = mode.errorText,
-                        style = MaterialTheme.typography.titleSmallEmphasized,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-        }
-    }
+private class SyncChangesUIStatePreviewParams : PreviewParameterProvider<ReviewSyncChangesScreenState> {
+    override val values: Sequence<ReviewSyncChangesScreenState>
+        get() = sequenceOf(
+            ReviewSyncChangesScreenState(isLoaded = false),
+            ReviewSyncChangesScreenState(isLoaded = true, isError = true, errorMessage = "Failed to load data"),
+            ReviewSyncChangesScreenState(isLoaded = true, isError = false),
+            ReviewSyncChangesScreenState(
+                isLoaded = true, isError = false,
+                syncList = persistentListOf<SyncChanges>()
+                    .addAll(
+                        listOf(
+                            PreviewFakes.FAKE_SYNC_CHANGE_DELETE,
+                            PreviewFakes.FAKE_SYNC_CHANGE_INSERT,
+                            PreviewFakes.FAKE_SYNC_CHANGE_DELETE_WITH_UPDATED_CONTENT,
+                            PreviewFakes.FAKE_SYNC_CHANGE_UPDATE,
+                        ),
+                    ),
+            ),
+        )
 }
 
-@Immutable
-private sealed interface SyncChangesScreenModes {
-    data object Loading : SyncChangesScreenModes
-    data object SyncChangesList : SyncChangesScreenModes
-    data object EmptySyncChanges : SyncChangesScreenModes
-    data class Error(val errorText: String) : SyncChangesScreenModes
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview
+@Composable
+private fun ReviewSyncChangesSheetContentPreview(
+    @PreviewParameter(SyncChangesUIStatePreviewParams::class)
+    state: ReviewSyncChangesScreenState
+) = BluePadTheme {
+    Surface(
+        color = BottomSheetDefaults.ContainerColor,
+        shape = BottomSheetDefaults.ExpandedShape,
+    ) {
+        ReviewSyncChangesSheetContent(
+            state = state,
+            onEvent = {},
+            modifier = Modifier.padding(all = Dimensions.MODAL_BOTTOM_SHEET_CONTENT_PADDING),
+        )
+    }
 }

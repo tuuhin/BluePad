@@ -73,8 +73,6 @@ class SyncConnectorViewModel(
         when (event) {
             SyncConnectorScreenEvent.StartClientConnection -> startConnection()
             SyncConnectorScreenEvent.StopClientConnection -> stopConnection()
-            SyncConnectorScreenEvent.StartSync -> {}
-            SyncConnectorScreenEvent.StopSync -> {}
             SyncConnectorScreenEvent.ShowSyncChangesList -> viewModelScope.launch {
                 val sessionId = _syncSessionId.value ?: return@launch
                 _workflowEvent.emit(SyncWorkflowEvent.ReadyForReview(sessionId))

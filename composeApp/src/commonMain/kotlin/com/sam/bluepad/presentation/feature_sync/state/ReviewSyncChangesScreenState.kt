@@ -1,16 +1,14 @@
 package com.sam.bluepad.presentation.feature_sync.state
 
-import androidx.compose.runtime.Stable
 import com.sam.bluepad.domain.sync_diff.SyncChanges
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
-@Stable
-data class SyncChangeUIState(val changes: SyncChanges)
-
-data class SyncDiffListUIState(
+data class ReviewSyncChangesScreenState(
     val isLoaded: Boolean = false,
     val isError: Boolean = false,
     val errorMessage: String? = null,
-    val syncList: ImmutableList<SyncChangeUIState> = persistentListOf()
+    val isSaving: Boolean = false,
+    val isChangesSaved: Boolean = false,
+    val syncList: ImmutableList<SyncChanges> = persistentListOf()
 )

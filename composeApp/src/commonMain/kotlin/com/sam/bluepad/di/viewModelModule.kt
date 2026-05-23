@@ -11,8 +11,8 @@ import com.sam.bluepad.presentation.feature_devices.viewmodel.ManageDeviceViewmo
 import com.sam.bluepad.presentation.feature_settings.SettingsViewmodel
 import com.sam.bluepad.presentation.feature_sketches.viewmodel.AddSketchViewModel
 import com.sam.bluepad.presentation.feature_sketches.viewmodel.SketchesViewmodel
+import com.sam.bluepad.presentation.feature_sync.viewmodel.ReviewSyncChangesViewModel
 import com.sam.bluepad.presentation.feature_sync.viewmodel.SyncConnectorViewModel
-import com.sam.bluepad.presentation.feature_sync.viewmodel.SyncChangesViewModel
 import com.sam.bluepad.presentation.feature_sync.viewmodel.SyncReceiverViewmodel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -39,5 +39,5 @@ val viewModelModule = module {
 	viewModelOf(::SyncConnectorViewModel)
 	viewModelOf(::SyncReceiverViewmodel)
 	viewModelOf(::BlackListedDevicesViewmodel)
-    viewModelOf(::SyncChangesViewModel)
+    viewModelOf(::ReviewSyncChangesViewModel)
 }

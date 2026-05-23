@@ -3,8 +3,7 @@ package com.sam.bluepad.presentation.feature_sync.viewmodel
 import androidx.lifecycle.viewModelScope
 import com.sam.bluepad.domain.sync_diff.SyncDiffReviewManager
 import com.sam.bluepad.presentation.feature_sync.event.SyncChangesScreenEvent
-import com.sam.bluepad.presentation.feature_sync.state.SyncChangeUIState
-import com.sam.bluepad.presentation.feature_sync.state.SyncDiffListUIState
+import com.sam.bluepad.presentation.feature_sync.state.ReviewSyncChangesScreenState
 import com.sam.bluepad.presentation.utils.AppViewModel
 import com.sam.bluepad.presentation.utils.UIEvents
 import kotlinx.collections.immutable.toImmutableList
@@ -18,18 +17,18 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.uuid.Uuid
 
-class SyncChangesViewModel(
+class ReviewSyncChangesViewModel(
     private val sessionId: Uuid,
     private val reviewManager: SyncDiffReviewManager
 ) : AppViewModel() {
 
-    private val _syncDiffs = MutableStateFlow(SyncDiffListUIState())
+    private val _syncDiffs = MutableStateFlow(ReviewSyncChangesScreenState())
     val screenState = _syncDiffs
         .onStart { readSyncDiffs() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = SyncDiffListUIState(),
+            initialValue = ReviewSyncChangesScreenState(),
         )
 
     private val _uiEvents = MutableSharedFlow<UIEvents>()
@@ -38,9 +37,13 @@ class SyncChangesViewModel(
 
     fun onEvent(event: SyncChangesScreenEvent) {
         when (event) {
-            SyncChangesScreenEvent.OnApproveAction -> {}
+            SyncChangesScreenEvent.OnApproveAction -> saveChanges()
             SyncChangesScreenEvent.OnCancelAction -> viewModelScope.launch {
                 _uiEvents.emit(UIEvents.PopScreen)
+            }
+
+            is SyncChangesScreenEvent.OnResolveConflict -> {
+                // TODO: Implement conflict resolution logic in reviewManager
             }
         }
     }
@@ -49,12 +52,16 @@ class SyncChangesViewModel(
         val result = reviewManager.readSyncSession(sessionId)
         result.fold(
             onSuccess = { changes ->
-                val syncUiChanges = changes.map { SyncChangeUIState(it) }.toImmutableList()
+                val syncUiChanges = changes.toImmutableList()
                 _syncDiffs.update { state -> state.copy(isLoaded = true, syncList = syncUiChanges) }
             },
             onFailure = { err ->
                 _syncDiffs.update { state -> state.copy(isLoaded = true, isError = true, errorMessage = err.message) }
             },
         )
+    }
+
+    private fun saveChanges() = viewModelScope.launch {
+        _syncDiffs.update { state->state.copy(isSaving = true) }
     }
 }

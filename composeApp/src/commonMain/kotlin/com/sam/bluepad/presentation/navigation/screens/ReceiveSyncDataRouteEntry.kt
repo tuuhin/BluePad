@@ -19,9 +19,7 @@ import com.sam.bluepad.presentation.utils.UiEventsHandler
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_back
 import com.sam.bluepad.resources.ic_back
-import kotlinx.coroutines.flow.buffer
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.collectLatest
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -43,16 +41,14 @@ fun EntryProviderScope<NavKey>.receiveSyncDataRouteEntry(
 
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            viewModel.workflowEvent.buffer(1)
-                .onEach { destination ->
-                    when (destination) {
-                        is SyncWorkflowEvent.ReadyForReview -> {
-                            val entry = RootNavGraph.SyncChangesListRouteEntry(destination.sessionId)
-                            backStack.add(entry)
-                        }
+            viewModel.workflowEvent.collectLatest { destination ->
+                when (destination) {
+                    is SyncWorkflowEvent.ReadyForReview -> {
+                        val entry = RootNavGraph.SyncChangesListRouteEntry(destination.sessionId)
+                        backStack.add(entry)
                     }
                 }
-                .launchIn(this)
+            }
         }
     }
 
