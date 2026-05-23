@@ -352,7 +352,7 @@ class ServerConnectionCallback private constructor(
                     return
                 }
                 _scope.launch {
-                    val result = delegate.handleProximityReadRequest(
+                    val result = delegate.handleCCCReadRequest(
                         address = device.address,
                         descriptorUuid = descriptorId,
                         characteristicsId = characteristicsId,

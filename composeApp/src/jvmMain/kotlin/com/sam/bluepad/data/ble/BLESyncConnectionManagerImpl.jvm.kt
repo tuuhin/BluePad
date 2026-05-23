@@ -222,7 +222,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
                                 else -> {}
                             }
                             // no marker present thus directly marking its as true
-                           true
+                            true
                         },
                         onObserveBytes = { bytes ->
                             val event = delegate.handleHandshakeNotification(
@@ -303,10 +303,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
     private val List<DiscoveredCharacteristic>.handshakeCharacteristics: Result<DiscoveredCharacteristic>
         get() = runCatching {
             find { it.characteristicUuid == BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID }
-                ?: throw InvalidServiceOrCharacteristicsException(
-                    false,
-                    BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID,
-                )
+                ?: throw InvalidServiceOrCharacteristicsException(false, BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID)
         }
 
     private val List<DiscoveredCharacteristic>.syncDataCharacteristics: Result<DiscoveredCharacteristic>
@@ -318,14 +315,13 @@ actual class BLESyncConnectionManagerImpl private constructor(
     private suspend fun Peripheral.writeToCharacteristics(
         characteristic: DiscoveredCharacteristic,
         bytes: ByteArray
-    ): Boolean {
-        return try {
-            write(characteristic, bytes)
-            true
-        } catch (_: NotConnectedException) {
-            false
-        }
+    ) = try {
+        write(characteristic, bytes)
+        true
+    } catch (_: NotConnectedException) {
+        false
     }
+
 
     private suspend fun DiscoveredCharacteristic.observeNotifications(
         peripheral: Peripheral,
@@ -336,29 +332,30 @@ actual class BLESyncConnectionManagerImpl private constructor(
         val cccDescriptor = descriptors.find { it.descriptorUuid == BLEConstants.CCC_DESCRIPTOR }
             ?: return@coroutineScope
 
-        peripheral
-            .observe(
-                characteristic = this@observeNotifications,
-                onSubscription = {
-                    Logger.d(tag = TAG) { "READY TO OBSERVE NOTIFICATIONS" }
-                    // mostly ccc will be enabled here
-                    delegate.onEnabledDisabledCCCDescriptor(
-                        address = peripheral.identifier.toString(),
-                        characteristicId = this@observeNotifications.characteristicUuid,
-                        bytes = peripheral.read(cccDescriptor),
-                        onWriteBytes = { bytes -> peripheral.writeToCharacteristics(this@observeNotifications, bytes) },
-                        onToggleNotification = onToggleNotification,
-                    )
-                },
-            )
+        peripheral.observe(
+            characteristic = this@observeNotifications,
+            onSubscription = {
+                val descriptorValue = peripheral.read(cccDescriptor)
+                Logger.d(tag = TAG) { "READY TO OBSERVE NOTIFICATIONS" }
+                // mostly ccc will be enabled here
+                delegate.onEnabledDisabledCCCDescriptor(
+                    address = peripheral.identifier.toString(),
+                    characteristicId = this@observeNotifications.characteristicUuid,
+                    bytes = descriptorValue,
+                    onWriteBytes = { bytes -> peripheral.writeToCharacteristics(this@observeNotifications, bytes) },
+                    onToggleNotification = onToggleNotification,
+                )
+            },
+        )
             .onStart { Logger.d(tag = TAG) { "CHARACTERISTICS:${characteristicUuid} NOTIFICATION OBSERVER STARTED" } }
             .onCompletion {
+                val descriptorValue = peripheral.read(cccDescriptor)
                 Logger.d(tag = TAG) { "CHARACTERISTICS:${characteristicUuid} NOTIFICATION OBSERVER STOPPED" }
                 // mostly ccc will be disabled here
                 delegate.onEnabledDisabledCCCDescriptor(
                     address = peripheral.toString(),
                     characteristicId = this@observeNotifications.characteristicUuid,
-                    bytes = peripheral.read(cccDescriptor),
+                    bytes = descriptorValue,
                     onWriteBytes = { bytes -> peripheral.writeToCharacteristics(this@observeNotifications, bytes) },
                     onToggleNotification = onToggleNotification,
                 )

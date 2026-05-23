@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
@@ -114,8 +115,20 @@ class SyncDeviceConnectionCallback private constructor(
             return
         }
         Logger.d(tag = TAG) { "SERVICES DISCOVERED" }
-        val response = requestHandshakeCharacteristics(gatt = gatt)
-        response.getOrElse { err -> _onError?.invoke(err) }
+        if (!_scope.isActive) {
+            Logger.d(tag = TAG) { "COROUTINE HAS BEEN CANCELLED" }
+            return
+        }
+        _scope.launch {
+            val servicesIsEmpty = gatt.services.isEmpty()
+            if (servicesIsEmpty) {
+                // a bit of input delay to load the service into the buffer
+                delay(200L)
+            }
+            Logger.d(tag = TAG) { "REQUESTING HANDSHAKE FOR SYNC" }
+            val response = requestHandshakeCharacteristics(gatt = gatt)
+            response.getOrElse { err -> _onError?.invoke(err) }
+        }
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
