@@ -6,9 +6,7 @@ import kotlinx.collections.immutable.persistentListOf
 
 data class ReviewSyncChangesScreenState(
     val isLoaded: Boolean = false,
-    val isError: Boolean = false,
     val errorMessage: String? = null,
     val isSaving: Boolean = false,
-    val isChangesSaved: Boolean = false,
     val syncList: ImmutableList<SyncChanges> = persistentListOf()
 )

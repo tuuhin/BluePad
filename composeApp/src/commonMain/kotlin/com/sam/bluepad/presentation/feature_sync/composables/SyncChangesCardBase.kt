@@ -177,7 +177,7 @@ fun SyncChangeBaseCard(
     }
 }
 
-private val SyncChanges.secondaryBackgroundColor: Color
+private val SyncChanges.primaryBackGround: Color
     @Composable
     get() = when (this) {
         is SyncChanges.Conflict -> Color(0x33F5D0FE)
@@ -186,13 +186,13 @@ private val SyncChanges.secondaryBackgroundColor: Color
         is SyncChanges.Update -> Color(0x3386EFAC)
     }
 
-private val SyncChanges.primaryBackGround: Color
+private val SyncChanges.secondaryBackgroundColor: Color
     @Composable
     get() = when (this) {
-        is SyncChanges.Conflict -> Color(0x40D8B4FE)
-        is SyncChanges.Delete -> Color(0x40FCA5A5)
-        is SyncChanges.Insert -> Color(0x4086EFAC)
-        is SyncChanges.Update -> Color(0x40FCD34D)
+        is SyncChanges.Conflict -> Color(0x73D8B4FE)
+        is SyncChanges.Delete -> Color(0x73FCA5A5)
+        is SyncChanges.Insert -> Color(0x7386EFAC)
+        is SyncChanges.Update -> Color(0x73FCD34D)
     }
 
 private val SyncChanges.secondaryContentColor: Color

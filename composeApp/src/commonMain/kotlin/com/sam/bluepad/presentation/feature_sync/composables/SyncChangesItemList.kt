@@ -11,20 +11,16 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.dp
 import com.sam.bluepad.domain.sync_diff.SyncChanges
 import com.sam.bluepad.presentation.feature_sync.event.SyncChangesScreenEvent
+import com.sam.bluepad.presentation.utils.formatToTimeStamp
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.persistentMapOf
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.format
 
 @Composable
 fun SyncChangesItemList(
@@ -52,211 +48,138 @@ fun SyncChangesItemList(
         itemsIndexed(
             items, key = keys,
             contentType = contentType,
-        ) { _, state ->
-            when (state) {
-                is SyncChanges.Conflict -> SyncChangeConflictCard(
-                    change = state,
-                    onKeepIncoming = { onEvent(SyncChangesScreenEvent.OnResolveConflict(state.identity, true)) },
-                    onKeepLocal = { onEvent(SyncChangesScreenEvent.OnResolveConflict(state.identity, false)) },
-                )
+        ) { _, syncChange ->
+            SyncChangeBaseCard(
+                change = syncChange,
+                shape = MaterialTheme.shapes.extraLarge,
+                extraEntries = syncChange.extraMetaData,
+                entries = syncChange.coreData,
+                actions = {
+                    when (syncChange) {
+                        is SyncChanges.Conflict -> ConflictResolutionButtons(
+                            onKeepLocal = {
+                                onEvent(SyncChangesScreenEvent.OnResolveConflict(syncChange.identity, false))
+                            },
+                            onKeepIncoming = {
+                                onEvent(SyncChangesScreenEvent.OnResolveConflict(syncChange.identity, true))
+                            },
+                        )
 
-                is SyncChanges.Delete -> SyncChangeDeleteCard(change = state)
-                is SyncChanges.Insert -> SyncChangeInsertCard(change = state)
-                is SyncChanges.Update -> SyncChangeUpdateCard(change = state)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SyncChangeInsertCard(
-    change: SyncChanges.Insert,
-    modifier: Modifier = Modifier,
-    shape: Shape = MaterialTheme.shapes.extraLarge,
-    contentPadding: PaddingValues = PaddingValues.Zero,
-) {
-    val extraEntries by remember(change) {
-        derivedStateOf {
-            persistentMapOf(
-                "Content Hash" to change.incoming.contentHash,
-                "Created at" to change.incoming.modifiedAt.format(LocalDateTime.Formats.ISO),
-            )
-        }
-    }
-
-    val entries by remember(change) {
-        derivedStateOf {
-            persistentMapOf(
-                "Title" to change.incoming.title,
-                "Content" to change.incoming.content,
-            )
-        }
-    }
-
-    SyncChangeBaseCard(
-        modifier = modifier,
-        shape = shape,
-        change = change,
-        contentPadding = contentPadding,
-        extraEntries = extraEntries,
-        entries = entries,
-    )
-}
-
-@Composable
-private fun SyncChangeUpdateCard(
-    change: SyncChanges.Update,
-    modifier: Modifier = Modifier,
-    shape: Shape = MaterialTheme.shapes.extraLarge,
-    contentPadding: PaddingValues = PaddingValues.Zero,
-) {
-    val entries by remember(change) {
-        derivedStateOf {
-            persistentMapOf(
-                "New Title" to change.incoming.title,
-                "New Content" to change.incoming.content,
-                "Status" to buildString {
-                    if (change.hasTitleChanged) append("Title Updated. ")
-                    if (change.hasContentChanged) append("Content Updated.")
-                    if (!change.hasTitleChanged && !change.hasContentChanged) append("No visible changes.")
+                        else -> {}
+                    }
                 },
             )
         }
     }
-
-    val extraEntries by remember(change) {
-        derivedStateOf {
-            persistentMapOf(
-                "Old Title" to change.local.title,
-                "Old Content" to change.local.content,
-                "Old Version" to change.local.version.toString(),
-                "New Version" to change.incoming.version.toString(),
-            )
-        }
-    }
-
-    SyncChangeBaseCard(
-        modifier = modifier,
-        shape = shape,
-        change = change,
-        contentPadding = contentPadding,
-        extraEntries = extraEntries,
-        entries = entries,
-    )
 }
 
+
 @Composable
-private fun SyncChangeDeleteCard(
-    change: SyncChanges.Delete,
+private fun ConflictResolutionButtons(
     modifier: Modifier = Modifier,
-    shape: Shape = MaterialTheme.shapes.extraLarge,
-    contentPadding: PaddingValues = PaddingValues.Zero,
-) {
-    val hasTitleChanged = change.local.title != change.incoming.title
-    val hasContentChanged = change.local.contentHash != change.incoming.contentHash
-
-    val entries by remember(change) {
-        derivedStateOf {
-            persistentMapOf(
-                "Title" to change.incoming.title,
-                "Content" to change.incoming.content,
-                "Status" to buildString {
-                    append("To be deleted. ")
-                    if (hasTitleChanged) append("Title updated. ")
-                    if (hasContentChanged) append("Content updated.")
-                },
-            )
-        }
-    }
-
-    val extraEntries by remember(change) {
-        derivedStateOf {
-            persistentMapOf(
-                "Local Title" to change.local.title,
-                "Local Content" to change.local.content,
-                "Deleted at" to change.incoming.modifiedAt.format(LocalDateTime.Formats.ISO),
-            )
-        }
-    }
-
-    SyncChangeBaseCard(
-        modifier = modifier,
-        shape = shape,
-        change = change,
-        contentPadding = contentPadding,
-        extraEntries = extraEntries,
-        entries = entries,
-    )
-}
-
-@Composable
-private fun SyncChangeConflictCard(
-    change: SyncChanges.Conflict,
-    onKeepIncoming: () -> Unit,
     onKeepLocal: () -> Unit,
-    modifier: Modifier = Modifier,
-    shape: Shape = MaterialTheme.shapes.extraLarge,
-    contentPadding: PaddingValues = PaddingValues.Zero,
+    onKeepIncoming: () -> Unit,
 ) {
-    val entries by remember(change) {
-        derivedStateOf {
-            persistentMapOf(
-                "Incoming Title" to change.incoming.title,
-                "Incoming Content" to change.incoming.content,
-                "Status" to buildString {
-                    append("CONFLICT! ")
-                    if (!change.isVersionSame) append("Version mismatch. ")
-                    if (!change.isModifiedAtSame) append("Both edited. ")
-                    if (change.hasTitleChanged) append("Title Conflict. ")
-                    if (change.hasContentChanged) append("Content Conflict.")
-                },
-            )
-        }
-    }
-
-    val extraEntries by remember(change) {
-        derivedStateOf {
-            persistentMapOf(
-                "Local Title" to change.local.title,
-                "Local Content" to change.local.content,
-                "Local Version" to change.local.version.toString(),
-                "Incoming Version" to change.incoming.version.toString(),
-            )
-        }
-    }
-
-    SyncChangeBaseCard(
+    Row(
         modifier = modifier,
-        shape = shape,
-        change = change,
-        contentPadding = contentPadding,
-        extraEntries = extraEntries,
-        entries = entries,
-        actions = {
-            Row(
-                modifier = Modifier.align(Alignment.End),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Button(
-                    onClick = onKeepLocal,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiary,
-                        contentColor = MaterialTheme.colorScheme.onTertiary,
-                    ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onTertiaryContainer),
-                ) {
-                    Text("Keep Old")
-                }
-                Button(
-                    onClick = onKeepIncoming,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.onSecondary,
-                    ),
-                ) {
-                    Text("Keep Incoming")
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Button(
+            onClick = onKeepLocal,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                contentColor = MaterialTheme.colorScheme.onTertiary,
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onTertiaryContainer),
+        ) {
+            Text("Keep Old")
+        }
+        Button(
+            onClick = onKeepIncoming,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary,
+            ),
+        ) {
+            Text("Keep Incoming")
+        }
+    }
+}
+
+
+private val SyncChanges.coreData: ImmutableMap<String, String>
+    @Composable
+    get() {
+        val metadata = persistentMapOf<String, String>()
+            .builder()
+        when (this) {
+            is SyncChanges.Insert -> {
+                metadata["TITTLE"] = incoming.title
+                metadata["CONTENT"] = incoming.content
+            }
+
+            is SyncChanges.Conflict -> {
+                metadata["TITTLE"] = incoming.title
+                metadata["CONTENT"] = incoming.content
+            }
+
+            is SyncChanges.Delete -> {
+                metadata["TITTLE"] = incoming.title
+                metadata["CONTENT"] = incoming.content
+            }
+
+            is SyncChanges.Update -> {
+                metadata["TITTLE"] = incoming.title
+                metadata["CONTENT"] = incoming.content
+            }
+        }
+        return metadata.build()
+    }
+
+private val SyncChanges.extraMetaData: ImmutableMap<String, String>
+    @Composable
+    get() {
+        val metadata = persistentMapOf<String, String>()
+            .builder()
+
+        metadata["_ID"] = identity.toHexString()
+        when (this) {
+            is SyncChanges.Insert -> {
+                metadata["CONTENT HASH"] = incoming.contentHash
+                metadata["CREATED ON"] = incoming.modifiedAt.formatToTimeStamp()
+                metadata["VERSION"] = incoming.version.toString()
+            }
+
+            is SyncChanges.Delete -> {
+                metadata["CONTENT HASH"] = incoming.contentHash
+                metadata["MODIFIED ON"] = incoming.modifiedAt.formatToTimeStamp()
+                metadata["VERSION"] = incoming.version.toString()
+                metadata["IS CONTENT UPDATED"] =
+                    if (incoming.contentHash != local.contentHash || incoming.title != local.title) "TRUE" else "FALSE"
+            }
+
+            is SyncChanges.Update -> {
+                metadata["CONTENT HASH"] = incoming.contentHash
+                metadata["MODIFIED ON"] = incoming.modifiedAt.formatToTimeStamp()
+                metadata["OLD VERSION"] = local.version.toString()
+                metadata["NEW VERSION"] = incoming.version.toString()
+                metadata["IS TITLE UPDATED"] = if (incoming.title != local.title) "TRUE" else "FALSE"
+            }
+
+            is SyncChanges.Conflict -> {
+                metadata["OLD CONTENT HASH"] = local.contentHash
+                metadata["NEW CONTENT HASH"] = incoming.contentHash
+                metadata["OLD MODIFIED AT"] = local.modifiedAt.formatToTimeStamp()
+                metadata["NEW MODIFIED AT"] = incoming.modifiedAt.formatToTimeStamp()
+                metadata["OLD VERSION"] = local.version.toString()
+                metadata["NEW VERSION"] = incoming.version.toString()
+                metadata["CONFLICT REASON"] = buildString {
+                    if (!isVersionSame) append("VERSION CONFLICT")
+                    if (!isModifiedAtSame) append("BOTH EDITED CONFLICT")
+                    if (hasTitleChanged) append("TITLE CONFLICT")
+                    if (hasContentChanged) append("CONTENT CONFLICT")
                 }
             }
-        },
-    )
-}
+        }
+        return metadata.build()
+    }

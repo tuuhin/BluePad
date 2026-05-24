@@ -56,12 +56,12 @@ class ReviewSyncChangesViewModel(
                 _syncDiffs.update { state -> state.copy(isLoaded = true, syncList = syncUiChanges) }
             },
             onFailure = { err ->
-                _syncDiffs.update { state -> state.copy(isLoaded = true, isError = true, errorMessage = err.message) }
+                _syncDiffs.update { state -> state.copy(isLoaded = true, errorMessage = err.message) }
             },
         )
     }
 
     private fun saveChanges() = viewModelScope.launch {
-        _syncDiffs.update { state->state.copy(isSaving = true) }
+        _syncDiffs.update { state -> state.copy(isSaving = true) }
     }
 }

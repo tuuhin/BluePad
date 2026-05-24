@@ -1,6 +1,7 @@
 package com.sam.bluepad.presentation.feature_sync
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -29,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
@@ -62,22 +65,30 @@ fun ReviewSyncChangesSheetContent(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = "Review your changes",
-            style = MaterialTheme.typography.headlineSmallEmphasized,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        HorizontalDivider()
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = "Review your changes",
+                style = MaterialTheme.typography.headlineSmallEmphasized,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "Verify the list of sketches before updating it to your device",
+                style = MaterialTheme.typography.bodySmallEmphasized,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
         SyncChangesItemsBoxWrapper(
             state = state,
             onEvent = onEvent,
             modifier = Modifier.fillMaxWidth()
-                .heightIn(min = 240.dp)
+                .heightIn(min = 200.dp)
                 .weight(1f, fill = isSaveEnabled),
         )
         Spacer(modifier = Modifier.height(12.dp))
         AnimatedVisibility(
-            visible = state.isLoaded,
+            visible = isSaveEnabled || state.errorMessage != null,
             enter = expandVertically(),
             exit = shrinkVertically(),
             modifier = Modifier.fillMaxWidth(),
@@ -94,6 +105,7 @@ fun ReviewSyncChangesSheetContent(
             onCancel = { onEvent(SyncChangesScreenEvent.OnCancelAction) },
             isSaveEnabled = isSaveEnabled,
             isCancelEnabled = state.isLoaded,
+            isSavingChanges = state.isSaving,
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
     }
@@ -106,6 +118,7 @@ private fun SubmitOrChangesActions(
     modifier: Modifier = Modifier,
     isCancelEnabled: Boolean = true,
     isSaveEnabled: Boolean = true,
+    isSavingChanges: Boolean = false,
 ) {
     Row(
         modifier = modifier,
@@ -114,7 +127,7 @@ private fun SubmitOrChangesActions(
     ) {
         Button(
             onClick = onCancel,
-            modifier = Modifier.heightIn(ButtonDefaults.ExtraSmallContainerHeight),
+            modifier = Modifier.heightIn(ButtonDefaults.MediumContainerHeight),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.errorContainer,
                 contentColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -136,7 +149,7 @@ private fun SubmitOrChangesActions(
 
         Button(
             onClick = onSaveSelectedChanges,
-            modifier = Modifier.heightIn(ButtonDefaults.ExtraSmallContainerHeight),
+            modifier = Modifier.heightIn(ButtonDefaults.MediumContainerHeight),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -145,13 +158,16 @@ private fun SubmitOrChangesActions(
                 shape = ButtonDefaults.elevatedShape,
                 pressedShape = ButtonDefaults.mediumPressedShape,
             ),
-            enabled = isSaveEnabled,
+            enabled = isSaveEnabled && !isSavingChanges,
         ) {
-            Icon(
-                painter = painterResource(Res.drawable.ic_double_tick),
-                contentDescription = "Reset Receiver",
-                modifier = Modifier.size(ButtonDefaults.IconSize),
-            )
+            Crossfade(targetState = isSavingChanges) { isSaving ->
+                if (isSaving) CircularProgressIndicator(modifier = Modifier.size(ButtonDefaults.IconSize))
+                else Icon(
+                    painter = painterResource(Res.drawable.ic_double_tick),
+                    contentDescription = "Reset Receiver",
+                    modifier = Modifier.size(ButtonDefaults.IconSize),
+                )
+            }
             Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
             Text(
                 text = "Save Changes",
@@ -165,10 +181,10 @@ private class SyncChangesUIStatePreviewParams : PreviewParameterProvider<ReviewS
     override val values: Sequence<ReviewSyncChangesScreenState>
         get() = sequenceOf(
             ReviewSyncChangesScreenState(isLoaded = false),
-            ReviewSyncChangesScreenState(isLoaded = true, isError = true, errorMessage = "Failed to load data"),
-            ReviewSyncChangesScreenState(isLoaded = true, isError = false),
+            ReviewSyncChangesScreenState(isLoaded = true, errorMessage = "Failed to load data"),
+            ReviewSyncChangesScreenState(isLoaded = true),
             ReviewSyncChangesScreenState(
-                isLoaded = true, isError = false,
+                isLoaded = true,
                 syncList = persistentListOf<SyncChanges>()
                     .addAll(
                         listOf(
@@ -178,6 +194,12 @@ private class SyncChangesUIStatePreviewParams : PreviewParameterProvider<ReviewS
                             PreviewFakes.FAKE_SYNC_CHANGE_UPDATE,
                         ),
                     ),
+            ),
+            ReviewSyncChangesScreenState(
+                isLoaded = true,
+                isSaving = true,
+                syncList = persistentListOf<SyncChanges>()
+                    .addAll(listOf(PreviewFakes.FAKE_SYNC_CHANGE_INSERT)),
             ),
         )
 }
