@@ -1,8 +1,8 @@
 [versions]
-agp = "9.2.0"
+agp = "9.2.1"
 assertk = "0.28.1"
 kotlinxImmutable = "0.4.0"
-kotlinxDatetime = "0.7.1"
+kotlinxDatetime = "0.8.0"
 kotlinxSerialization = "1.11.0"
 splashApiVersion = "1.2.0"
 android-compileSdk = "37"
@@ -14,34 +14,33 @@ androidx-core = "1.18.0"
 androidx-espresso = "3.7.0"
 androidx-lifecycle = "2.10.0"
 androidx-testExt = "1.3.0"
-composeHotReload = "1.1.0"
+composeHotReload = "1.1.1"
 junit = "4.13.2"
 kotlin = "2.3.21"
 kotlinx-coroutines = "1.11.0"
 kotlinxIoCore = "0.9.0"
 room = "2.8.4"
 sqlite = "2.6.2"
-ksp = "2.3.6"
+ksp = "2.3.8"
 koin = "4.2.1"
 kotlincrypto = "0.8.0"
 kotlincryptorandom = "0.6.0"
-multiplatform-nav3-ui = "1.1.0"
-composeMultiplatform = "1.11.0-rc01"
+multiplatform-nav3-ui = "1.1.1"
+composeMultiplatform = "1.11.0"
 composeMultiplatform-material3 = "1.11.0-alpha07"
-androidx-tooling-version = "1.11.1"
-compose-multiplatform-adaptive = "1.3.0-alpha07"
+androidx-tooling-version = "1.11.2"
+compose-multiplatform-adaptive = "1.3.0-beta01"
 compose-multiplatform-lifecycle = "2.10.0"
-bluecove = "2.1.1"
 datastore = "1.2.1"
 kermit = "2.1.0"
 mokoPermissionsCompose = "0.18.1-desktop-5"
-build-konfig = "0.20.0"
-kableCore = "0.42.0"
+build-konfig = "0.21.2"
+kableCore = "0.43.0"
 kableExceptions = "0.34.0"
 compose_toast = "3.1.0"
 turbine = "1.2.1"
 nucleusnativeaccess = "0.5.1"
-nucleus = "1.14.5"
+nucleus = "1.15.5"
 cryptographyCore = "0.6.0"
 
 [libraries]
@@ -60,6 +59,7 @@ kotlinx-coroutines-bom = { group = "org.jetbrains.kotlinx", name = "kotlinx-coro
 kotlinx-coroutinesSwing = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-swing" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core" }
+kotlinx-coroutines-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core-jvm" }
 #cmp
 cmp-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
 cmp-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
@@ -89,6 +89,8 @@ koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
 koin-test-junit = { module = "io.insert-koin:koin-test-junit4", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
+koin-viewmodel = { module = "io.insert-koin:koin-core-viewmodel", version.ref = "koin" }
+koin-annotations = { module = "io.insert-koin:koin-annotations", version.ref = "koin" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 koin-android-startup = { module = "io.insert-koin:koin-androidx-startup", version.ref = "koin" }
 koin-compose-nav3 = { module = "io.insert-koin:koin-compose-navigation3", version.ref = "koin" }
@@ -103,8 +105,6 @@ whyoleg-cryptography-core = { module = "dev.whyoleg.cryptography:cryptography-co
 #datastore
 androidx-datastore = { module = "androidx.datastore:datastore", version.ref = "datastore" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
-#jvm -bluetoth classic
-bluecove = { module = "io.ultreia:bluecove", version.ref = "bluecove" }
 #logging
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 #permissions
@@ -122,6 +122,9 @@ kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.re
 #test helpers
 assertk = { module = "com.willowtreeapps.assertk:assertk", version.ref = "assertk" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+#kdroid
+kdroidfilter-decorated-window = { module = "io.github.kdroidfilter:nucleus.decorated-window-jni", version.ref = "nucleus" }
+kdroidfilter-decorated-window-material3 = { module = "io.github.kdroidfilter:nucleus.decorated-window-material3", version.ref = "nucleus" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
@@ -134,5 +137,5 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 androidx-room = { id = "androidx.room", version.ref = "room" }
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 build-konfig = { id = "com.codingfeline.buildkonfig", version.ref = "build-konfig" }
-kdroidfilter-nucleusnativeaccess = { id = "io.github.kdroidfilter.nucleusnativeaccess", version.ref = "nucleusnativeaccess" }
+nucleus-nna = { id = "io.github.kdroidfilter.nucleusnativeaccess", version.ref = "nucleusnativeaccess" }
 kdroidfilter-nucleus = { id = "io.github.kdroidfilter.nucleus", version.ref = "nucleus" }
