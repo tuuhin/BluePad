@@ -63,13 +63,13 @@ JNIEXPORT void JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeDestroy
         if (ctx->service_provider) {
             WIN_LOG("STOPPING SERVICE PROVIDERS IN DESTROY");
             auto current_status = ctx->service_provider.AdvertisementStatus();
-            WIN_LOG(L"ADVERTISEMENT STATUS :" << std::to_wstring(static_cast<int32_t>(current_status)));
+            WIN_LOG(L"ADVERTISEMENT STATUS :" << std::to_wstring(static_cast<int32_t>(current_status)) << L" ");
             if (current_status == GattServiceProviderAdvertisementStatus::Started ||
                 current_status == GattServiceProviderAdvertisementStatus::StartedWithoutAllAdvertisementData) {
                 ctx->service_provider.StopAdvertising();
                 WIN_LOG("ADVERTISING STOPPED SUCCESSFULLY");
                 auto updated_status = ctx->service_provider.AdvertisementStatus();
-                WIN_LOG(L"ADVERTISEMENT STATUS:" << std::to_wstring(static_cast<int32_t>(updated_status)));
+                WIN_LOG(L"ADVERTISEMENT STATUS:" << std::to_wstring(static_cast<int32_t>(updated_status)) << L" ");
             }
         }
     } catch (hresult_error const& ex) {
@@ -129,15 +129,15 @@ JNIEXPORT void JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeStopAdv
     try {
         WIN_LOG("STOPPING SERVICE PROVIDERS ON STOP ADVERTISEMENT");
         auto current_status = ctx->service_provider.AdvertisementStatus();
-        WIN_LOG(L"CURRENT ADVERTISEMENT STATUS (Status :" << std::to_wstring(static_cast<int32_t>(current_status))
-                                                          << L")");
+        WIN_LOG(L"CURRENT ADVERTISEMENT STATUS: " << std::to_wstring(static_cast<int32_t>(current_status))
+                                                          << L" ");
         if (current_status == GattServiceProviderAdvertisementStatus::Started ||
             current_status == GattServiceProviderAdvertisementStatus::StartedWithoutAllAdvertisementData) {
             ctx->service_provider.StopAdvertising();
             WIN_LOG("ADVERTISING STOPPED SUCCESSFULLY");
             auto updated_status = ctx->service_provider.AdvertisementStatus();
-            WIN_LOG(L"CURRENT ADVERTISEMENT STATUS (Status :" << std::to_wstring(static_cast<int32_t>(updated_status))
-                                                              << L")");
+            WIN_LOG(L"CURRENT ADVERTISEMENT STATUS: " << std::to_wstring(static_cast<int32_t>(updated_status))
+                                                              << L" ");
         }
     } catch (hresult_error const& ex) {
         WIN_LOG(L"WinRT Exception: " << ex.message().c_str());
@@ -225,7 +225,7 @@ JNIEXPORT void JNICALL Java_com_sam_blejavaadvertise_BLEAdvertiser_nativeAddServ
     WIN_LOG("SERVICE CREATED AND SERVICE PROVIDER ADDED");
     auto current_status = ctx->service_provider.AdvertisementStatus();
 
-    WIN_LOG(L"ADVERTISEMENT STATUS :" << std::to_wstring(static_cast<int32_t>(current_status)));
+    WIN_LOG(L"ADVERTISEMENT STATUS :" << std::to_wstring(static_cast<int32_t>(current_status)) << L" ");
 
     // Iterate characteristics
     jclass java_list_class     = env->FindClass("java/util/List");

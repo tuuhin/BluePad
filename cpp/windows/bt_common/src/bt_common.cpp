@@ -1,176 +1,88 @@
+#include "bluetooth_caller.h"
 #include "jni.h"
-#include <iostream>
-#include <mutex>
-#include <winrt/Windows.Devices.Bluetooth.Advertisement.h>
-#include <winrt/Windows.Devices.Bluetooth.GenericAttributeProfile.h>
-#include <winrt/Windows.Devices.Radios.h>
-#include <winrt/Windows.Foundation.Collections.h>
+#include <memory>
 
 using namespace std;
-using namespace winrt;
-using namespace Windows::Devices::Bluetooth::Advertisement;
-using namespace Windows::Devices::Bluetooth::GenericAttributeProfile;
-using namespace Windows::Storage::Streams;
-using namespace Windows::Foundation::Collections;
-using namespace Windows::Devices::Bluetooth;
-using namespace Windows::Devices::Radios;
-
-#define WIN_LOG(msg) wclog << "[NATIVE-WINDOWS] " << msg << endl;
-
-jobject g_callbackRef = nullptr;
-event_token g_eventToken;
-JavaVM* vm_ref = nullptr;
-std::mutex global_mutex;
-Radio selected_bt_radio{nullptr};
+using namespace winrt::Windows::Foundation::Collections;
 
 extern "C" {
+
+JavaVM* vm_ref                                     = nullptr;
+jobject m_callbackRef                              = nullptr;
+static std::unique_ptr<bluetooth_caller> g_btCalls = nullptr;
+
 jint JNI_OnLoad(JavaVM* vm, void*) {
-    vm_ref = vm;
+    vm_ref    = vm;
+    g_btCalls = std::make_unique<bluetooth_caller>();
     return JNI_VERSION_1_6;
 }
 
+void throw_runtime_jave_exception(JNIEnv* env, const string& message) {
+    jclass exClass = env->FindClass("java/lang/RuntimeException");
+    env->ThrowNew(exClass, message.c_str());
+}
+
 // helper to check if low energy connection accepted
-JNIEXPORT jboolean JNICALL
-Java_com_sam_ble_1common_BluetoothInfoProvider_nativeIsLeSecureConnectionAvailable(JNIEnv*,
-                                                                                   jobject) {
-    const auto adapter = BluetoothAdapter::GetDefaultAsync().get();
-    return adapter.AreLowEnergySecureConnectionsSupported();
+JNIEXPORT jboolean JNICALL Java_com_sam_ble_1common_BluetoothInfoProvider_nativeIsLeSecureConnectionAvailable(JNIEnv*,
+                                                                                                              jobject) {
+    return bluetooth_caller::is_ble_secure_connection_available().get();
 }
 
 // helper to check if peripheral role is supported
-JNIEXPORT jboolean JNICALL
-Java_com_sam_ble_1common_BluetoothInfoProvider_nativeIsPeripheralRoleSupported(JNIEnv*, jobject) {
-    const auto adapter = BluetoothAdapter::GetDefaultAsync().get();
-    return adapter.IsPeripheralRoleSupported();
+JNIEXPORT jboolean JNICALL Java_com_sam_ble_1common_BluetoothInfoProvider_nativeIsPeripheralRoleSupported(JNIEnv*,
+                                                                                                          jobject) {
+    return bluetooth_caller::is_peripheral_role_supported().get();
 }
 
-JNIEXPORT jboolean JNICALL
-Java_com_sam_ble_1common_BluetoothInfoProvider_nativeIsBluetoothActive(JNIEnv* env, jobject) {
-    std::lock_guard lock(global_mutex);
-    try {
-        jclass exClass = env->FindClass("java/lang/RuntimeException");
-        if (!selected_bt_radio) {
-            const auto accessStatus = Radio::RequestAccessAsync().get();
-            if (accessStatus != RadioAccessStatus::Allowed) {
-                WIN_LOG(L"Access denied. Check Windows Privacy Settings");
-                env->ThrowNew(exClass, "ACCESS DENIED");
-                return false;
-            }
+JNIEXPORT jboolean JNICALL Java_com_sam_ble_1common_BluetoothInfoProvider_isDeviceBonded(JNIEnv* env, jobject,
+                                                                                         jstring device_address) {
 
-            const auto radios = Radio::GetRadiosAsync().get();
-            for (auto&& r : radios) {
-                if (r.Kind() == RadioKind::Bluetooth) {
-                    selected_bt_radio = r;
-                    break;
-                }
-            }
-            if (!selected_bt_radio) {
-                env->ThrowNew(exClass, "NO BLUETOOTH HARDWARE FOUND");
-                return false;
-            }
-        }
+    const auto deviceAddress = env->GetStringUTFChars(device_address, nullptr);
+    const auto device        = bluetooth_caller::is_device_paired(deviceAddress).get();
+    env->ReleaseStringUTFChars(device_address, deviceAddress);
+    return device;
+}
 
-        WIN_LOG("READING BT STATE");
-        return selected_bt_radio && selected_bt_radio.State() == RadioState::On;
-    } catch (...) {
+JNIEXPORT jboolean JNICALL Java_com_sam_ble_1common_BluetoothInfoProvider_nativeIsBluetoothActive(JNIEnv* env,
+                                                                                                  jobject) {
+    if (!g_btCalls->is_bluetooth_active().get()) {
+        throw_runtime_jave_exception(env, "BLUETOOTH ERROR");
         return false;
     }
+    return true;
 }
 
-JNIEXPORT void JNICALL Java_com_sam_ble_1common_BluetoothInfoProvider_nativeRegisterBTListener(
-    JNIEnv* env, jobject, jobject callback) {
-    std::lock_guard lock(global_mutex);
-
-    jclass exClass = env->FindClass("java/lang/RuntimeException");
-
-    if (!callback) {
-        env->ThrowNew(exClass, "Callback not provided");
-        return;
+JNIEXPORT void JNICALL Java_com_sam_ble_1common_BluetoothInfoProvider_nativeRegisterBTListener(JNIEnv* env, jobject,
+                                                                                               jobject callback) {
+    if (m_callbackRef) {
+        // callback is present so delete the callback and create a new one
+        env->DeleteGlobalRef(m_callbackRef);
     }
+    m_callbackRef = env->NewGlobalRef(callback);
 
-    if (selected_bt_radio) {
-        try {
-            if (g_eventToken.value != 0) {
-                WIN_LOG("CALLBACK ALREADY REGISTER REVOKING IT");
-                selected_bt_radio.StateChanged(g_eventToken);
-                g_eventToken = {0};
-                WIN_LOG("CALLBACK REVOKED");
-            }
-            selected_bt_radio = nullptr;
-        } catch (const hresult_error& ex) {
-            WIN_LOG(L"WinRT Revoke Failed: " << ex.message().c_str());
+    g_btCalls->register_bt_listener([callbackRef = m_callbackRef, vm = vm_ref](const bool isOn) {
+        JNIEnv* threadEnv = nullptr;
+        bool didAttach    = false;
+
+        if (vm->GetEnv(reinterpret_cast<void**>(&threadEnv), JNI_VERSION_1_6) != JNI_OK) {
+            vm->AttachCurrentThread(reinterpret_cast<void**>(&threadEnv), nullptr);
+            didAttach = true;
         }
-    }
-
-    try {
-        if (!selected_bt_radio) {
-            auto accessStatus = Radio::RequestAccessAsync().get();
-            if (accessStatus != RadioAccessStatus::Allowed) {
-                WIN_LOG(L"Access denied. Check Windows Privacy Settings");
-                env->ThrowNew(exClass, "ACCESS DENIED");
-                return;
-            }
-
-            const auto radios = Radio::GetRadiosAsync().get();
-            for (auto&& r : radios) {
-                if (r.Kind() == RadioKind::Bluetooth) {
-                    selected_bt_radio = r;
-                    break;
-                }
-            }
-            if (!selected_bt_radio) {
-                env->ThrowNew(exClass, "NO BLUETOOTH HARDWARE FOUND");
-                return;
-            }
-            WIN_LOG("BLUETOOTH RADIO ATTACHED");
-        }
-        // 3. Setup JNI Callback
-        if (g_callbackRef)
-            env->DeleteGlobalRef(g_callbackRef);
-        g_callbackRef = env->NewGlobalRef(callback);
-
-        g_eventToken = selected_bt_radio.StateChanged([](Radio const& sender, auto const&) {
-            const bool isOn   = sender.State() == RadioState::On;
-            JNIEnv* threadEnv = nullptr;
-            bool didAttach    = false;
-
-            if (vm_ref->GetEnv(reinterpret_cast<void**>(&threadEnv), JNI_VERSION_1_6) != JNI_OK) {
-                vm_ref->AttachCurrentThread(reinterpret_cast<void**>(&threadEnv), nullptr);
-                didAttach = true;
-            }
-            jclass clz    = threadEnv->GetObjectClass(g_callbackRef);
-            jmethodID mid = threadEnv->GetMethodID(clz, "onStatusChange", "(Z)V");
-            threadEnv->CallVoidMethod(g_callbackRef, mid, isOn);
-            if (didAttach)
-                vm_ref->DetachCurrentThread();
-        });
-    } catch (const hresult_error& ex) {
-        env->ThrowNew(exClass, winrt::to_string(ex.message()).c_str());
-    }
+        jclass clz    = threadEnv->GetObjectClass(callbackRef);
+        jmethodID mid = threadEnv->GetMethodID(clz, "onStatusChange", "(Z)V");
+        threadEnv->CallVoidMethod(callbackRef, mid, isOn);
+        if (didAttach)
+            vm->DetachCurrentThread();
+    });
 }
 
-JNIEXPORT void JNICALL
-Java_com_sam_ble_1common_BluetoothInfoProvider_unregisterBTListener(JNIEnv* env, jobject) {
-    std::lock_guard lock(global_mutex);
-
-    if (selected_bt_radio) {
-        try {
-            if (g_eventToken.value != 0) {
-                selected_bt_radio.StateChanged(g_eventToken);
-                g_eventToken = {0};
-                WIN_LOG("WINRT EVENT REVOKED");
-            }
-            selected_bt_radio = nullptr;
-        } catch (const hresult_error& ex) {
-            WIN_LOG(L"WinRT Revoke Failed: " << ex.message().c_str());
-        }
+JNIEXPORT void JNICALL Java_com_sam_ble_1common_BluetoothInfoProvider_unregisterBTListener(JNIEnv* env, jobject) {
+    // unregister the callback
+    g_btCalls->unregister_bt_listener();
+    // remove the global ref
+    if (m_callbackRef) {
+        env->DeleteGlobalRef(m_callbackRef);
+        m_callbackRef = nullptr;
     }
-
-    if (g_callbackRef) {
-        env->DeleteGlobalRef(g_callbackRef);
-        g_callbackRef = nullptr;
-        WIN_LOG("CALLBACK REMOVED");
-    }
-    WIN_LOG("CLEAN UP DONE");
 }
 }
