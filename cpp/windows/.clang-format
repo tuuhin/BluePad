@@ -17,7 +17,7 @@ AlignTrailingComments: true
 
 # Braces & Flow
 BreakBeforeBraces: Attach
-AllowShortIfStatementsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: true
 AllowShortLoopsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: All
 

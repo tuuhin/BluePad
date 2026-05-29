@@ -1,0 +1,4 @@
+headers = bluetooth/bluetooth.h bluetooth/hci.h bluetooth/hci_lib.h bluetooth/l2cap.h
+headerFilter = bluetooth/*
+compilerOpts.linux = -I/usr/include
+linkerOpts.linux = -L/usr/lib/x86_64-linux-gnu -L/usr/lib -lbluetooth
