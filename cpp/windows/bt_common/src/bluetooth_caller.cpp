@@ -85,7 +85,7 @@ IAsyncOperation<bool> bluetooth_caller::is_bluetooth_active() {
             }
 
             const auto radios = co_await Radio::GetRadiosAsync();
-            Radio local_bt_radio{ nullptr };
+            Radio local_bt_radio{nullptr};
 
             for (auto&& r : radios) {
                 if (r.Kind() == RadioKind::Bluetooth) {
@@ -105,7 +105,6 @@ IAsyncOperation<bool> bluetooth_caller::is_bluetooth_active() {
                     m_selected_bt_radio = local_bt_radio;
                 }
             }
-
         }
         WIN_LOG("READING BT STATE");
 
@@ -119,14 +118,14 @@ IAsyncOperation<bool> bluetooth_caller::is_bluetooth_active() {
         co_return state == winrt::Windows::Devices::Radios::RadioState::On;
 
         co_return m_selected_bt_radio&& m_selected_bt_radio.State() == RadioState::On;
-    }catch (const winrt::hresult_error& ex) {
+    } catch (const winrt::hresult_error& ex) {
         // Catch specific WinRT/COM exceptions (provides HRESULT and Message)
-        WIN_LOG(L"WinRT Exception caught in Bluetooth initialization. HRESULT: 0x%08X, Message: %s",
-                ex.code().value, ex.message().c_str());
+        WIN_LOG(L"WinRT Exception caught in Bluetooth initialization. HRESULT:" << ex.code().value
+                                                                                << L"MESSAGE: " << ex.message().c_str());
         co_return false;
     } catch (const std::exception& ex) {
         // Catch standard library exceptions
-        WIN_LOG(L"Standard exception caught in Bluetooth initialization: %S", ex.what());
+        WIN_LOG(L"Standard exception caught in Bluetooth initialization" << ex.what());
         co_return false;
     } catch (...) {
         // Catch-all safety net
