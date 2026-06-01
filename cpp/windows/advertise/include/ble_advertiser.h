@@ -68,7 +68,9 @@ private:
     GattServiceProvider m_service_provider = nullptr;
     std::map<std::wstring, GattLocalCharacteristic> m_characteristics;
     BLEAdvertiserCallbacks m_callbacks = {nullptr};
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;
 };
+
+const char* log_advertisement_status(GattServiceProviderAdvertisementStatus status);
 
 #endif // BLE_ADVERTISER_H
