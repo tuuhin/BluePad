@@ -2,8 +2,8 @@ package com.sam.ble_advertise
 
 import com.sam.ble_advertise.models.BLEAdvertisementStatus
 import com.sam.ble_advertise.models.BLECharacteristicsModel
-import com.sam.ble_advertise.models.BLEGattStatus
 import com.sam.ble_advertise.models.GATTAdvertiseConfig
+import com.sam.ble_advertise.models.bLEAdvertisementStatusFromInt
 import com.sam.ble_advertise.platform.mingw.ble_advertiser_add_characteristic
 import com.sam.ble_advertise.platform.mingw.ble_advertiser_add_descriptor
 import com.sam.ble_advertise.platform.mingw.ble_advertiser_add_service
@@ -116,14 +116,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
 
                 this.on_service_status_change = staticCFunction { status, userData ->
                     val ref = userData?.asStableRef<MingwCallbackContainer>()?.get() ?: return@staticCFunction
-                    val statusEnum = when (status) {
-                        0 -> BLEAdvertisementStatus.Created
-                        1 -> BLEAdvertisementStatus.Stopped
-                        2 -> BLEAdvertisementStatus.Started
-                        3 -> BLEAdvertisementStatus.StartedWithoutAdvertisementData
-                        4 -> BLEAdvertisementStatus.Aborted
-                        else -> BLEAdvertisementStatus.Aborted
-                    }
+                    val statusEnum = bLEAdvertisementStatusFromInt(status)
                     ref.onStatusChanged(statusEnum)
                 }
 
@@ -143,9 +136,9 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
                                 request,
                                 pinned.addressOf(0).reinterpret(),
                                 bytes.size.toULong(),
-                                BLEGattStatus.SUCCESS.code,
+                                0,
                             )
-                        } ?: ble_advertiser_respond_read(request, null, 0u, BLEGattStatus.FAILED.code)
+                        } ?: ble_advertiser_respond_read(request, null, 0u, 1)
                     }
 
 
@@ -188,9 +181,9 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
                                 request,
                                 pinned.addressOf(0).reinterpret(),
                                 bytes.size.toULong(),
-                                BLEGattStatus.SUCCESS.code,
+                                0,
                             )
-                        } ?: ble_advertiser_respond_read(request, null, 0u, BLEGattStatus.FAILED.code)
+                        } ?: ble_advertiser_respond_read(request, null, 0u, 1)
                     }
 
                 this.on_write_descriptor =
@@ -234,14 +227,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
 
     actual override fun getStatus(): BLEAdvertisementStatus {
         val statusInt = ble_advertiser_get_status(advertiser = handle)
-        return when (statusInt) {
-            0 -> BLEAdvertisementStatus.Created
-            1 -> BLEAdvertisementStatus.Stopped
-            2 -> BLEAdvertisementStatus.Started
-            3 -> BLEAdvertisementStatus.StartedWithoutAdvertisementData
-            4 -> BLEAdvertisementStatus.Aborted
-            else -> BLEAdvertisementStatus.Aborted
-        }
+        return bLEAdvertisementStatusFromInt(statusInt)
     }
 
 

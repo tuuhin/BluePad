@@ -4,9 +4,8 @@ import com.sam.bt_common.platform.PlatformBTInfoProvider
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
-class PlatformBTProviderErrorTest {
+class PlatformBTInfoProviderTest {
 
     @Test
     fun `check if we can read bluetooth is le connection is allowed`() = runTest {
@@ -22,7 +21,7 @@ class PlatformBTProviderErrorTest {
         val provider = PlatformBTInfoProvider()
         // didn't throw error means its good
         provider.use { provider ->
-            assertTrue(provider.isPeripheralRoleSupported())
+            assertEquals(true, provider.isPeripheralRoleSupported())
         }
     }
 

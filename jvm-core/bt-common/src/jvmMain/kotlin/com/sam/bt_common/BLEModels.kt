@@ -1,7 +1,5 @@
 package com.sam.bt_common
 
-import kotlin.jvm.JvmStatic
-
 class Service(
     val uuid: String,
     val data: ByteArray = byteArrayOf(),

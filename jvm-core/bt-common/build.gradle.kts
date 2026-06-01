@@ -37,8 +37,9 @@ kotlin {
                     group = "kne"
                     from(dllDebugPath)
                     from(dllReleasePath)
-                    include("bt_common.dll")
+                    include("*.dll")
                     into(linkTaskProvider.flatMap { it.destinationDirectory })
+                    dependsOn("cmakeBuild")
                 }
                 linkTaskProvider.configure { finalizedBy(copyDllToLinkDir) }
             }

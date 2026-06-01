@@ -43,8 +43,9 @@ kotlin {
                     group = "kne"
                     from(dllDebugPath)
                     from(dllReleasePath)
-                    include("ble_advertise.dll")
+                    include("*.dll")
                     into(linkTaskProvider.flatMap { it.destinationDirectory })
+                    dependsOn("cmakeBuild")
                 }
                 linkTaskProvider.configure { finalizedBy(copyDllToLinkDir) }
             }
@@ -90,7 +91,7 @@ kotlin {
 
 // Config for Kotlin Native Export / JVM Interop
 kotlinNativeExport {
-    nativeLibName = "ble_platform_advertise"
+    nativeLibName = "blePlatformAdvertise"
     nativePackage = generatedClassPackageName
     buildType = nativeExportType
 }
