@@ -3,7 +3,8 @@ package com.sam.ble_advertise
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isIn
-import com.sam.ble_advertise.platform.BLEAdvertisementStatus
+import com.sam.ble_advertise.extension.getStatus
+import com.sam.ble_advertise.models.BLEAdvertisementStatus
 import com.sam.ble_advertise.platform.GATTAdvertiseConfig
 import com.sam.ble_advertise.platform.PlatformBLEAdvertiser
 import kotlinx.coroutines.ExperimentalCoroutinesApi
