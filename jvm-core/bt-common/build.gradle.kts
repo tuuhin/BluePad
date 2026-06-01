@@ -70,6 +70,9 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.kermit)
         }
+        jvmTest.dependencies {
+            implementation(libs.assertk)
+        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }

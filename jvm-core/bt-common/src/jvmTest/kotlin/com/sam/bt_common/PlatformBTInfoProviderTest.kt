@@ -1,9 +1,10 @@
 package com.sam.bt_common
 
+import assertk.assertThat
+import assertk.assertions.isTrue
 import com.sam.bt_common.platform.PlatformBTInfoProvider
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class PlatformBTInfoProviderTest {
 
@@ -12,7 +13,7 @@ class PlatformBTInfoProviderTest {
         val provider = PlatformBTInfoProvider()
         provider.use { provider ->
             val isAllowed = provider.isLEConnectionAllowed()
-            assertEquals(true, isAllowed)
+            assertThat(isAllowed).isTrue()
         }
     }
 
@@ -21,7 +22,7 @@ class PlatformBTInfoProviderTest {
         val provider = PlatformBTInfoProvider()
         // didn't throw error means its good
         provider.use { provider ->
-            assertEquals(true, provider.isPeripheralRoleSupported())
+            assertThat(provider.isPeripheralRoleSupported()).isTrue()
         }
     }
 
@@ -29,6 +30,8 @@ class PlatformBTInfoProviderTest {
     fun `check if bluetooth is active can be called`() = runTest {
         val provider = PlatformBTInfoProvider()
         // didn't throw error means its good
-        provider.use { provider -> provider.isBluetoothActive() }
+        provider.use { provider ->
+            provider.isBluetoothActive()
+        }
     }
 }
