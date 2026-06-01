@@ -1,11 +1,13 @@
-package com.sam.bt_common
+package com.sam.ble_advertise.models
+
+import kotlin.uuid.Uuid
 
 class Service(
-    val uuid: String,
+    val uuid: Uuid,
     val data: ByteArray = byteArrayOf(),
     val characteristics: List<Characteristic> = emptyList()
 ) {
-    class Builder(private val uuid: String) {
+    class Builder(private val uuid: Uuid) {
         private val characteristics = mutableListOf<Characteristic>()
         private var data = byteArrayOf()
 
@@ -29,12 +31,12 @@ class Service(
 
     companion object {
         @JvmStatic
-        fun builder(uuid: String) = Builder(uuid)
+        fun builder(uuid: Uuid) = Builder(uuid)
     }
 }
 
 data class Characteristic(
-    val uuid: String,
+    val uuid: Uuid,
     val descriptors: List<Descriptor>,
     val canRead: Boolean,
     val canWriteRequest: Boolean,
@@ -42,7 +44,7 @@ data class Characteristic(
     val canNotify: Boolean,
     val canIndicate: Boolean
 ) {
-    class Builder(private val uuid: String) {
+    class Builder(private val uuid: Uuid) {
         private val descriptors = mutableListOf<Descriptor>()
         private var canRead = false
         private var canWriteRequest = false
@@ -92,17 +94,8 @@ data class Characteristic(
     }
 
     companion object {
-        fun builder(uuid: String) = Builder(uuid)
+        fun builder(uuid: Uuid) = Builder(uuid)
     }
 }
 
-data class Descriptor(val uuid: String)
-
-data class BluetoothAddress(val address: String)
-
-enum class BluetoothAddressType {
-    PUBLIC,
-    RANDOM
-}
-
-data class BluetoothUUID(val uuid: String)
+data class Descriptor(val uuid: Uuid)

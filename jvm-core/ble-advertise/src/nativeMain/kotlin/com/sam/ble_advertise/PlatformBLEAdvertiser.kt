@@ -1,6 +1,5 @@
 package com.sam.ble_advertise
 
-import com.sam.ble_advertise.models.BLEAdvertisementStatus
 import com.sam.ble_advertise.models.BLECharacteristicsModel
 import com.sam.ble_advertise.models.GATTAdvertiseConfig
 import kotlin.uuid.ExperimentalUuidApi
@@ -8,7 +7,7 @@ import kotlin.uuid.ExperimentalUuidApi
 @OptIn(ExperimentalUuidApi::class)
 expect class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
 
-    override fun getStatus(): BLEAdvertisementStatus
+    override fun getStatusInt(): Int
 
     override fun start(config: GATTAdvertiseConfig)
     override fun stop()
@@ -21,7 +20,7 @@ expect class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
 
     override fun registerForCallbacks(
         onServiceAdded: (serviceUuid: String, success: Boolean, errorCode: Int) -> Unit,
-        onServiceStatusChanged: (status: BLEAdvertisementStatus) -> Unit,
+        onServiceStatusChanged: (status: Int) -> Unit,
         onReadCharacteristics: (deviceAddress: String, serviceUuid: String, characteristicUuid: String, status: Int) -> String,
         onWriteCharacteristics: (deviceAddress: String, serviceUuid: String, characteristicUuid: String, value: ByteArray, respond: Boolean) -> Int,
         onReadDescriptor: (deviceAddress: String, serviceUuid: String, characteristicUuid: String, descriptorUuid: String, status: Int) -> String,

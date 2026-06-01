@@ -1,9 +1,7 @@
 package com.sam.ble_advertise
 
-import com.sam.ble_advertise.models.BLEAdvertisementStatus
 import com.sam.ble_advertise.models.BLECharacteristicsModel
 import com.sam.ble_advertise.models.GATTAdvertiseConfig
-import com.sam.ble_advertise.models.bLEAdvertisementStatusFromInt
 import com.sam.ble_advertise.platform.mingw.ble_advertiser_add_characteristic
 import com.sam.ble_advertise.platform.mingw.ble_advertiser_add_descriptor
 import com.sam.ble_advertise.platform.mingw.ble_advertiser_add_service
@@ -24,6 +22,7 @@ import kotlinx.cinterop.UByteVar
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.asStableRef
+import kotlinx.cinterop.cstr
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.readValue
 import kotlinx.cinterop.reinterpret
@@ -37,7 +36,7 @@ private typealias MingwBLEAdvertiserCallbacks = com.sam.ble_advertise.platform.m
 
 private class MingwCallbackContainer(
     val onServiceAdded: (serviceUuid: String, success: Boolean, errorCode: Int) -> Unit,
-    val onStatusChanged: (status: BLEAdvertisementStatus) -> Unit,
+    val onStatusChanged: (status: Int) -> Unit,
     val onReadCharacteristics: (deviceAddress: String, serviceUuid: String, characteristicUuid: String, status: Int) -> String?,
     val onWriteCharacteristics: (deviceAddress: String, serviceUuid: String, characteristicUuid: String, value: ByteArray, respond: Boolean) -> Int,
     val onReadDescriptor: (deviceAddress: String, serviceUuid: String, characteristicUuid: String, descriptorUuid: String, status: Int) -> String?,
@@ -56,21 +55,19 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
     }
 
     actual override fun addCharacteristic(characteristic: BLECharacteristicsModel) = memScoped {
-        characteristic.characteristicUuid.usePinned { pinned ->
-            val mingWCharacteristics = alloc<ble_characteristics>()
-                .apply {
-                    characteristic_uuid = pinned.addressOf(0).reinterpret()
-                    can_read = characteristic.canRead
-                    can_write = characteristic.canWrite
-                    can_notify = characteristic.canNotify
-                    can_write_no_response = characteristic.canWriteNoResponse
-                }
+        val mingWCharacteristics = alloc<ble_characteristics>()
+            .apply {
+                characteristic_uuid = characteristic.characteristicUuid.cstr.ptr
+                can_read = characteristic.canRead
+                can_write = characteristic.canWrite
+                can_notify = characteristic.canNotify
+                can_write_no_response = characteristic.canWriteNoResponse
+            }
 
-            ble_advertiser_add_characteristic(
-                advertiser = handle,
-                characteristics = mingWCharacteristics.readValue(),
-            )
-        }
+        ble_advertiser_add_characteristic(
+            advertiser = handle,
+            characteristics = mingWCharacteristics.readValue(),
+        )
     }
 
     actual override fun addDescriptor(characteristicUuid: String, descriptorUuid: String) {
@@ -83,7 +80,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
 
     actual override fun registerForCallbacks(
         onServiceAdded: (serviceUuid: String, success: Boolean, errorCode: Int) -> Unit,
-        onServiceStatusChanged: (status: BLEAdvertisementStatus) -> Unit,
+        onServiceStatusChanged: (status: Int) -> Unit,
         onReadCharacteristics: (deviceAddress: String, serviceUuid: String, characteristicUuid: String, status: Int) -> String,
         onWriteCharacteristics: (deviceAddress: String, serviceUuid: String, characteristicUuid: String, value: ByteArray, respond: Boolean) -> Int,
         onReadDescriptor: (deviceAddress: String, serviceUuid: String, characteristicUuid: String, descriptorUuid: String, status: Int) -> String,
@@ -116,8 +113,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
 
                 this.on_service_status_change = staticCFunction { status, userData ->
                     val ref = userData?.asStableRef<MingwCallbackContainer>()?.get() ?: return@staticCFunction
-                    val statusEnum = bLEAdvertisementStatusFromInt(status)
-                    ref.onStatusChanged(statusEnum)
+                    ref.onStatusChanged(status)
                 }
 
                 this.on_read_characteristic =
@@ -129,16 +125,21 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
                             service?.toKString() ?: "",
                             characteristic?.toKString() ?: "",
                             status,
-                        )?.encodeToByteArray()
+                        )?.encodeToByteArray() ?: byteArrayOf()
 
-                        bytes?.usePinned { pinned ->
+                        if (bytes.isEmpty()) {
+                            ble_advertiser_respond_read(request, null, 0u, 1)
+                            return@staticCFunction
+                        }
+
+                        bytes.usePinned { pinned ->
                             ble_advertiser_respond_read(
                                 request,
                                 pinned.addressOf(0).reinterpret(),
                                 bytes.size.toULong(),
                                 0,
                             )
-                        } ?: ble_advertiser_respond_read(request, null, 0u, 1)
+                        }
                     }
 
 
@@ -160,8 +161,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
                             ktArray,
                             respondNeeded,
                         )
-                        ble_advertiser_respond_write(request, response)
-
+                        if (respondNeeded) ble_advertiser_respond_write(request, response)
                     }
 
                 this.on_read_descriptor =
@@ -174,16 +174,21 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
                             characteristicUuid?.toKString() ?: "",
                             descriptorUuid?.toKString() ?: "",
                             status,
-                        )?.encodeToByteArray()
+                        )?.encodeToByteArray() ?: byteArrayOf()
 
-                        bytes?.usePinned { pinned ->
+                        if (bytes.isEmpty()) {
+                            ble_advertiser_respond_read(request, null, 0u, 1)
+                            return@staticCFunction
+                        }
+
+                        bytes.usePinned { pinned ->
                             ble_advertiser_respond_read(
                                 request,
                                 pinned.addressOf(0).reinterpret(),
                                 bytes.size.toULong(),
                                 0,
                             )
-                        } ?: ble_advertiser_respond_read(request, null, 0u, 1)
+                        }
                     }
 
                 this.on_write_descriptor =
@@ -205,7 +210,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
                             ktArray,
                             respondNeeded,
                         )
-                        ble_advertiser_respond_write(request, response)
+                        if (respondNeeded) ble_advertiser_respond_write(request, response)
                     }
 
                 this.on_indication_result =
@@ -225,9 +230,8 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
         }
     }
 
-    actual override fun getStatus(): BLEAdvertisementStatus {
-        val statusInt = ble_advertiser_get_status(advertiser = handle)
-        return bLEAdvertisementStatusFromInt(statusInt)
+    actual override fun getStatusInt(): Int {
+        return ble_advertiser_get_status(advertiser = handle)
     }
 
 
