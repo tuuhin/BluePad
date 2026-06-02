@@ -71,6 +71,4 @@ private:
     mutable std::mutex m_mutex;
 };
 
-const char* log_advertisement_status(GattServiceProviderAdvertisementStatus status);
-
 #endif // BLE_ADVERTISER_H

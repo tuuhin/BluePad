@@ -21,8 +21,8 @@ fun PlatformBLEAdvertiser.addService(service: Service) {
             canRead = characteristic.canRead,
             canIndicate = characteristic.canIndicate,
             canNotify = characteristic.canNotify,
-            canWrite = characteristic.canWriteRequest,
-            canWriteNoResponse = characteristic.canWriteCommand,
+            canWrite = characteristic.canWriteCommand,
+            canWriteNoResponse = characteristic.canWriteRequest,
         )
         addCharacteristic(characteristics)
         characteristic.descriptors.forEach { desc ->
@@ -50,7 +50,6 @@ fun PlatformBLEAdvertiser.setListener(listener: BLEAdvertiserListener, scope: Co
             val bytes =
                 listener.onReadCharacteristic(deviceAddress, serviceId, characteristicsId) ?: byteArrayOf()
             bytes.decodeToString()
-
         }
     },
     onWriteCharacteristics = { deviceAddress: String, serviceUuid: String, characteristicUuid: String, value: ByteArray, respond: Boolean ->

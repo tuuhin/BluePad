@@ -18,6 +18,32 @@ using namespace Windows::Foundation::Collections;
 using namespace Windows::Devices::Bluetooth;
 using namespace Windows::Foundation;
 
+namespace {
+hstring to_clean_hstring(guid const& g) {
+    return hstring{std::format(L"{:08x}-{:04x}-{:04x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}", g.Data1,
+                               g.Data2, g.Data3, g.Data4[0], g.Data4[1], g.Data4[2], g.Data4[3], g.Data4[4], g.Data4[5],
+                               g.Data4[6], g.Data4[7])};
+}
+
+const char* log_advertisement_status(const GattServiceProviderAdvertisementStatus status) {
+    switch (status) {
+    case GattServiceProviderAdvertisementStatus::Created:
+        return "Created";
+    case GattServiceProviderAdvertisementStatus::Aborted:
+        return "Aborted";
+    case GattServiceProviderAdvertisementStatus::StartedWithoutAllAdvertisementData:
+        return "Started without advertisement data";
+    case GattServiceProviderAdvertisementStatus::Started:
+        return "Started";
+    case GattServiceProviderAdvertisementStatus::Stopped:
+        return "Stopped";
+    default:
+        return "Unknown";
+    }
+}
+
+} // namespace
+
 ble_advertiser::ble_advertiser() {
     init_apartment();
     WIN_LOG(L"BLE ADVERTISER INITIALIZED");
@@ -74,6 +100,10 @@ void ble_advertiser::start(const BLEAdvertiseConfig& config) const {
         }
         m_service_provider.StartAdvertising(params);
         WIN_LOG(L"ADVERTISEMENT STARTED FOR THE GIVEN CONFIG");
+
+        const auto status = m_service_provider.AdvertisementStatus();
+        WIN_LOG(L"ADVERTISING STATUS AFTER START ADVERTISING " << log_advertisement_status(status));
+
     } catch (hresult_error const& ex) {
         WIN_LOG(L"WINRT EXCEPTION IN START: " << ex.message().c_str());
     } catch (...) {
@@ -87,10 +117,15 @@ void ble_advertiser::stop() const {
 
     try {
         const auto status = m_service_provider.AdvertisementStatus();
+        WIN_LOG(L"ADVERTISING STATUS  BEFORE STOP REQUESTED " << log_advertisement_status(status));
+
         if (status == GattServiceProviderAdvertisementStatus::Started ||
             status == GattServiceProviderAdvertisementStatus::StartedWithoutAllAdvertisementData) {
             m_service_provider.StopAdvertising();
-            WIN_LOG(L"ADVERTISING STOPPED CURRENT STATUS WAS " << static_cast<int32_t>(status));
+
+            // read the status again after stop
+            const auto status = m_service_provider.AdvertisementStatus();
+            WIN_LOG(L"ADVERTISING STATUS AFTER STOP ADVERTISING " << log_advertisement_status(status));
         }
     } catch (hresult_error const& ex) {
         WIN_LOG(L"WINRT EXCEPTION IN STOP: " << ex.message().c_str());
@@ -105,7 +140,7 @@ void ble_advertiser::add_service(const char* service_uuid) {
         const hstring h_uuid = to_hstring(service_uuid);
         WIN_LOG(L"ADDING SERVICE: " << h_uuid.c_str());
 
-        guid service_guid{h_uuid};
+        const guid service_guid{h_uuid};
         const auto result = GattServiceProvider::CreateAsync(service_guid).get();
 
         if (m_callbacks.on_service_added) {
@@ -113,7 +148,7 @@ void ble_advertiser::add_service(const char* service_uuid) {
         }
 
         if (result.Error() == BluetoothError::Success) {
-            WIN_LOG(L"SERVICE ADDED SUCCESSFULLY");
+            WIN_LOG(L"SERVICE ADDED SUCCESSFULLY SERVICE ID: " << h_uuid.c_str());
             m_service_provider = result.ServiceProvider();
 
             m_service_provider.AdvertisementStatusChanged(
@@ -171,7 +206,7 @@ void ble_advertiser::add_characteristic(const ble_characteristics characteristic
         const auto characteristic = result.Characteristic();
         m_characteristics.insert(std::make_pair(h_uuid, characteristic));
 
-        auto w_service_uuid = to_hstring(m_service_provider.Service().Uuid());
+        hstring w_service_uuid = to_clean_hstring(m_service_provider.Service().Uuid());
 
         characteristic.ReadRequested(
             [this, w_service_uuid, h_uuid](GattLocalCharacteristic const&, GattReadRequestedEventArgs const& args) {
@@ -236,7 +271,7 @@ void ble_advertiser::add_descriptor(const char* characteristic_uuid, const char*
 
         const auto characteristic = it->second;
         std::wstring w_desc_uuid  = to_hstring(descriptor_uuid).c_str();
-        auto w_service_uuid       = to_hstring(m_service_provider.Service().Uuid());
+        auto w_service_uuid       = to_clean_hstring(m_service_provider.Service().Uuid());
 
         const GattLocalDescriptorParameters params;
         params.ReadProtectionLevel(GattProtectionLevel::Plain);
@@ -405,21 +440,4 @@ void ble_advertiser::respond_write(BLERequestHandle request, const int32_t statu
     }
 
     delete req_ctx;
-}
-
-const char* log_advertisement_status(const GattServiceProviderAdvertisementStatus status) {
-    switch (status) {
-    case GattServiceProviderAdvertisementStatus::Created:
-        return "Created";
-    case GattServiceProviderAdvertisementStatus::Aborted:
-        return "Aborted";
-    case GattServiceProviderAdvertisementStatus::StartedWithoutAllAdvertisementData:
-        return "Started without advertisement data";
-    case GattServiceProviderAdvertisementStatus::Started:
-        return "Started";
-    case GattServiceProviderAdvertisementStatus::Stopped:
-        return "Stopped";
-    default:
-        return "Unknown";
-    }
 }

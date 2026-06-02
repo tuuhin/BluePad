@@ -112,10 +112,12 @@ actual class BLEAdvertisementImpl(
     }
 
     override fun cleanUp() {
-        if (_scope.isActive) _scope.cancel()
+        if (_scope.isActive) {
+            Logger.i(tag = TAG) { "CLEARING UP THE SCOPE" }
+            _scope.cancel()
+        }
         callback.cleanUp()
         Logger.i(tag = TAG) { "STOPPING GATT SERVER AND CLEANING UP RESOURCES" }
-        _advertiser.stop()
         _advertiser.onDestroy()
         _advertiser.close()
     }
