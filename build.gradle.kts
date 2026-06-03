@@ -9,4 +9,5 @@ plugins {
 	alias(libs.plugins.androidx.room) apply false
 	alias(libs.plugins.kotlinx.serialization) apply false
 	alias(libs.plugins.build.konfig) apply false
+	alias(libs.plugins.jetbrains.kotlin.jvm) apply false
 }
