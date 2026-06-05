@@ -29,7 +29,7 @@ sealed interface RootNavGraph : NavKey {
     data object ReceiveSyncDeviceRoute : RootNavGraph
 
     @Serializable
-    data class SyncChangesListRouteEntry(val session: Uuid) : RootNavGraph
+    data class SyncChangesListRouteEntry(val remoteDeviceId: Uuid, val sessionId: Uuid) : RootNavGraph
 
     @Serializable
     data object BlackListedDevicesRoute : RootNavGraph

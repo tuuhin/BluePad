@@ -17,6 +17,8 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.dp
 import com.sam.bluepad.domain.sync_diff.SyncChanges
 import com.sam.bluepad.presentation.feature_sync.event.SyncChangesScreenEvent
+import com.sam.bluepad.presentation.feature_sync.state.ApprovedSyncChanges
+import com.sam.bluepad.presentation.feature_sync.state.ConflictResolutionState
 import com.sam.bluepad.presentation.utils.formatToTimeStamp
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
@@ -24,20 +26,20 @@ import kotlinx.collections.immutable.persistentMapOf
 
 @Composable
 fun SyncChangesItemList(
-    items: ImmutableList<SyncChanges>,
+    items: ImmutableList<ApprovedSyncChanges>,
     onEvent: (SyncChangesScreenEvent) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
     val isInspectionMode = LocalInspectionMode.current
 
-    val keys: ((Int, SyncChanges) -> Any)? = remember {
+    val keys: ((Int, ApprovedSyncChanges) -> Any)? = remember {
         if (isInspectionMode) return@remember null
-        { _, state -> state.identity.toHexString() }
+        { _, state -> state.change.identity.toHexString() }
     }
 
-    val contentType: (Int, SyncChanges) -> Any? = remember {
-        { _, state -> state.javaClass.simpleName }
+    val contentType: (Int, ApprovedSyncChanges) -> Any? = remember {
+        { _, state -> state.change.javaClass.simpleName }
     }
 
     LazyColumn(
@@ -50,18 +52,28 @@ fun SyncChangesItemList(
             contentType = contentType,
         ) { _, syncChange ->
             SyncChangeBaseCard(
-                change = syncChange,
+                change = syncChange.change,
                 shape = MaterialTheme.shapes.extraLarge,
-                extraEntries = syncChange.extraMetaData,
-                entries = syncChange.coreData,
+                extraEntries = syncChange.change.extraMetaData,
+                entries = syncChange.change.coreData,
                 actions = {
-                    when (syncChange) {
+                    when (syncChange.change) {
                         is SyncChanges.Conflict -> ConflictResolutionButtons(
                             onKeepLocal = {
-                                onEvent(SyncChangesScreenEvent.OnResolveConflict(syncChange.identity, false))
+                                onEvent(
+                                    SyncChangesScreenEvent.OnResolveConflict(
+                                        syncChange.change.identity,
+                                        ConflictResolutionState.KEEP_LOCAL,
+                                    ),
+                                )
                             },
                             onKeepIncoming = {
-                                onEvent(SyncChangesScreenEvent.OnResolveConflict(syncChange.identity, true))
+                                onEvent(
+                                    SyncChangesScreenEvent.OnResolveConflict(
+                                        syncChange.change.identity,
+                                        ConflictResolutionState.KEEP_REMOTE,
+                                    ),
+                                )
                             },
                         )
 
