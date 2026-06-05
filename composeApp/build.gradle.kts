@@ -15,7 +15,7 @@ plugins {
 
 kotlin {
 
-    jvmToolchain(25)
+    jvmToolchain(22)
 
     android {
         namespace = "com.sam.bluepad.library"

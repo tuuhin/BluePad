@@ -3,9 +3,8 @@ package com.sam.bluepad.data.sync_diff
 import com.sam.bluepad.data.sync_diff.dto.DiffChangesList
 import com.sam.bluepad.data.sync_diff.mapper.toSyncChange
 import com.sam.bluepad.domain.crypto.EncryptionSessionManager
-import com.sam.bluepad.domain.repository.SketchesRepository
 import com.sam.bluepad.domain.sync_diff.SyncChanges
-import com.sam.bluepad.domain.sync_diff.SyncDiffReviewManager
+import com.sam.bluepad.domain.sync_diff.SyncDataSessionReader
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -15,21 +14,18 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlin.uuid.Uuid
 
-class SyncDiffReviewManagerImpl private constructor(
+class SyncDataSessionReaderImpl private constructor(
     private val protoBuf: ProtoBuf,
-    private val repository: SketchesRepository,
     private val sessionManager: EncryptionSessionManager,
     private val timeZone: TimeZone,
-) : SyncDiffReviewManager {
+) : SyncDataSessionReader {
 
     constructor(
         protoBuf: ProtoBuf,
         sessionManager: EncryptionSessionManager,
-        repository: SketchesRepository
     ) : this(
         protoBuf = protoBuf,
         sessionManager = sessionManager,
-        repository = repository,
         timeZone = TimeZone.currentSystemDefault(),
     )
 
@@ -51,10 +47,5 @@ class SyncDiffReviewManagerImpl private constructor(
                 sessionManager.deleteSessionData(session)
             }
         }
-    }
-
-    override suspend fun submitSyncChanges(changes: List<SyncChanges>): Result<Unit> {
-        // TODO: Include the changes that are approved
-        return Result.success(Unit)
     }
 }

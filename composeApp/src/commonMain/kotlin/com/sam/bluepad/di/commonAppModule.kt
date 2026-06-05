@@ -17,8 +17,9 @@ import com.sam.bluepad.data.serialization.SerializationProtocols
 import com.sam.bluepad.data.sync.IncomingPayloadManagerImpl
 import com.sam.bluepad.data.sync.OutgoingPayloadManagerImpl
 import com.sam.bluepad.data.sync.SyncManagerImpl
+import com.sam.bluepad.data.sync_diff.SyncDataSaverImpl
+import com.sam.bluepad.data.sync_diff.SyncDataSessionReaderImpl
 import com.sam.bluepad.data.sync_diff.SyncDiffCalculatorImpl
-import com.sam.bluepad.data.sync_diff.SyncDiffReviewManagerImpl
 import com.sam.bluepad.domain.crypto.EncryptionManager
 import com.sam.bluepad.domain.crypto.EncryptionSessionManager
 import com.sam.bluepad.domain.crypto.KeyFileManager
@@ -29,8 +30,9 @@ import com.sam.bluepad.domain.repository.SketchesRepository
 import com.sam.bluepad.domain.sync.InPayloadManager
 import com.sam.bluepad.domain.sync.OutPayloadManager
 import com.sam.bluepad.domain.sync.SyncManager
+import com.sam.bluepad.domain.sync_diff.SyncDataSaver
+import com.sam.bluepad.domain.sync_diff.SyncDataSessionReader
 import com.sam.bluepad.domain.sync_diff.SyncDiffCalculator
-import com.sam.bluepad.domain.sync_diff.SyncDiffReviewManager
 import com.sam.bluepad.domain.use_cases.BytesEncoder
 import com.sam.bluepad.domain.use_cases.HashGenerator
 import com.sam.bluepad.domain.use_cases.RandomGenerator
@@ -77,7 +79,8 @@ val commonAppModule = module(true) {
 
     // sync diffs
     factoryOf(::SyncDiffCalculatorImpl) bind SyncDiffCalculator::class
-    factoryOf(::SyncDiffReviewManagerImpl) bind SyncDiffReviewManager::class
+    factoryOf(::SyncDataSessionReaderImpl) bind SyncDataSessionReader::class
+    factoryOf(::SyncDataSaverImpl) bind SyncDataSaver::class
 
     // files
     singleOf(::KeyFileManagerImpl) bind KeyFileManager::class

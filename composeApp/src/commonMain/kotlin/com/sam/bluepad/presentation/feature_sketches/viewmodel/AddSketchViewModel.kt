@@ -46,8 +46,8 @@ class AddSketchViewModel(
         .onStart { onLoadContent() }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = sketchId != null
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = sketchId != null,
         )
 
     private val _uiEvents = MutableSharedFlow<UIEvents>()
@@ -72,7 +72,7 @@ class AddSketchViewModel(
             return@launch
         }
         // old sketch found
-        val sketchFlow = repository.getDeviceFromId(sketchIdUuid)
+        val sketchFlow = repository.getSketchFromIdFlow(sketchIdUuid)
         sketchFlow.onEach { res ->
             _isLoading.update { res is Resource.Loading }
             when (res) {
@@ -112,7 +112,7 @@ class AddSketchViewModel(
 
         val updateModel = cachedModel.copy(
             title = content.contentTitleState.text.toString(),
-            content = content.contentTextState.text.toString()
+            content = content.contentTextState.text.toString(),
         )
         repository.updateSketch(updateModel, localDeviceId)
             .onEach { res ->
@@ -144,7 +144,7 @@ class AddSketchViewModel(
 
         val createModel = CreateSketchModel(
             title = content.contentTitleState.text.toString(),
-            content = content.contentTextState.text.toString()
+            content = content.contentTextState.text.toString(),
         )
         repository.createSketch(createModel, localDeviceId)
             .onEach { res ->
