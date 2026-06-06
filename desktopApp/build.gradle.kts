@@ -33,6 +33,8 @@ dependencies {
     // koin
     implementation(libs.koin.core)
     implementation(libs.koin.compose)
+    // kotlinx datetime
+    implementation(libs.kotlinx.datetime)
     // kdroid filter
     implementation(libs.kdroidfilter.core.runtime)
     implementation(libs.kdroidfilter.decorated.window)
@@ -53,9 +55,11 @@ nucleus.application {
     buildTypes {
         release {
             proguard {
-                isEnabled = true
+                version = "7.9.1"
+                isEnabled = false
                 optimize = true
                 obfuscate = false
+                joinOutputJars = true
                 configurationFiles.from(project.file("proguard-rules.pro"))
             }
         }
@@ -75,11 +79,12 @@ nucleus.application {
 
         outputBaseDir.set(project.layout.buildDirectory.dir("desktop"))
         appResourcesRootDir.set(project.layout.projectDirectory.dir("desktopResources"))
-        licenseFile.set(rootProject.file("LICENSE"))
+        licenseFile.set(rootProject.file("LICENCE"))
 
-        compressionLevel = CompressionLevel.Maximum
+        compressionLevel = CompressionLevel.Normal
         artifactName = "${name}-${version}-${operatingSystem.name}-${arch}.${ext}"
 
+        // strips non targets file from dependency jar
         cleanupNativeLibs = true
 
         windows {

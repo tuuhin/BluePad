@@ -12,6 +12,7 @@ import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import co.touchlab.kermit.CommonWriter
 import co.touchlab.kermit.Logger
 import co.touchlab.kermit.Severity
 import co.touchlab.kermit.koin.KermitKoinLogger
@@ -33,7 +34,10 @@ import org.koin.dsl.koinConfiguration
 
 fun main() = application {
 
+    // logging configuration
     Logger.setMinSeverity(if (BuildKonfig.IS_DEBUG) Severity.Debug else Severity.Info)
+    Logger.setLogWriters(CommonWriter(messageStringFormatter = TimestampMessageWriter))
+    Logger.setTag("BLUE_PAD")
 
     // compose stack trace
     if (BuildKonfig.IS_DEBUG)
