@@ -1,5 +1,6 @@
 #include "ble_advertise_c_api.h"
 #include "ble_advertiser.h"
+#include <iostream>
 
 extern "C" {
 BLEAdvertiserPtr ble_advertiser_create() { return new ble_advertiser(); }
@@ -53,11 +54,11 @@ void ble_advertiser_add_descriptor(BLEAdvertiserPtr advertiser, const char* char
     ctx->add_descriptor(characteristic_uuid, descriptor_uuid);
 }
 
-void ble_advertiser_send_notification(BLEAdvertiserPtr advertiser, const char* device_address,
+bool ble_advertiser_send_notification(BLEAdvertiserPtr advertiser, const char* device_address,
                                       const char* characteristic_uuid, const uint8_t* value, size_t value_len) {
     auto* ctx = static_cast<ble_advertiser*>(advertiser);
-    if (!ctx) return;
-    ctx->send_notification(device_address, characteristic_uuid, value, value_len);
+    if (ctx == nullptr) return false;
+    return ctx->send_notification(device_address, characteristic_uuid, value, value_len);
 }
 
 void ble_advertiser_respond_read(BLERequestHandle request, const uint8_t* data, size_t len, int32_t status) {

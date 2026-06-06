@@ -16,7 +16,7 @@ expect class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
     override fun addCharacteristic(characteristic: BLECharacteristicsModel)
     override fun addDescriptor(characteristicUuid: String, descriptorUuid: String)
 
-    override fun sendNotification(deviceAddress: String, characteristicUuid: String, value: ByteArray)
+    override fun sendNotification(deviceAddress: String, characteristicUuid: String, value: ByteArray): Boolean
 
     override fun registerForCallbacks(
         onServiceAdded: (serviceUuid: String, success: Boolean, errorCode: Int) -> Unit,

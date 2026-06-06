@@ -33,7 +33,7 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "BLE_ADVERTISEMENT_CALLBACK"
 
-private typealias NotifyCharacteristicsChanged = (deviceAddress: String, characteristicsUuid: Uuid, value: ByteArray) -> Boolean
+private typealias NotifyCharacteristicsChanged = suspend (deviceAddress: String, characteristicsUuid: Uuid, value: ByteArray) -> Boolean
 
 class BLEAdvertisementCallback private constructor(
     private val deviceInfoProvider: LocalDeviceInfoProvider,

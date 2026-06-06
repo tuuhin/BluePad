@@ -17,7 +17,7 @@ interface KNativeBLEAdvertiser {
 
     fun addDescriptor(characteristicUuid: String, descriptorUuid: String)
 
-    fun sendNotification(deviceAddress: String, characteristicUuid: String, value: ByteArray)
+    fun sendNotification(deviceAddress: String, characteristicUuid: String, value: ByteArray): Boolean
 
     fun registerForCallbacks(
         onServiceAdded: (serviceUuid: String, success: Boolean, errorCode: Int) -> Unit,

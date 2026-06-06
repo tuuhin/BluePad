@@ -10,7 +10,7 @@ object BLEServiceToGatt {
         Service.builder(BLEConstants.DEVICE_INFO_SERVICE_ID)
             .addCharacteristic(
                 Characteristic.builder(BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID)
-                    .canWriteCommand(true)
+                    .canWriteRequest(true)
                     .canRead(true)
                     .build(),
             ).build()
@@ -21,15 +21,15 @@ object BLEServiceToGatt {
             .addCharacteristic(
                 Characteristic.builder(BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID)
                     .canRead(true)
-                    .canWriteCommand(true)
+                    .canWriteRequest(true)
                     .canNotify(true)
                     .build(),
             )
             .addCharacteristic(
                 Characteristic.builder(BLEConstants.SYNC_DATA_CHARACTERISTICS_ID)
-                    .canWriteCommand(true)
+                    .canWriteRequest(true)
                     .canNotify(true)
-                    .build()
+                    .build(),
             )
             .build()
 }

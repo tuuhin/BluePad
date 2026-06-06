@@ -147,7 +147,7 @@ inline BT_ADVERTISE_API void ble_advertiser_add_characteristic(BLEAdvertiserPtr 
 BT_ADVERTISE_API void ble_advertiser_add_descriptor(BLEAdvertiserPtr advertiser, const char* characteristic_uuid,
                                                     const char* descriptor_uuid);
 
-BT_ADVERTISE_API void ble_advertiser_send_notification(BLEAdvertiserPtr advertiser, const char* device_address,
+BT_ADVERTISE_API bool ble_advertiser_send_notification(BLEAdvertiserPtr advertiser, const char* device_address,
                                                        const char* characteristic_uuid, const uint8_t* value,
                                                        size_t value_len);
 

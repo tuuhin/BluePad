@@ -58,8 +58,8 @@ public:
     void add_characteristic(ble_characteristics characteristics);
     void add_descriptor(const char* characteristic_uuid, const char* descriptor_uuid);
 
-    void send_notification(const char* device_address, const char* characteristic_uuid, const uint8_t* value,
-                           size_t value_len);
+    bool send_notification(const char* device_address, const char* characteristic_uuid, const uint8_t* value,
+                                size_t value_len);
 
     static void respond_read(BLERequestHandle request, const uint8_t* data, size_t len, int32_t status);
     static void respond_write(BLERequestHandle request, int32_t status);
@@ -68,7 +68,8 @@ private:
     GattServiceProvider m_service_provider = nullptr;
     std::map<std::wstring, GattLocalCharacteristic> m_characteristics;
     BLEAdvertiserCallbacks m_callbacks = {nullptr};
-    mutable std::mutex m_mutex;
+    // recursive mutex to allow accessing a block by the same thread
+    mutable std::recursive_mutex m_mutex;
 };
 
 #endif // BLE_ADVERTISER_H

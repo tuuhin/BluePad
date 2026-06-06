@@ -62,6 +62,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
                 can_write = characteristic.canWrite
                 can_notify = characteristic.canNotify
                 can_write_no_response = characteristic.canWriteNoResponse
+                can_indicate = characteristic.canIndicate
             }
 
         ble_advertiser_add_characteristic(
@@ -239,11 +240,10 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
         deviceAddress: String,
         characteristicUuid: String,
         value: ByteArray
-    ) {
-        value.usePinned { pinned ->
+    ): Boolean {
+        return value.usePinned { pinned ->
             val bytePtr: CPointer<ByteVar> = pinned.addressOf(0)
             val uBytePtr = bytePtr.reinterpret<UByteVar>()
-
             ble_advertiser_send_notification(
                 advertiser = handle,
                 device_address = deviceAddress,

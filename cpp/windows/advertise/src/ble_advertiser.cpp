@@ -143,21 +143,36 @@ void ble_advertiser::add_service(const char* service_uuid) {
         const guid service_guid{h_uuid};
         const auto result = GattServiceProvider::CreateAsync(service_guid).get();
 
-        if (m_callbacks.on_service_added) {
-            m_callbacks.on_service_added(service_uuid, static_cast<int32_t>(result.Error()), m_callbacks.user_data);
+        OnServiceAddedCallback service_added_cb = nullptr;
+        void* user_data = nullptr;
+        {
+            std::lock_guard lock(m_mutex);
+            service_added_cb = m_callbacks.on_service_added;
+            user_data = m_callbacks.user_data;
+        }
+        if (service_added_cb) {
+            service_added_cb(service_uuid, static_cast<int32_t>(result.Error()), user_data);
         }
 
         if (result.Error() == BluetoothError::Success) {
             WIN_LOG(L"SERVICE ADDED SUCCESSFULLY SERVICE ID: " << h_uuid.c_str());
-            m_service_provider = result.ServiceProvider();
+            {
+                std::lock_guard lock(m_mutex);
+                m_service_provider = result.ServiceProvider();
+            }
 
             m_service_provider.AdvertisementStatusChanged(
                 [this](GattServiceProvider const&, GattServiceProviderAdvertisementStatusChangedEventArgs const& args) {
                     WIN_LOG(L"ADVERTISEMENT STATUS CHANGED : " << log_advertisement_status(args.Status()));
-                    std::lock_guard cb_lock(m_mutex);
-                    if (m_callbacks.on_service_status_change) {
-                        m_callbacks.on_service_status_change(static_cast<int32_t>(args.Status()),
-                                                             m_callbacks.user_data);
+                    OnServiceStatusChangeCallback status_change_cb = nullptr;
+                    void* cb_user_data = nullptr;
+                    {
+                        std::lock_guard cb_lock(m_mutex);
+                        status_change_cb = m_callbacks.on_service_status_change;
+                        cb_user_data = m_callbacks.user_data;
+                    }
+                    if (status_change_cb) {
+                        status_change_cb(static_cast<int32_t>(args.Status()), cb_user_data);
                     }
                 });
         } else {
@@ -215,12 +230,18 @@ void ble_advertiser::add_characteristic(const ble_characteristics characteristic
                 const auto request   = args.GetRequestAsync().get();
                 const auto device_id = args.Session().DeviceId().Id();
 
-                std::lock_guard cb_lock(m_mutex);
-                if (m_callbacks.on_read_characteristic) {
+                OnReadCharacteristicCallback read_cb = nullptr;
+                void* cb_user_data = nullptr;
+                {
+                    std::lock_guard cb_lock(m_mutex);
+                    read_cb = m_callbacks.on_read_characteristic;
+                    cb_user_data = m_callbacks.user_data;
+                }
+                if (read_cb) {
                     auto* req_ctx = new BLERequestContext(args, request, deferral);
-                    m_callbacks.on_read_characteristic(reinterpret_cast<BLERequestHandle>(req_ctx),
-                                                       to_string(device_id).c_str(), to_string(w_service_uuid).c_str(),
-                                                       to_string(h_uuid).c_str(), 0, m_callbacks.user_data);
+                    read_cb(reinterpret_cast<BLERequestHandle>(req_ctx),
+                            to_string(device_id).c_str(), to_string(w_service_uuid).c_str(),
+                            to_string(h_uuid).c_str(), 0, cb_user_data);
                 } else {
                     WIN_LOG(L"NO READ CALLBACK REGISTERED FOR CHARACTERISTIC");
                     request.RespondWithProtocolError(GattProtocolError::AttributeNotFound());
@@ -236,13 +257,19 @@ void ble_advertiser::add_characteristic(const ble_characteristics characteristic
                 const auto device_id = args.Session().DeviceId().Id();
                 const auto buffer    = request.Value();
 
-                std::lock_guard cb_lock(m_mutex);
-                if (m_callbacks.on_write_characteristic) {
+                OnWriteCharacteristicCallback write_cb = nullptr;
+                void* cb_user_data = nullptr;
+                {
+                    std::lock_guard cb_lock(m_mutex);
+                    write_cb = m_callbacks.on_write_characteristic;
+                    cb_user_data = m_callbacks.user_data;
+                }
+                if (write_cb) {
                     auto* req_ctx = new BLERequestContext(args, request, deferral);
-                    m_callbacks.on_write_characteristic(
+                    write_cb(
                         reinterpret_cast<BLERequestHandle>(req_ctx), to_string(device_id).c_str(),
                         to_string(w_service_uuid).c_str(), to_string(h_uuid).c_str(), buffer.data(), buffer.Length(),
-                        request.Option() == GattWriteOption::WriteWithResponse, m_callbacks.user_data);
+                        request.Option() == GattWriteOption::WriteWithResponse, cb_user_data);
 
                     // deferral should be handled from read_response_call
                 } else {
@@ -287,13 +314,19 @@ void ble_advertiser::add_descriptor(const char* characteristic_uuid, const char*
             const auto request   = args.GetRequestAsync().get();
             const auto device_id = args.Session().DeviceId().Id();
 
-            std::lock_guard cb_lock(m_mutex);
-            if (m_callbacks.on_read_descriptor) {
+            OnReadDescriptorCallback read_cb = nullptr;
+            void* cb_user_data = nullptr;
+            {
+                std::lock_guard cb_lock(m_mutex);
+                read_cb = m_callbacks.on_read_descriptor;
+                cb_user_data = m_callbacks.user_data;
+            }
+            if (read_cb) {
                 auto* req_ctx = new BLERequestContext(args, request, deferral);
-                m_callbacks.on_read_descriptor(reinterpret_cast<BLERequestHandle>(req_ctx),
-                                               to_string(device_id).c_str(), to_string(w_service_uuid).c_str(),
-                                               to_string(w_char_uuid).c_str(), to_string(w_desc_uuid).c_str(), 0,
-                                               m_callbacks.user_data);
+                read_cb(reinterpret_cast<BLERequestHandle>(req_ctx),
+                        to_string(device_id).c_str(), to_string(w_service_uuid).c_str(),
+                        to_string(w_char_uuid).c_str(), to_string(w_desc_uuid).c_str(), 0,
+                        cb_user_data);
             } else {
                 WIN_LOG(L"NO READ CALLBACK REGISTERED FOR DESCRIPTOR");
                 request.RespondWithProtocolError(GattProtocolError::AttributeNotFound());
@@ -309,15 +342,21 @@ void ble_advertiser::add_descriptor(const char* characteristic_uuid, const char*
             const auto device_id = args.Session().DeviceId().Id();
             const auto buffer    = request.Value();
 
-            std::lock_guard cb_lock(m_mutex);
-            if (m_callbacks.on_write_descriptor) {
+            OnWriteDescriptorCallback write_cb = nullptr;
+            void* cb_user_data = nullptr;
+            {
+                std::lock_guard cb_lock(m_mutex);
+                write_cb = m_callbacks.on_write_descriptor;
+                cb_user_data = m_callbacks.user_data;
+            }
+            if (write_cb) {
                 auto* req_ctx = new BLERequestContext(args, request, deferral);
-                m_callbacks.on_write_descriptor(reinterpret_cast<BLERequestHandle>(req_ctx),
-                                                to_string(device_id).c_str(), to_string(w_service_uuid).c_str(),
-                                                to_string(w_char_uuid).c_str(), to_string(w_desc_uuid).c_str(),
-                                                buffer.data(), buffer.Length(),
-                                                true, // Descriptors usually write with response
-                                                m_callbacks.user_data);
+                write_cb(reinterpret_cast<BLERequestHandle>(req_ctx),
+                         to_string(device_id).c_str(), to_string(w_service_uuid).c_str(),
+                         to_string(w_char_uuid).c_str(), to_string(w_desc_uuid).c_str(),
+                         buffer.data(), buffer.Length(),
+                         true, // Descriptors usually write with response
+                         cb_user_data);
             } else {
                 WIN_LOG(L"NO WRITE CALLBACK REGISTERED FOR DESCRIPTOR");
                 deferral.Complete();
@@ -330,7 +369,7 @@ void ble_advertiser::add_descriptor(const char* characteristic_uuid, const char*
     }
 }
 
-void ble_advertiser::send_notification(const char* device_address, const char* characteristic_uuid,
+bool ble_advertiser::send_notification(const char* device_address, const char* characteristic_uuid,
                                        const uint8_t* value, const size_t value_len) {
     std::lock_guard lock(m_mutex);
     WIN_LOG(L"SENDING NOTIFICATION TO: " << to_hstring(device_address).c_str() << L" CHAR: "
@@ -340,7 +379,7 @@ void ble_advertiser::send_notification(const char* device_address, const char* c
     const auto it            = m_characteristics.find(w_char_uuid);
     if (it == m_characteristics.end()) {
         WIN_LOG(L"CHARACTERISTIC NOT FOUND, CANNOT SEND NOTIFICATION");
-        return;
+        return false;
     }
 
     const auto characteristic  = it->second;
@@ -362,7 +401,7 @@ void ble_advertiser::send_notification(const char* device_address, const char* c
 
     if (target_client == nullptr) {
         WIN_LOG(L"TARGET CLIENT NOT FOUND FOR NOTIFICATION");
-        return;
+        return false;
     }
 
     const auto operation = characteristic.NotifyValueAsync(buffer, target_client);
@@ -372,34 +411,46 @@ void ble_advertiser::send_notification(const char* device_address, const char* c
 
     if (!is_indication) {
         WIN_LOG(L"CHARACTERISTICS DON'T HAVE INDICATE PROPERTIES SO WE DON'T CARE ABOUT THE ACK");
-        return;
+        return true;
     }
 
     try {
         operation.Completed([this, w_device_addr, w_char_uuid](auto const& async_op, AsyncStatus const status) {
+            OnIndicationResultCallback cb = nullptr;
+            void* cb_user_data = nullptr;
             if (status == AsyncStatus::Completed) {
                 auto result = async_op.GetResults();
                 WIN_LOG(L"INDICATION SENT SUCCESSFULLY. STATUS: " << static_cast<int32_t>(result.Status()));
-                std::lock_guard cb_lock(m_mutex);
-                if (m_callbacks.on_indication_result) {
-                    m_callbacks.on_indication_result(to_string(w_device_addr).c_str(), to_string(w_char_uuid).c_str(),
-                                                     true, static_cast<int32_t>(result.Status()), 0,
-                                                     m_callbacks.user_data);
+                {
+                    std::lock_guard cb_lock(m_mutex);
+                    cb = m_callbacks.on_indication_result;
+                    cb_user_data = m_callbacks.user_data;
+                }
+                if (cb) {
+                    cb(to_string(w_device_addr).c_str(), to_string(w_char_uuid).c_str(),
+                       true, static_cast<int32_t>(result.Status()), 0, cb_user_data);
                 }
             } else if (status == AsyncStatus::Error) {
                 WIN_LOG(L"FAILED TO SEND INDICATION. ERROR: " << async_op.ErrorCode().value);
-                std::lock_guard cb_lock(m_mutex);
-                if (m_callbacks.on_indication_result) {
-                    m_callbacks.on_indication_result(to_string(w_device_addr).c_str(), to_string(w_char_uuid).c_str(),
-                                                     false, -1, async_op.ErrorCode().value, m_callbacks.user_data);
+                {
+                    std::lock_guard cb_lock(m_mutex);
+                    cb = m_callbacks.on_indication_result;
+                    cb_user_data = m_callbacks.user_data;
+                }
+                if (cb) {
+                    cb(to_string(w_device_addr).c_str(), to_string(w_char_uuid).c_str(),
+                       false, -1, async_op.ErrorCode().value, cb_user_data);
                 }
             }
         });
+        return true;
     } catch (hresult_error const& ex) {
         WIN_LOG(L"WINRT EXCEPTION: " << ex.message());
     } catch (...) {
         WIN_LOG(L"SOMETHING WENT WRONG");
     }
+
+    return false;
 }
 
 void ble_advertiser::respond_read(BLERequestHandle request, const uint8_t* data, const size_t len,

@@ -8,6 +8,7 @@ import com.sam.ble_advertise.platform.PlatformBLEAdvertiser
 import com.sam.bluepad.BuildKonfig
 import com.sam.bluepad.data.ble.callbacks.BLEAdvertisementCallback
 import com.sam.bluepad.data.ble.utils.BLEServiceToGatt
+import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConnectionType
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
@@ -33,12 +34,13 @@ import kotlin.uuid.Uuid
 private const val TAG = "BLE_ADVERTISER"
 
 actual class BLEAdvertisementImpl(
-    private val callback: BLEAdvertisementCallback
+    private val callback: BLEAdvertisementCallback,
+    private val platformDispatchers: PlatformDispatcherProvider,
 ) : BLEAdvertisementManager {
 
     private val _advertiser by lazy { PlatformBLEAdvertiser() }
 
-    private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val _scope = CoroutineScope(platformDispatchers.io + SupervisorJob())
 
     override val isRunning: Flow<Boolean>
         get() = callback.isRunning
@@ -91,17 +93,19 @@ actual class BLEAdvertisementImpl(
         }
     }
 
-    private fun handleNotification(address: String, uuid: Uuid, value: ByteArray): Boolean {
-        return try {
-            _advertiser.sendNotification(
-                deviceAddress = address,
-                characteristicUuid = uuid.toString(),
-                value = value,
-            )
-            true
-        } catch (e: Exception) {
-            Logger.e(tag = TAG, throwable = e) { "FAILED TO SEND NOTIFICATION" }
-            false
+    private suspend fun handleNotification(address: String, uuid: Uuid, value: ByteArray): Boolean {
+        return withContext(platformDispatchers.io) {
+            try {
+                _advertiser.sendNotification(
+                    deviceAddress = address,
+                    characteristicUuid = uuid.toString(),
+                    value = value,
+                )
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Logger.e(tag = TAG, throwable = e) { "FAILED TO SEND NOTIFICATION" }
+                false
+            }
         }
     }
 

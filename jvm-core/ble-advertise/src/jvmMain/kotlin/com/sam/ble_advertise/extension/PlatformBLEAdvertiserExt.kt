@@ -21,8 +21,8 @@ fun PlatformBLEAdvertiser.addService(service: Service) {
             canRead = characteristic.canRead,
             canIndicate = characteristic.canIndicate,
             canNotify = characteristic.canNotify,
-            canWrite = characteristic.canWriteCommand,
-            canWriteNoResponse = characteristic.canWriteRequest,
+            canWrite = characteristic.canWriteRequest,
+            canWriteNoResponse = characteristic.canWriteCommand,
         )
         addCharacteristic(characteristics)
         characteristic.descriptors.forEach { desc ->
