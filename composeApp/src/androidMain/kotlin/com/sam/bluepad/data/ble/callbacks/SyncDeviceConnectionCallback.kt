@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
@@ -93,8 +94,6 @@ class SyncDeviceConnectionCallback private constructor(
                 Logger.i(tag = TAG) { "DEVICE:$deviceAddress CONNECTED" }
 
                 val isMtuRequested = gatt?.requestMtu(BLEConstants.REQUESTED_MTU) ?: false
-                val isDiscoveryRequested = gatt?.discoverServices() ?: false
-                Logger.d(tag = TAG) { "REQUESTED SERVICE DISCOVERY STARTED:$isDiscoveryRequested" }
                 Logger.d(tag = TAG) { "REQUESTING HIGHER MTU: ${BLEConstants.REQUESTED_MTU} STATUS:$isMtuRequested" }
             }
 
@@ -115,11 +114,21 @@ class SyncDeviceConnectionCallback private constructor(
             _onError?.invoke(GattInvalidStatusException(status))
             return
         }
-        requestHandshakeCharacteristics(gatt = gatt).getOrElse { err ->
-            _onError?.invoke(err)
+        Logger.d(tag = TAG) { "SERVICES DISCOVERED" }
+        if (!_scope.isActive) {
+            Logger.d(tag = TAG) { "COROUTINE HAS BEEN CANCELLED" }
             return
         }
-        Logger.d(tag = TAG) { "SERVICES DISCOVERED" }
+        _scope.launch {
+            val servicesIsEmpty = gatt.services.isEmpty()
+            if (servicesIsEmpty) {
+                // a bit of input delay to load the service into the buffer
+                delay(200L)
+            }
+            Logger.d(tag = TAG) { "REQUESTING HANDSHAKE FOR SYNC" }
+            val response = requestHandshakeCharacteristics(gatt = gatt)
+            response.getOrElse { err -> _onError?.invoke(err) }
+        }
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
@@ -128,7 +137,10 @@ class SyncDeviceConnectionCallback private constructor(
             _onError?.invoke(GattInvalidStatusException(status))
             return
         }
-        Logger.d(tag = TAG) { "GATT CONNECTION MTU UPDATED :$mtu" }
+        Logger.d(tag = TAG) { "GATT CONNECTION MTU UPDATED TO :$mtu" }
+        // requesting service discovery after mtu updated
+        val isDiscoveryRequested = gatt?.discoverServices() ?: false
+        Logger.d(tag = TAG) { "REQUESTED SERVICE DISCOVERY STARTED:$isDiscoveryRequested" }
     }
 
     @Suppress("DEPRECATION")

@@ -15,6 +15,7 @@ import com.sam.bluepad.data.ble.exceptions.GattInvalidDescriptorException
 import com.sam.bluepad.data.ble.utils.hasIndication
 import com.sam.bluepad.data.sync.dto.BLESyncDataType
 import com.sam.bluepad.data.sync.dto.BLESyncSession
+import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
@@ -27,7 +28,6 @@ import com.sam.bluepad.domain.sync.OutPayloadManager
 import com.sam.bluepad.domain.use_cases.BytesEncoder
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
@@ -54,6 +54,7 @@ class ServerConnectionCallback private constructor(
     deviceInfoProvider: LocalDeviceInfoProvider,
     private val externalDevicesRepo: ExternalDevicesRepository,
     private val delegate: BLEAdvertiserSyncHandlerDelegate,
+    private val dispatchers: PlatformDispatcherProvider,
 ) : BluetoothGattServerCallback() {
 
     constructor(
@@ -65,9 +66,11 @@ class ServerConnectionCallback private constructor(
         externalDevicesRepo: ExternalDevicesRepository,
         syncInManager: InPayloadManager,
         syncOutManager: OutPayloadManager,
+        dispatchers: PlatformDispatcherProvider,
     ) : this(
         deviceInfoProvider = deviceInfoProvider,
         externalDevicesRepo = externalDevicesRepo,
+        dispatchers = dispatchers,
         delegate = BLEAdvertiserSyncHandlerDelegate(
             protoBuf = protoBuf,
             randomGenerator = randomGenerator,
@@ -78,7 +81,7 @@ class ServerConnectionCallback private constructor(
         ),
     )
 
-    private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val _scope = CoroutineScope(dispatchers.io + SupervisorJob())
 
     private val _deviceInfo = deviceInfoProvider.readDeviceInfo.stateIn(
         scope = _scope,
@@ -177,17 +180,22 @@ class ServerConnectionCallback private constructor(
             }
 
             // HANDLE SYNC SERVICE PROXIMITY CHECK ADVERTISEMENT HERE
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> _scope.launch {
-                Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    return
+                }
+                _scope.launch {
+                    Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
+                    // handshake requested
+                    _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeStarted)
 
-                // handshake requested
-                _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeStarted)
-
-                val result = delegate.handleProximityReadRequest(
-                    address = device.address,
-                    currentDevice = _deviceInfo.value,
-                )
-                sendReadResponse(device, requestId, offset, result)
+                    val result = delegate.handleProximityReadRequest(
+                        address = device.address,
+                        currentDevice = _deviceInfo.value,
+                    )
+                    sendReadResponse(device, requestId, offset, result)
+                }
             }
 
             else -> {
@@ -236,6 +244,10 @@ class ServerConnectionCallback private constructor(
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
                 Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
 
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    return
+                }
                 _scope.launch {
                     val result = delegate.handleProximityWriteRequest(
                         value = value,
@@ -264,6 +276,10 @@ class ServerConnectionCallback private constructor(
             BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
                 Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM SYNC SERVICE" }
 
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    return
+                }
                 _scope.launch {
                     val result = delegate.handleSyncDataWriteRequest(
                         value = value,
@@ -275,9 +291,9 @@ class ServerConnectionCallback private constructor(
                         onSuccess = { session ->
                             val device = _activeSyncDeviceInfo[device.address] ?: return@fold
                             val event = when (session) {
-                                BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
-                                BLESyncSession.SyncSessionSuccessful ->
-                                    AdvertiserSyncEvent.FullDuplexCompleted(device)
+                                is BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
+                                is BLESyncSession.SyncSessionSuccessful ->
+                                    AdvertiserSyncEvent.FullDuplexCompleted(device, session.sessionId)
 
                                 is BLESyncSession.SyncSessionFailed -> AdvertiserSyncEvent.SyncFailed(session.reason.name)
                                 is BLESyncSession.SyncPacketTransition -> {
@@ -330,14 +346,20 @@ class ServerConnectionCallback private constructor(
         if (serviceId != BLEConstants.SYNC_SERVICE_ID) return
 
         when (characteristicsId) {
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> _scope.launch {
-                val result = delegate.handleCCCReadRequest(
-                    address = device.address,
-                    descriptorUuid = descriptorId,
-                    characteristicsId = characteristicsId,
-                    isIndication = descriptor.characteristic.hasIndication,
-                )
-                sendReadResponse(device, requestId, offset, result)
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    return
+                }
+                _scope.launch {
+                    val result = delegate.handleCCCReadRequest(
+                        address = device.address,
+                        descriptorUuid = descriptorId,
+                        characteristicsId = characteristicsId,
+                        isIndication = descriptor.characteristic.hasIndication,
+                    )
+                    sendReadResponse(device, requestId, offset, result)
+                }
             }
 
             else -> {
@@ -379,14 +401,20 @@ class ServerConnectionCallback private constructor(
         }
 
         when (characteristicId) {
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> _scope.launch {
-                val result = delegate.handleCCCWriteRequest(
-                    address = device.address,
-                    descriptorUuid = descriptorId,
-                    characteristicsId = characteristicId,
-                    value = value,
-                )
-                sendWriteResponse(device, requestId, offset, responseNeeded, value, result)
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    return
+                }
+                _scope.launch {
+                    val result = delegate.handleCCCWriteRequest(
+                        address = device.address,
+                        descriptorUuid = descriptorId,
+                        characteristicsId = characteristicId,
+                        value = value,
+                    )
+                    sendWriteResponse(device, requestId, offset, responseNeeded, value, result)
+                }
             }
 
             else -> {

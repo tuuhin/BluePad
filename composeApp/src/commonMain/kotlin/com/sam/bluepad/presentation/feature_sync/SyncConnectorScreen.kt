@@ -62,6 +62,10 @@ fun SyncConnectorScreen(
             devicePlatformOS = state.localDevicePlatformOS,
             syncState = state.syncState,
             onStartConnector = { onEvent(SyncConnectorScreenEvent.StartClientConnection) },
+            onDisconnect = { onEvent(SyncConnectorScreenEvent.StopClientConnection) },
+            onReviewSketches = { onEvent(SyncConnectorScreenEvent.ShowSyncChangesList) },
+            onStopScan = { onEvent(SyncConnectorScreenEvent.StopClientConnection) },
+            onRetryConnection = { onEvent(SyncConnectorScreenEvent.StartClientConnection) },
             contentPadding = PaddingValues(
                 start = scPadding.calculateStartPadding(layoutDirection) + Dimensions.SCAFFOLD_HORIZONAL_PADDING,
                 end = scPadding.calculateEndPadding(layoutDirection) + Dimensions.SCAFFOLD_HORIZONAL_PADDING,

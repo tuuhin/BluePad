@@ -7,6 +7,7 @@ import com.sam.bluepad.domain.ble.events.ConnectorSyncEvent
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.utils.Resource
 import com.sam.bluepad.presentation.feature_sync.event.SyncConnectorScreenEvent
+import com.sam.bluepad.presentation.feature_sync.event.SyncWorkflowEvent
 import com.sam.bluepad.presentation.feature_sync.state.DiscoveryUIState
 import com.sam.bluepad.presentation.feature_sync.state.SyncConnectorScreenState
 import com.sam.bluepad.presentation.feature_sync.state.SyncUIState
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onCompletion
@@ -25,6 +27,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.uuid.Uuid
 
 class SyncConnectorViewModel(
     localDeviceInfoProvider: LocalDeviceInfoProvider,
@@ -36,6 +39,7 @@ class SyncConnectorViewModel(
 
     private val _connectionState = MutableStateFlow<DiscoveryUIState>(DiscoveryUIState.NotStarted)
     private val _syncState = MutableStateFlow<SyncUIState>(SyncUIState.NotRunning)
+    private val _syncSessionId = MutableStateFlow<Uuid?>(null)
 
     val screenState = combine(
         _isConnectorRunning,
@@ -60,14 +64,19 @@ class SyncConnectorViewModel(
     override val uiEvent: SharedFlow<UIEvents>
         get() = _uiEvents
 
+    private val _workflowEvent = MutableSharedFlow<SyncWorkflowEvent>()
+    val workflowEvent = _workflowEvent.asSharedFlow()
+
     private var _connectionJob: Job? = null
 
     fun onEvent(event: SyncConnectorScreenEvent) {
         when (event) {
             SyncConnectorScreenEvent.StartClientConnection -> startConnection()
             SyncConnectorScreenEvent.StopClientConnection -> stopConnection()
-            SyncConnectorScreenEvent.StartSync -> {}
-            SyncConnectorScreenEvent.StopSync -> {}
+            SyncConnectorScreenEvent.ShowSyncChangesList -> viewModelScope.launch {
+                val sessionId = _syncSessionId.value ?: return@launch
+                _workflowEvent.emit(SyncWorkflowEvent.ReadyForReview(sessionId))
+            }
         }
     }
 
@@ -107,7 +116,10 @@ class SyncConnectorViewModel(
                 _syncState.update { SyncUIState.Started }
             }
 
-            is ConnectorSyncEvent.FullDuplexCompleted -> _syncState.update { SyncUIState.FullSyncSuccessFull }
+            is ConnectorSyncEvent.FullDuplexCompleted -> {
+                _syncSessionId.update { event.sessionId }
+                _syncState.update { SyncUIState.FullSyncSuccessFull }
+            }
             is ConnectorSyncEvent.HalfDuplexCompleted -> _syncState.update { SyncUIState.HalfDuplexCompleted }
             is ConnectorSyncEvent.SyncFailed -> _syncState.update { SyncUIState.Failed(event.reason) }
             is ConnectorSyncEvent.SyncStarted -> _syncState.update { SyncUIState.Running }

@@ -59,8 +59,9 @@ sealed interface ConnectorSyncEvent {
     /**
      * Full duplex synchronization (two-way data transfer) completed successfully.
      * @property device The device synced with.
+     * @property sessionId The unique identifier for this synchronization session.
      */
-    data class FullDuplexCompleted(val device: ExternalDeviceModel) : ConnectorSyncEvent
+    data class FullDuplexCompleted(val device: ExternalDeviceModel, val sessionId: kotlin.uuid.Uuid) : ConnectorSyncEvent
 
     /**
      * Synchronization process failed.

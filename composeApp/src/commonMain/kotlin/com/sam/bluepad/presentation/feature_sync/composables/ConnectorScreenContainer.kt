@@ -79,6 +79,10 @@ fun ConnectorScreenContainer(
     discoveryState: DiscoveryUIState,
     localDevice: LocalDeviceInfoModel?,
     onStartConnector: () -> Unit,
+    onStopScan: () -> Unit,
+    onRetryConnection: () -> Unit,
+    onReviewSketches: () -> Unit,
+    onDisconnect:()-> Unit,
     modifier: Modifier = Modifier,
     syncState: SyncUIState = SyncUIState.NotRunning,
     devicePlatformOS: DevicePlatformOS = DevicePlatformOS.UNKNOWN,
@@ -116,10 +120,8 @@ fun ConnectorScreenContainer(
         ) { state ->
             when (state) {
                 ConnectorScreenState.Idle -> DeviceSyncStateIdle(onStart = onStartConnector)
-                ConnectorScreenState.Scanning -> DeviceDiscoveryRunning(onStopScan = {})
-                ConnectorScreenState.ScanTimeout, ConnectorScreenState.DeviceDisconnected ->
-                    DeviceDisconnectedOrTimeout(onRetry = {})
-
+                ConnectorScreenState.Scanning -> DeviceDiscoveryRunning(onStopScan = onStopScan)
+                ConnectorScreenState.ScanTimeout, ConnectorScreenState.DeviceDisconnected -> DeviceDisconnectedOrTimeout(onRetry = onRetryConnection)
                 ConnectorScreenState.ProcessingInitialConnection -> DeviceConnected()
                 is ConnectorScreenState.SyncPhase if (localDevice != null) -> SyncingRunningDataContainer(
                     externalDevice = state.device,
@@ -128,8 +130,8 @@ fun ConnectorScreenContainer(
                     syncState = syncState,
                     isLocalDeviceReceiver = false,
                     contentPadding = PaddingValues(16.dp),
-                    onCheckSketches = {},
-                    onDisconnectAndReset = {},
+                    onCheckSketches = onReviewSketches,
+                    onDisconnectAndReset = onDisconnect,
                 )
 
                 else -> {}

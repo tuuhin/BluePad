@@ -16,8 +16,7 @@ class DIModuleTest {
     }
 
     @Test
-    fun `check a modules present`() {
+    fun check_all_modules_present() {
         appModule.verify(extraTypes = listOf(Uuid::class))
     }
-
 }

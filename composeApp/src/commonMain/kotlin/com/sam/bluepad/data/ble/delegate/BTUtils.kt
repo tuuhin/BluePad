@@ -9,7 +9,7 @@ val ByteArray.btDescriptorsNotificationOrIndicationEnabled: Boolean
         contentEquals(ENABLE_NOTIFICATION_VALUE) -> true
         contentEquals(ENABLE_INDICATION_VALUE) -> true
         contentEquals(DISABLE_NOTIFICATION_VALUE) -> false
-        else -> throw IllegalArgumentException("CCC descriptor values are fixed")
+        else -> throw IllegalArgumentException("CCC descriptor values are fixed cannot use :${toHexString()}")
     }
 
 fun Boolean.asCCCDescriptorValue(isIndication: Boolean): ByteArray {

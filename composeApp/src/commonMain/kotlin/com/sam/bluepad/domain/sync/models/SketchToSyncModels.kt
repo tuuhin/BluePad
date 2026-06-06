@@ -8,6 +8,7 @@ fun SketchModel.toMetadataModel(): SyncMetadataModel = SyncMetadataModel(
     itemId = id,
     lastModified = modifiedAt,
     version = version,
+    isDeleted = isDeleted,
 )
 
 fun SketchModel.toContentModel(): SyncContentDataModel = SyncContentDataModel(

@@ -4,5 +4,5 @@ sealed interface SyncReceiverScreenEvent {
     data object StartSyncReceiver : SyncReceiverScreenEvent
     data object StopSyncReceiver : SyncReceiverScreenEvent
     data object DisconnectAndReset : SyncReceiverScreenEvent
-    data object NavigateToSketches : SyncReceiverScreenEvent
+    data object ShowSyncChangeList : SyncReceiverScreenEvent
 }
