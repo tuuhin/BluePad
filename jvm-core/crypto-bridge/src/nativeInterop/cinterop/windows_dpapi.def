@@ -1,0 +1,5 @@
+headers = windows.h dpapi.h wincrypt.h
+headerFilter = dpapi.h wincrypt.h
+
+compilerOpts = -DUNICODE -D_UNICODE
+linkerOpts = -lCrypt32

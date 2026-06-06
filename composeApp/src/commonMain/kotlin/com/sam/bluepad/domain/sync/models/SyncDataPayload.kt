@@ -33,6 +33,7 @@ sealed interface SyncDataPayload {
 
     /**
      * Indicates that the incoming data was processed and no further outgoing action is required.
+     * @param sessionId Session id associated with the current sync session
      */
-    data object SuccessAndNoAction : ProcessedResult
+    data class SyncSessionSuccess(val sessionId: Uuid) : ProcessedResult
 }

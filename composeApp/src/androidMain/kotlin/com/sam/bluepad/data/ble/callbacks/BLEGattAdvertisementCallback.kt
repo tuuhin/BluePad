@@ -35,7 +35,7 @@ class BLEGattAdvertisementCallback : AdvertisingSetCallback() {
             1 -> "TX POWER LEVEL HIGH"
             else -> null
         }
-        Logger.d(TAG) { "BLE5 ADVERTISING STARTED | $powerLevel" }
+        Logger.d(tag = TAG) { "BLE5 ADVERTISING STARTED | $powerLevel" }
         _isRunning.value = true
     }
 
@@ -43,11 +43,11 @@ class BLEGattAdvertisementCallback : AdvertisingSetCallback() {
         dvertisingSet: AdvertisingSet?, enable: Boolean, status: Int
     ) {
         if (status != ADVERTISE_SUCCESS || !enable) return
-        Logger.d(TAG) { "BLE5 ADVERTISING ENABLED" }
+        Logger.d(tag = TAG) { "BLE5 ADVERTISING ENABLED" }
     }
 
     override fun onAdvertisingSetStopped(advertisingSet: AdvertisingSet?) {
-        Logger.d(TAG) { "BLE5 ADVERTISING STOPPED" }
+        Logger.d(tag = TAG) { "BLE5 ADVERTISING STOPPED" }
         _isRunning.value = false
     }
 
@@ -59,7 +59,7 @@ class BLEGattAdvertisementCallback : AdvertisingSetCallback() {
             ADVERTISE_FAILED_FEATURE_UNSUPPORTED -> BLEAdvertisementException("BLE not supported")
             else -> BLEAdvertisementException("Cannot start the advertisement ERROR CODE: $errorCode")
         }
-        Logger.e(TAG, exception) { "GATT SERVER FAILED TO START ERROR CODE: $errorCode" }
+        Logger.e(tag = TAG, throwable = exception) { "GATT SERVER FAILED TO START ERROR CODE: $errorCode" }
         _errorsChannel.trySend(exception)
     }
 

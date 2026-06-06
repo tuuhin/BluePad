@@ -9,4 +9,5 @@ data class SyncMetadataModel(
     val itemId: Uuid,
     val version: Int,
     val lastModified: LocalDateTime,
+    val isDeleted: Boolean,
 )

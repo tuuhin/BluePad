@@ -29,16 +29,16 @@ class SyncDeviceDiscoveryCallback : ScanCallback() {
         val scanRecord = result?.scanRecord ?: return
         val device = result.device ?: return
 
-        Logger.d(TAG) { "SCAN RESULTS FOUND" }
+        Logger.d(tag = TAG) { "SCAN RESULTS FOUND ADDRESS:${device.address}" }
         val parcelUid = ParcelUuid(BLEConstants.SYNC_SERVICE_ID.toJavaUuid())
         val hasServiceId = (scanRecord.serviceUuids ?: emptyList()).contains(parcelUid)
 
         if (!hasServiceId) return
 
         val serviceData = scanRecord.getServiceData(parcelUid)
-        val readableData = serviceData?.joinToString("-") { it.toHexString() }
-        Logger.d(TAG) { "SCAN RESULT FOUND UUID:${parcelUid.uuid} DATA:$readableData" }
-        if (serviceData?.decodeToString() != BuildKonfig.APP_ID) return
+        val readableData = serviceData?.joinToString("-") { it.toHexString() } ?: return
+        Logger.d(tag = TAG) { "SCAN RESULT FOUND UUID:${parcelUid.uuid} DATA:$readableData" }
+        if (serviceData.decodeToString() != BuildKonfig.APP_ID) return
         // send the device
         _onDeviceFound?.invoke(device)
     }
@@ -54,7 +54,7 @@ class SyncDeviceDiscoveryCallback : ScanCallback() {
             else -> return
         }
         _onError?.invoke(exception)
-        Logger.e(TAG, exception) { "FAILED TO SEND ERROR CODE : $errorCode" }
+        Logger.e(tag = TAG, throwable = exception) { "FAILED TO SEND ERROR CODE : $errorCode" }
     }
 
     fun clearCallbacks() {

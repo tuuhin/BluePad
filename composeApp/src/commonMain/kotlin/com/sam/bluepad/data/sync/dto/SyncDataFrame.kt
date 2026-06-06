@@ -21,6 +21,7 @@ sealed class SyncDataFrame(@ProtoNumber(10) val type: BLESyncDataType) {
 
         @Serializable(InstantSerializer::class)
         @ProtoNumber(5) val lastModified: Instant,
+        @ProtoNumber(6) val isDeleted: Boolean,
     ) : SyncDataFrame(type = BLESyncDataType.METADATA)
 
     @Serializable

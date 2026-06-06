@@ -1,7 +1,5 @@
 package com.sam.bluepad.presentation.feature_sync
 
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -10,16 +8,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
-import com.sam.bluepad.presentation.composables.ContentLoadingWrapper
-import com.sam.bluepad.presentation.feature_sync.composables.ReceiverFoundContainer
-import com.sam.bluepad.presentation.feature_sync.composables.ReceiverRunningOrNoPeerContainer
+import com.sam.bluepad.domain.models.DevicePlatformOS
 import com.sam.bluepad.presentation.feature_sync.composables.ReceiverScreenTopAppbar
+import com.sam.bluepad.presentation.feature_sync.composables.SyncReceiverScreenContent
 import com.sam.bluepad.presentation.feature_sync.event.SyncReceiverScreenEvent
 import com.sam.bluepad.presentation.feature_sync.state.SyncReceiverScreenState
 import com.sam.bluepad.presentation.feature_sync.state.SyncUIState
@@ -43,61 +42,54 @@ fun SyncReceiverScreen(
 ) {
     val scrollBehaviour = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackBarHostState = LocalSnackBarState.current
-    val layoutDirection = LocalLayoutDirection.current
+
+    val isSyncRunning by remember(state) {
+        derivedStateOf { state.syncPhase.isSyncing }
+    }
 
     Scaffold(
         topBar = {
             ReceiverScreenTopAppbar(
                 scrollBehaviour = scrollBehaviour,
-                isAdvertising = state.isReceiverRunning,
+                isSyncRunning = isSyncRunning,
                 navigation = navigation,
-                onStartAdvertising = { onEvent(SyncReceiverScreenEvent.StartSyncReceiver) },
-                onStopAdvertising = { onEvent(SyncReceiverScreenEvent.StopSyncReceiver) },
+                onStopOrCancelSync = { onEvent(SyncReceiverScreenEvent.StopSyncReceiver) },
             )
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
         modifier = modifier.nestedScroll(scrollBehaviour.nestedScrollConnection),
     ) { scPadding ->
-        ContentLoadingWrapper(
-            content = state.foreignDevice,
-            isLoading = false,
-            modifier = Modifier.padding(
-                start = scPadding.calculateStartPadding(layoutDirection) + Dimensions.SCAFFOLD_HORIZONAL_PADDING,
-                end = scPadding.calculateEndPadding(layoutDirection) + Dimensions.SCAFFOLD_HORIZONAL_PADDING,
-                top = scPadding.calculateTopPadding() + Dimensions.SCAFFOLD_VERTICAL_PADDING,
-                bottom = scPadding.calculateBottomPadding() + Dimensions.SCAFFOLD_VERTICAL_PADDING,
+        SyncReceiverScreenContent(
+            screenState = state,
+            onEvent = onEvent,
+            modifier = Modifier.fillMaxSize().padding(
+                horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
+                vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING,
             ),
-            onSuccess = { foreignDevice ->
-                ReceiverFoundContainer(
-                    externalDevice = foreignDevice,
-                    currentDevice = state.currentDevice,
-                    onStartSync = { onEvent(SyncReceiverScreenEvent.OnStartSyncConnection) },
-                    onRejectDevice = { onEvent(SyncReceiverScreenEvent.OnRejectSyncConnection) },
-                    modifier = Modifier.fillMaxSize(),
-                )
-            },
-            onFailed = {
-                ReceiverRunningOrNoPeerContainer(
-                    isRunning = state.isReceiverRunning,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            },
+            contentPadding = scPadding,
         )
     }
 }
 
-private class SyncReceiverScreenStatePreviewParams :
-    PreviewParameterProvider<SyncReceiverScreenState> {
+private class SyncReceiverScreenStatePreviewParams : PreviewParameterProvider<SyncReceiverScreenState> {
 
     override val values: Sequence<SyncReceiverScreenState>
         get() = sequenceOf(
             SyncReceiverScreenState(),
             SyncReceiverScreenState(isReceiverRunning = true),
-            SyncReceiverScreenState(syncPhase = SyncUIState.NotRunning),
             SyncReceiverScreenState(
                 currentDevice = PreviewFakes.FAKE_LOCAL_DEVICE_MODEL,
                 foreignDevice = PreviewFakes.FAKE_EXTERNAL_MODEL_2,
-                isReceiverRunning = false,
+                localDevicePlatformOS = DevicePlatformOS.ANDROID,
+                isReceiverRunning = true,
+                syncPhase = SyncUIState.HalfDuplexCompleted,
+            ),
+            SyncReceiverScreenState(
+                currentDevice = PreviewFakes.FAKE_LOCAL_DEVICE_MODEL,
+                foreignDevice = PreviewFakes.FAKE_EXTERNAL_MODEL_2,
+                localDevicePlatformOS = DevicePlatformOS.ANDROID,
+                isReceiverRunning = true,
+                syncPhase = SyncUIState.FullSyncSuccessFull,
             ),
         )
 }

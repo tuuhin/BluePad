@@ -26,23 +26,22 @@ fun ConnectorScreenTopAppBar(
     isConnectorRunning: Boolean = false,
     navigation: @Composable () -> Unit = {},
     scrollBehaviour: TopAppBarScrollBehavior? = null,
-    isReadyToSync: Boolean = false,
     onStopConnection: () -> Unit = {},
 ) {
     MediumFlexibleTopAppBar(
         title = { Text(text = stringResource(Res.string.sync_device_screen_title)) },
         subtitle = { Text(text = stringResource(Res.string.sync_device_screen_subtitle)) },
         actions = {
-            AnimatedVisibility(visible = !isReadyToSync && isConnectorRunning) {
+            AnimatedVisibility(visible = isConnectorRunning) {
                 Button(
                     onClick = onStopConnection,
                     shapes = ButtonDefaults.shapes(
                         shape = ButtonDefaults.shape,
-                        pressedShape = ButtonDefaults.mediumPressedShape
+                        pressedShape = ButtonDefaults.mediumPressedShape,
                     ),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     ),
                     contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.ExtraSmallContainerHeight),
                 ) {

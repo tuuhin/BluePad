@@ -17,6 +17,7 @@ fun SyncPayloadSequence.MetaData.toSyncMetadataList(timeZone: TimeZone) = data.m
         itemId = payload.itemId,
         version = payload.version,
         lastModified = payload.lastModified.toLocalDateTime(timeZone),
+        isDeleted = payload.isDeleted
     )
 }
 
@@ -28,6 +29,7 @@ fun List<SyncMetadataModel>.toPayloadSequence(timeZone: TimeZone) = SyncPayloadS
             itemId = metadata.itemId,
             version = metadata.version,
             lastModified = metadata.lastModified.toInstant(timeZone),
+            isDeleted = metadata.isDeleted
         )
     },
 )

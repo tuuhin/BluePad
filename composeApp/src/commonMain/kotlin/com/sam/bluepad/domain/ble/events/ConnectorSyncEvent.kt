@@ -1,9 +1,10 @@
 package com.sam.bluepad.domain.ble.events
 
-import com.sam.bluepad.data.sync.dto.BLESyncHandshakeData.AdvertiseDeviceData
-import com.sam.bluepad.domain.ble.models.SyncDataExchangeStage
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 
+/**
+ * Events generated during the synchronization process from the connector's (client) perspective.
+ */
 sealed interface ConnectorSyncEvent {
 
     /**
@@ -32,50 +33,49 @@ sealed interface ConnectorSyncEvent {
     data object ConnectionSuccess : ConnectorSyncEvent
 
     /**
-     * The services and characteristics of the connected BLE device
-     * have been successfully discovered and are ready for interaction.
+     * Handshake successfully completed, confirming device compatibility and identity.
+     * @property device The remote device that we have successful handshake.
      */
-    data object ServicesDiscovered : ConnectorSyncEvent
+    data class HandshakeSuccess(val device: ExternalDeviceModel) : ConnectorSyncEvent
 
     /**
-     * Successful reading of the main advertising data from a specific
-     * BLE characteristic.
-     *
-     * @property device The parsed advertising data payload.
-     * @see AdvertiseDeviceData
+     * Handshake process failed.
+     * @property message Error message describing the failure.
      */
-    data class AdvertisingDeviceRead(val device: ExternalDeviceModel) : ConnectorSyncEvent
+    data class HandshakeFailed(val message: String? = null) : ConnectorSyncEvent
 
     /**
-     * An advertising data has been successfully written back to the peripheral device.
-     * This event indicates the app has sent its part of the data exchange.
+     * Synchronization phase has started.
+     * @property device The device with which synchronization is occurring.
      */
-    data object ConnectorDeviceDataResponseSend : ConnectorSyncEvent
+    data class SyncStarted(val device: ExternalDeviceModel) : ConnectorSyncEvent
 
     /**
-     * A final acknowledgment from the peripheral.
-     * This typically concludes the proximity check logic.
+     * Half duplex synchronization (one-way data transfer) completed successfully.
+     * @property device The device synced with.
      */
-    data object AdvertisingAcknowledgmentReceived : ConnectorSyncEvent
+    data class HalfDuplexCompleted(val device: ExternalDeviceModel) : ConnectorSyncEvent
 
+    /**
+     * Full duplex synchronization (two-way data transfer) completed successfully.
+     * @property device The device synced with.
+     * @property sessionId The unique identifier for this synchronization session.
+     */
+    data class FullDuplexCompleted(val device: ExternalDeviceModel, val sessionId: kotlin.uuid.Uuid) : ConnectorSyncEvent
 
+    /**
+     * Synchronization process failed.
+     * @property reason Reason for the synchronization failure.
+     */
+    data class SyncFailed(val reason: String) : ConnectorSyncEvent
+
+    /**
+     * The remote device is currently processing data (e.g., database operations).
+     */
     data object RemoteProcessing : ConnectorSyncEvent
 
     /**
-     * Devices are exchanging some data
-     * @property type Type of the data being exchanged
-     * @see SyncDataExchangeStage
-     */
-    data class ExchangingData(val type: SyncDataExchangeStage) : ConnectorSyncEvent
-
-    /**
-     * Content exchange is acknowledged
-     */
-    data object ExchangeDataAck : ConnectorSyncEvent
-
-
-    /**
-     * THe device has disconnected, either intentionally by the app or
+     * The device has disconnected, either intentionally by the app or
      * unexpectedly (e.g., out of range).
      */
     data object DeviceDisconnected : ConnectorSyncEvent

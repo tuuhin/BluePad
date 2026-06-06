@@ -4,7 +4,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -23,7 +23,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun App(modifier: Modifier = Modifier) {
 
 	val snackBarHostState = remember { SnackbarHostState() }
-	val windowInfo = currentWindowAdaptiveInfo()
+	val windowInfo = currentWindowAdaptiveInfoV2()
 
 	val commonViewmodel = koinViewModel<AppCommonViewModel>()
 	val state by commonViewmodel.bluetoothState.collectAsStateWithLifecycle()

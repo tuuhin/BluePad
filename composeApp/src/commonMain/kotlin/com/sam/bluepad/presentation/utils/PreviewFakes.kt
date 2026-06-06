@@ -5,6 +5,8 @@ import com.sam.bluepad.domain.models.DevicePlatformOS
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.models.LocalDeviceInfoModel
 import com.sam.bluepad.domain.models.SketchModel
+import com.sam.bluepad.domain.sync_diff.SyncChanges
+import com.sam.bluepad.domain.sync_diff.SyncSnapshotModel
 import kotlinx.datetime.LocalDateTime
 import kotlin.uuid.Uuid
 
@@ -41,5 +43,81 @@ object PreviewFakes {
         deviceId = Uuid.random(),
         deviceName = "Test device",
         deviceOs = DevicePlatformOS.ANDROID,
+    )
+
+    // fake sync diffs
+    val FAKE_SYNC_CHANGE_INSERT = SyncChanges.Insert(
+        incoming = SyncSnapshotModel(
+            id = Uuid.parse("cef8d608-151d-4972-ac8d-a3c5db3572aa"),
+            version = 1,
+            title = "New entry",
+            content = "Content for the newest entry",
+            modifiedAt = LocalDateTime(2025, 1, 10, 4, 32),
+            isDeleted = false,
+            contentHash = "fkdnfdsncsn",
+        ),
+    )
+
+    val FAKE_SYNC_CHANGE_DELETE = SyncChanges.Delete(
+        local = SyncSnapshotModel(
+            id = Uuid.parse("cef8d608-151d-4972-ac8d-a3c5db3572aa"),
+            version = 1,
+            title = "Old entry",
+            content = "Content for the newest entry",
+            modifiedAt = LocalDateTime(2025, 1, 10, 4, 32),
+            isDeleted = false,
+            contentHash = "fkdnfdsncsn",
+        ),
+        incoming = SyncSnapshotModel(
+            id = Uuid.parse("cef8d608-151d-4972-ac8d-a3c5db3572aa"),
+            version = 2,
+            title = "Old entry",
+            content = "Content for the newest entry",
+            modifiedAt = LocalDateTime(2025, 1, 10, 4, 32),
+            isDeleted = false,
+            contentHash = "fkdnfdsncsn",
+        ),
+    )
+
+    val FAKE_SYNC_CHANGE_DELETE_WITH_UPDATED_CONTENT = SyncChanges.Delete(
+        local = SyncSnapshotModel(
+            id = Uuid.parse("cef8d608-151d-4972-ac8d-a3c5db3572aa"),
+            version = 1,
+            title = "Old entry previous",
+            content = "Content for the newest entry",
+            modifiedAt = LocalDateTime(2025, 1, 10, 4, 32),
+            isDeleted = false,
+            contentHash = "fkdnfdsncsn",
+        ),
+        incoming = SyncSnapshotModel(
+            id = Uuid.parse("cef8d608-151d-4972-ac8d-a3c5db3572aa"),
+            version = 2,
+            title = "Old entry new",
+            content = "Content for the newest entry",
+            modifiedAt = LocalDateTime(2025, 1, 10, 4, 32),
+            isDeleted = true,
+            contentHash = "fkdnfdsncsn",
+        ),
+    )
+
+    val FAKE_SYNC_CHANGE_UPDATE = SyncChanges.Update(
+        local = SyncSnapshotModel(
+            id = Uuid.parse("cef8d608-151d-4972-ac8d-a3c5db3572aa"),
+            version = 1,
+            title = "Old entry previous",
+            content = "Content for the newest entry",
+            modifiedAt = LocalDateTime(2025, 1, 10, 4, 32),
+            isDeleted = false,
+            contentHash = "fkdnfdsncsn",
+        ),
+        incoming = SyncSnapshotModel(
+            id = Uuid.parse("cef8d608-151d-4972-ac8d-a3c5db3572aa"),
+            version = 12,
+            title = "Old entry updated",
+            content = "Content for the newest entry",
+            modifiedAt = LocalDateTime(2025, 1, 10, 4, 32),
+            isDeleted = false,
+            contentHash = "fkdnfdsncsn",
+        ),
     )
 }

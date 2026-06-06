@@ -36,6 +36,8 @@ class PayloadManagerTest : KoinTest {
     private val syncInManager by inject<InPayloadManager>()
     private val fakeRepo by inject<FakeSketchesRepoImpl>()
 
+    private val syncSessionId  = Uuid.random()
+
     @get:Rule
     val koinTestRule = KoinTestRule.create {
         modules(
@@ -55,7 +57,7 @@ class PayloadManagerTest : KoinTest {
 
 
     @Test
-    fun `there is a available chunk when we read some data`() = runTest {
+    fun there_is_a_available_chunk_when_we_read_some_data() = runTest {
 
         fakeRepo.createSketchForTest(CreateSketchModel("New", "Conte"), Uuid.random())
 
@@ -70,7 +72,7 @@ class PayloadManagerTest : KoinTest {
 
 
     @Test
-    fun `check if there is a payload data`() = runTest {
+    fun check_if_there_is_a_payload_data() = runTest {
 
         fakeRepo.createSketchForTest(CreateSketchModel("New", "Conte"), Uuid.random())
 
@@ -86,7 +88,7 @@ class PayloadManagerTest : KoinTest {
             syncInManager.addIncomingPayloadChunk(chunkData.seqNumber, chunkData.payload)
         }
 
-        val processedResult = syncInManager.processData()
+        val processedResult = syncInManager.processData(syncSessionId)
         assertThat(processedResult).isSuccess()
 
         val metadataResult = processedResult.getOrThrow()

@@ -76,7 +76,7 @@ actual class BLEDiscoveryImpl(private val context: Context) : BLEDiscoveryManage
             if (!hasServiceId) return
 
             val serviceData = scanRecord.getServiceData(parcelUid)
-            Logger.d(TAG) { "SCAN RESULT FOUND ${scanRecord.serviceUuids} $serviceData" }
+            Logger.d(tag = TAG) { "SCAN RESULT FOUND ${scanRecord.serviceUuids} $serviceData" }
 
             // TODO: ONLY CHECKING THE SERVICE DATA FROM ANDROID S ,
             //  IDK ITS NOT WORKING ON LOWER API CHECK THIS LATER
@@ -92,15 +92,15 @@ actual class BLEDiscoveryImpl(private val context: Context) : BLEDiscoveryManage
                         else peer
                     }
                 }
-                Logger.d(TAG) { "DEVICE RSSI UPDATED :${device.address}" }
+                Logger.d(tag = TAG) { "DEVICE RSSI UPDATED :${device.address}" }
             } else {
                 val updatedDevice = BLEPeerDevice(
                     bleDeviceName = device.name,
                     deviceAddress = device.address,
-                    rssi = result.rssi
+                    rssi = result.rssi,
                 )
                 _peers.update { oldPeers -> (oldPeers + updatedDevice).distinctBy { it.deviceAddress } }
-                Logger.d(TAG) { "NEW DEVICE ADDED :${device.address}" }
+                Logger.d(tag = TAG) { "NEW DEVICE ADDED :${device.address}" }
             }
         }
 
@@ -110,7 +110,7 @@ actual class BLEDiscoveryImpl(private val context: Context) : BLEDiscoveryManage
             val parcelUid = ParcelUuid(BLEConstants.DEVICE_INFO_SERVICE_ID.toJavaUuid())
             val peerAddress = _peers.value.map { it.deviceAddress }
 
-            Logger.d(TAG) { "BATCHED SCAN RESULT FOUND" }
+            Logger.d(tag = TAG) { "BATCHED SCAN RESULT FOUND" }
 
             val batchedResults = results?.fastFilterNotNull()
                 // filter via service uuids
@@ -133,29 +133,29 @@ actual class BLEDiscoveryImpl(private val context: Context) : BLEDiscoveryManage
                             else peer
                         }
                     }
-                    Logger.d(TAG) { "DEVICE RSSI UPDATED :${result.device.address}" }
+                    Logger.d(tag = TAG) { "DEVICE RSSI UPDATED :${result.device.address}" }
                 } else {
                     val updatedDevice = BLEPeerDevice(
                         bleDeviceName = result.device.name,
                         deviceAddress = result.device.address,
-                        rssi = result.rssi
+                        rssi = result.rssi,
                     )
                     _peers.update { oldPeers -> (oldPeers + updatedDevice).distinctBy { it.deviceAddress } }
-                    Logger.d(TAG) { "NEW DEVICE ADDED :${result.device.address}" }
+                    Logger.d(tag = TAG) { "NEW DEVICE ADDED :${result.device.address}" }
                 }
             }
 
-            Logger.d(TAG) { "BATCHED RESULTS FOUND" }
+            Logger.d(tag = TAG) { "BATCHED RESULTS FOUND" }
         }
 
         override fun onScanFailed(errorCode: Int) {
             super.onScanFailed(errorCode)
-            Logger.d(TAG) { "FAILED TO SEND ERROR CODE : $errorCode" }
+            Logger.d(tag = TAG) { "FAILED TO SEND ERROR CODE : $errorCode" }
         }
     }
 
     override suspend fun startScan(timeout: Duration)
-            : Result<Unit> {
+        : Result<Unit> {
         // scan permission not found
         if (!context.hasBLEScanPermission)
             return Result.failure(BluetoothPermissionException())
@@ -203,7 +203,7 @@ actual class BLEDiscoveryImpl(private val context: Context) : BLEDiscoveryManage
 
     override fun onClearScanResults() {
         _peers.update { emptyList() }
-        Logger.d(TAG) { "PEER LIST CLEARED" }
+        Logger.d(tag = TAG) { "PEER LIST CLEARED" }
     }
 
     private fun stopScanCallback() {
@@ -212,7 +212,7 @@ actual class BLEDiscoveryImpl(private val context: Context) : BLEDiscoveryManage
         // stop the scan details
         _isScanning.update { false }
         _btAdapter?.bluetoothLeScanner?.stopScan(_bLeScanCallback)
-        Logger.d(TAG) { "SCAN STOPPED" }
+        Logger.d(tag = TAG) { "SCAN STOPPED" }
     }
 
     private fun startScanCallBack() {
@@ -226,7 +226,7 @@ actual class BLEDiscoveryImpl(private val context: Context) : BLEDiscoveryManage
         val scanFilters = listOf<ScanFilter>(
             ScanFilter.Builder()
                 .setServiceUuid(ParcelUuid(BLEConstants.DEVICE_INFO_SERVICE_ID.toJavaUuid()))
-                .build()
+                .build(),
         )
 
         val scanSettings = ScanSettings.Builder()
@@ -237,6 +237,6 @@ actual class BLEDiscoveryImpl(private val context: Context) : BLEDiscoveryManage
             .build()
 
         _btAdapter?.bluetoothLeScanner?.startScan(scanFilters, scanSettings, _bLeScanCallback)
-        Logger.d(TAG) { "SCAN STARTED " }
+        Logger.d(tag = TAG) { "SCAN STARTED " }
     }
 }

@@ -27,6 +27,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -49,7 +50,7 @@ fun ReceiverDeviceUICard(
         colors = CardDefaults.cardColors(
             containerColor = containerColor,
             contentColor = contentColorFor(containerColor),
-            ),
+        ),
     ) {
         Column(
             modifier = Modifier.padding(Dimensions.CARD_INTERNAL_PADDING_LARGE)
@@ -91,6 +92,8 @@ fun ReceiverDeviceUICard(
                             append(device.id.toHexString())
                         }
                     },
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1,
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.labelLargeEmphasized,
                 )

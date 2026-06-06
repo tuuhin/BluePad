@@ -14,9 +14,8 @@ plugins {
 }
 
 kotlin {
-    jvmToolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
+
+    jvmToolchain(22)
 
     android {
         namespace = "com.sam.bluepad.library"
@@ -26,8 +25,11 @@ kotlin {
         withHostTest {
             isIncludeAndroidResources = true
         }
-        withDeviceTest {
-            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        withDeviceTestBuilder {
+            sourceSetTreeName = "test"
+        }.configure {
+            instrumentationRunner = "com.sam.bluepad.InstrumentTestRunner"
             execution = "HOST"
         }
 
@@ -44,6 +46,12 @@ kotlin {
             // database
             implementation(libs.androidx.room.sqlite.wrapper)
         }
+
+        getByName("androidDeviceTest").dependencies {
+            implementation(libs.androidx.espresso.core)
+            implementation(libs.androidx.testExt.junit)
+        }
+
         commonMain.dependencies {
             implementation(libs.cmp.runtime)
             implementation(libs.cmp.foundation)
@@ -72,6 +80,8 @@ kotlin {
             // crypto
             implementation(libs.kotlin.crypto.sha2)
             implementation(libs.kotlin.crypto.random)
+            implementation(libs.whyoleg.cryptography.core)
+            implementation(libs.whyoleg.cryptography.provider.optimal)
             // logging
             implementation(libs.kermit)
             //data store
@@ -84,6 +94,8 @@ kotlin {
             // protobuf
             implementation(libs.kotlinx.serialization.core)
             implementation(libs.kotlinx.serialization.protobuf)
+            // file paths
+            implementation(libs.kotlinx.io.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -92,17 +104,23 @@ kotlin {
             implementation(libs.cmp.ui.test)
             implementation(libs.assertk)
             implementation(libs.turbine)
+            implementation(project.dependencies.platform(libs.kotlinx.coroutines.bom))
+            implementation(libs.kotlinx.coroutines.test)
         }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
+
+            implementation(project.dependencies.platform(libs.kotlinx.coroutines.bom))
             implementation(libs.kotlinx.coroutinesSwing)
-            implementation(projects.jvmCore.bleCommon)
-            implementation(projects.jvmCore.bleAdvertise)
-            implementation(libs.bluecove)
 
             // kable ble scanning
             implementation(libs.kable.core)
             implementation(libs.kable.exceptions)
+
+            // local modules
+            implementation(projects.jvmCore.bleCommon)
+            implementation(projects.jvmCore.bleAdvertise)
+            implementation(projects.jvmCore.cryptoBridge)
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)

@@ -3,6 +3,8 @@ package com.sam.bluepad.domain.use_case
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import com.sam.bluepad.domain.use_cases.BytesEncoder
+import com.sam.bluepad.utils.TestDispatcherRule
+import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
@@ -20,8 +22,11 @@ class ByteEncoderTest : KoinTest {
         modules(module { singleOf(::BytesEncoder) })
     }
 
+    @get:Rule
+    val testDispatcher = TestDispatcherRule()
+
     @Test
-    fun `check proper encoding and decoding`() {
+    fun check_proper_encoding_and_decoding() = runTest {
         val someText = "Some text"
 
         val bytes = _encoder.decodeBytes(someText)

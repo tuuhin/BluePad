@@ -1,6 +1,8 @@
 project(bt_common LANGUAGES CXX)
 
-add_library(bt_common SHARED src/bt_common.cpp)
+add_library(bt_common SHARED src/bt_common.cpp
+        src/bluetooth_caller.cpp
+        include/bluetooth_caller.h)
 
 target_include_directories(bt_common PRIVATE
         include

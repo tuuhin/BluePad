@@ -19,7 +19,7 @@ import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.sam.bluepad.presentation.feature_sync.composables.ConnectorScreenContainer
 import com.sam.bluepad.presentation.feature_sync.composables.ConnectorScreenTopAppBar
 import com.sam.bluepad.presentation.feature_sync.event.SyncConnectorScreenEvent
-import com.sam.bluepad.presentation.feature_sync.state.ConnectorDiscoveryState
+import com.sam.bluepad.presentation.feature_sync.state.DiscoveryUIState
 import com.sam.bluepad.presentation.feature_sync.state.SyncConnectorScreenState
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.PreviewFakes
@@ -49,7 +49,6 @@ fun SyncConnectorScreen(
             ConnectorScreenTopAppBar(
                 scrollBehaviour = scrollBehaviour,
                 isConnectorRunning = state.isConnectorRunning,
-                isReadyToSync = state.isReadyToSync,
                 navigation = navigation,
                 onStopConnection = { onEvent(SyncConnectorScreenEvent.StopClientConnection) },
             )
@@ -59,16 +58,21 @@ fun SyncConnectorScreen(
     ) { scPadding ->
         ConnectorScreenContainer(
             discoveryState = state.discoveryState,
-            device = state.syncDevice,
-            isAckReceived = state.isConnAckReceived,
+            localDevice = state.localDevice,
+            devicePlatformOS = state.localDevicePlatformOS,
+            syncState = state.syncState,
             onStartConnector = { onEvent(SyncConnectorScreenEvent.StartClientConnection) },
+            onDisconnect = { onEvent(SyncConnectorScreenEvent.StopClientConnection) },
+            onReviewSketches = { onEvent(SyncConnectorScreenEvent.ShowSyncChangesList) },
+            onStopScan = { onEvent(SyncConnectorScreenEvent.StopClientConnection) },
+            onRetryConnection = { onEvent(SyncConnectorScreenEvent.StartClientConnection) },
             contentPadding = PaddingValues(
                 start = scPadding.calculateStartPadding(layoutDirection) + Dimensions.SCAFFOLD_HORIZONAL_PADDING,
                 end = scPadding.calculateEndPadding(layoutDirection) + Dimensions.SCAFFOLD_HORIZONAL_PADDING,
                 top = scPadding.calculateTopPadding() + Dimensions.SCAFFOLD_VERTICAL_PADDING,
-                bottom = scPadding.calculateBottomPadding() + Dimensions.SCAFFOLD_VERTICAL_PADDING
+                bottom = scPadding.calculateBottomPadding() + Dimensions.SCAFFOLD_VERTICAL_PADDING,
             ),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         )
     }
 }
@@ -78,12 +82,10 @@ private class SyncConnectorScreenStatePreviewParams :
 
     override val values: Sequence<SyncConnectorScreenState>
         get() = sequenceOf(
-            SyncConnectorScreenState(),
-            SyncConnectorScreenState(discoveryState = ConnectorDiscoveryState.NOT_STARTED),
-            SyncConnectorScreenState(
-                syncDevice = PreviewFakes.FAKE_EXTERNAL_MODEL,
-                discoveryState = ConnectorDiscoveryState.DISCOVERED
-            )
+            SyncConnectorScreenState(discoveryState = DiscoveryUIState.Discovering),
+            SyncConnectorScreenState(discoveryState = DiscoveryUIState.Timeout),
+            SyncConnectorScreenState(discoveryState = DiscoveryUIState.Discovered),
+            SyncConnectorScreenState(discoveryState = DiscoveryUIState.DeviceConnected(PreviewFakes.FAKE_EXTERNAL_MODEL)),
         )
 }
 
@@ -99,8 +101,8 @@ private fun SyncConnectorScreenPreview(
         navigation = {
             Icon(
                 painter = painterResource(Res.drawable.ic_back),
-                contentDescription = stringResource(Res.string.action_back)
+                contentDescription = stringResource(Res.string.action_back),
             )
-        }
+        },
     )
 }

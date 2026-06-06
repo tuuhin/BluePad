@@ -3,29 +3,68 @@ package com.sam.bluepad.data.sync.dto
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
+import kotlin.uuid.Uuid
 
 /**
  * Represents the state machine and message protocol for a Bluetooth Low Energy (BLE)
  * synchronization session between a peripheral and a central device.
+ *
+ * ```mermaid
+ * stateDiagram-v2
+ *     [*] --> IDLE
+ *     IDLE --> INITIATING : SyncSessionStart
+ *     INITIATING --> READY : SyncSessionStartAck(isAck=true)
+ *     INITIATING --> FAILED : SyncSessionStartAck(isAck=false)
+ *
+ *     state READY {
+ *         [*] --> TRANSITIONING
+ *         TRANSITIONING --> SYNCING : SyncPacketTransition(isAck=true)
+ *         SYNCING --> SYNCING : BLESyncDataPacket / BLESyncDataAck
+ *         SYNCING --> PROCESSING : BLESyncDataPacketEnd
+ *         PROCESSING --> PROCESSING : SyncPacketProcessing
+ *         PROCESSING --> TRANSITIONING : SyncPacketTransition(isRequested=true)
+ *     }
+ *
+ *     READY --> COMPLETING : SyncSessionSuccessful
+ *     COMPLETING --> FINISHED : SyncSessionSuccessfulAck
+ *
+ *     IDLE --> FAILED : SyncSessionFailed
+ *     INITIATING --> FAILED : SyncSessionFailed
+ *     READY --> FAILED : SyncSessionFailed
+ *     COMPLETING --> FAILED : SyncSessionFailed
+ *
+ *     FAILED --> [*]
+ *     FINISHED --> [*]
+ * ```
  */
 @Serializable
 @SerialName("_bss")
-sealed class BLESyncSession {
+sealed interface BLESyncSession {
+
+    /**
+     * Associated session id for the current session
+     */
+    val sessionId: Uuid
 
     /**
      * The initial handshake request sent to initiate a synchronization session.
      */
     @Serializable
     @SerialName("sss")
-    data object SyncSessionStart : BLESyncSession()
+    data class SyncSessionStart(
+        @ProtoNumber(100) override val sessionId: Uuid
+    ) : BLESyncSession
 
     /**
      * The response to a [SyncSessionStart] request.
      * @property isAck True if the session can proceed; false if the device is busy or rejected.
      */
     @Serializable
-    @SerialName("sssa")
-    data class SyncSessionStartAck(val isAck: Boolean) : BLESyncSession()
+    @SerialName("ss_sa")
+    data class SyncSessionStartAck(
+        @ProtoNumber(1) val isAck: Boolean,
+        @ProtoNumber(100) override val sessionId: Uuid
+    ) : BLESyncSession
 
     /**
      * A discrete packet of synchronization data.
@@ -35,12 +74,13 @@ sealed class BLESyncSession {
      * @see BLESyncDataType
      */
     @Serializable
-    @SerialName("bsdp")
+    @SerialName("bs_dp")
     data class BLESyncDataPacket(
         @ProtoNumber(1) val type: BLESyncDataType,
         @ProtoNumber(2) val sequenceNumber: Int,
         @ProtoNumber(3) val payload: String,
-    ) : BLESyncSession()
+        @ProtoNumber(100) override val sessionId: Uuid
+    ) : BLESyncSession
 
     /**
      * A packet end marker
@@ -48,8 +88,11 @@ sealed class BLESyncSession {
      * @see BLESyncDataType
      */
     @Serializable
-    @SerialName("bspe")
-    data class BLESyncDataPacketEnd(val type: BLESyncDataType) : BLESyncSession()
+    @SerialName("bs_pe")
+    data class BLESyncDataPacketEnd(
+        @ProtoNumber(1) val type: BLESyncDataType,
+        @ProtoNumber(100) override val sessionId: Uuid
+    ) : BLESyncSession
 
     /**
      * Data processing marker indicated data is being processed and will be
@@ -57,7 +100,9 @@ sealed class BLESyncSession {
      */
     @Serializable
     @SerialName("spp")
-    data object SyncPacketProcessing : BLESyncSession()
+    data class SyncPacketProcessing(
+        @ProtoNumber(100) override val sessionId: Uuid
+    ) : BLESyncSession
 
     /**
      * Acknowledgment for a [BLESyncDataPacket] to confirm successful reception.
@@ -65,11 +110,12 @@ sealed class BLESyncSession {
      * @property sequenceNumber Matches the sequence number of the received packet.
      */
     @Serializable
-    @SerialName("bsda")
+    @SerialName("bs_da")
     data class BLESyncDataAck(
         @ProtoNumber(1) val type: BLESyncDataType,
         @ProtoNumber(2) val sequenceNumber: Int,
-    ) : BLESyncSession()
+        @ProtoNumber(100) override val sessionId: Uuid
+    ) : BLESyncSession
 
 
     /**
@@ -86,7 +132,8 @@ sealed class BLESyncSession {
         @ProtoNumber(2) val newType: BLESyncDataType,
         @ProtoNumber(3) val isRequested: Boolean = true,
         @ProtoNumber(4) val isAck: Boolean = false,
-    ) : BLESyncSession()
+        @ProtoNumber(100) override val sessionId: Uuid
+    ) : BLESyncSession
 
 
     /**
@@ -94,7 +141,19 @@ sealed class BLESyncSession {
      */
     @Serializable
     @SerialName("ssc")
-    data object SyncSessionSuccessful : BLESyncSession()
+    data class SyncSessionSuccessful(
+        @ProtoNumber(100) override val sessionId: Uuid
+    ) : BLESyncSession
+
+    /**
+     * When [SyncSessionSuccessful] is responded to the other party [BLESyncSession.SyncSessionSuccessfulAck] need to received
+     * to mark that the content sync is completed
+     */
+    @Serializable
+    @SerialName("ss_ak")
+    data class SyncSessionSuccessfulAck(
+        @ProtoNumber(100) override val sessionId: Uuid
+    ) : BLESyncSession
 
 
     /**
@@ -106,6 +165,7 @@ sealed class BLESyncSession {
     data class SyncSessionFailed(
         @ProtoNumber(1) val reason: BLESyncFailedReason,
         @ProtoNumber(2) val isCritical: Boolean = false,
-    ) : BLESyncSession()
+        @ProtoNumber(100) override val sessionId: Uuid,
+    ) : BLESyncSession
 
 }
