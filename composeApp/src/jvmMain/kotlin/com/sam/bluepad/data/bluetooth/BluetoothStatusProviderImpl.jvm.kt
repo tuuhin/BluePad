@@ -3,9 +3,12 @@ package com.sam.bluepad.data.bluetooth
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.domain.bluetooth.BluetoothStateProvider
 import com.sam.bt_common.platform.PlatformBTInfoProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 
 private const val TAG = "BluetoothStatusProvider"
 
@@ -19,7 +22,12 @@ actual class BluetoothStateProviderImpl : BluetoothStateProvider {
         get() = callbackFlow {
             val provider = PlatformBTInfoProvider()
             provider.use { provider ->
-                trySend(provider.isBluetoothActive())
+
+                // initial bluetooth state
+                launch(Dispatchers.IO) {
+                    trySend(provider.isBluetoothActive())
+                }
+
                 Logger.d(tag = TAG) { "BLUETOOTH STATE SEND" }
 
                 val handle = provider.registerCallback { state ->
@@ -31,5 +39,5 @@ actual class BluetoothStateProviderImpl : BluetoothStateProvider {
                     Logger.d(tag = TAG) { "BLUETOOTH CALLBACK UNREGISTERED" }
                 }
             }
-        }
+        }.flowOn(Dispatchers.IO)
 }
