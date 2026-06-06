@@ -1,8 +1,4 @@
 import com.codingfeline.buildkonfig.compiler.FieldSpec
-import io.github.kdroidfilter.nucleus.desktop.application.dsl.TargetFormat
-import org.gradle.internal.os.OperatingSystem
-import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
@@ -14,10 +10,7 @@ plugins {
     alias(libs.plugins.androidx.room)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.build.konfig)
-    alias(libs.plugins.kdroidfilter.nucleus)
 }
-
-val currentOs: OperatingSystem = OperatingSystem.current()
 
 kotlin {
 
@@ -164,29 +157,6 @@ dependencies {
     "androidRuntimeClasspath"(libs.androidx.ui.tooling.preview)
 }
 
-nucleus.application {
-    mainClass = "com.sam.bluepad.MainKt"
-
-    jvmArgs += listOf(
-        "--enable-native-access=ALL-UNNAMED",
-        "--add-opens=java.base/java.nio=ALL-UNNAMED",
-        "-Dsun.misc.unsafe.allow=true",
-    )
-
-    nativeDistributions {
-        // no osx or linux target for now
-        targetFormats(TargetFormat.Msi, TargetFormat.AppX)
-        packageName = "com.sam.bluepad"
-        packageVersion = "1.0.0"
-
-        windows {
-            console = false
-            perUserInstall = true
-            dirChooser = true
-        }
-    }
-}
-
 compose.resources {
 
     publicResClass = false
@@ -197,8 +167,7 @@ compose.resources {
     customDirectory(
         sourceSetName = "jvmMain",
         directoryProvider = provider {
-            layout.projectDirectory.dir("src").dir("jvmMain").dir("resources")
-                .dir("desktopResources")
+            layout.projectDirectory.dir("src/jvmMain/resources/compose")
         },
     )
 }
@@ -211,35 +180,4 @@ buildkonfig {
         buildConfigField(FieldSpec.Type.STRING, "APP_ID", "e1e55e42-bb6c-4410-94e4-a2cc2e628c05")
         buildConfigField(FieldSpec.Type.BOOLEAN, "IS_DEBUG", "true")
     }
-}
-
-if (currentOs.isWindows) {
-    tasks.withType<Test>().configureEach { setupNativePathForMingw() }
-    tasks.withType<JavaExec>().configureEach { setupNativePathForMingw() }
-}
-
-/**
- * We need to set the paths for the native library as our library will be dependent on another `.dll`
- * file we need to provide the path for all
- */
-fun Task.setupNativePathForMingw() {
-    if (!currentOs.isWindows) return
-
-    val binDirs = mutableListOf<String>()
-
-    for (subproject in rootProject.subprojects) {
-        if (!subproject.path.startsWith(":jvm-core")) continue
-        val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>()
-        val targets = kotlinExp?.targets ?: continue
-        val mingwTarget = targets.findByName("mingwX64") as? KotlinNativeTarget
-        mingwTarget?.binaries?.forEach { binary ->
-            binDirs.add(binary.outputFile.parentFile.absolutePath)
-        }
-    }
-
-    val existingPath = System.getenv("PATH") ?: ""
-    val newPath = (binDirs.distinct() + existingPath.split(";"))
-        .distinct().joinToString(";")
-
-    if (this is ProcessForkOptions) environment("PATH", newPath)
 }

@@ -1,6 +1,8 @@
 import io.github.kdroidfilter.nucleus.desktop.application.dsl.CompressionLevel
 import io.github.kdroidfilter.nucleus.desktop.application.dsl.TargetFormat
 import org.gradle.internal.os.OperatingSystem
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
     alias(libs.plugins.jetbrains.kotlin.jvm)
@@ -66,7 +68,8 @@ nucleus.application {
         packageName = "BluePad"
         packageVersion = "0.1.0"
         description =
-            "A desktop app to send sketches via bluetooth to the receiver application can be any other targets"
+            "BluePad is a offline-first sketch and idea synchronization app. It allows users to securely sync text-based " +
+                "sketches between their own nearby devices without relying on the internet, cloud services, or user accounts, but using only bluetooth"
 
         modules("java.instrument", "jdk.unsupported")
 
@@ -100,5 +103,38 @@ compose.resources {
             layout.projectDirectory.dir("src/main/resources/composeResources")
         },
     )
+}
+
+
+tasks.withType<Test>().configureEach { setupNativePathForMingw() }
+tasks.withType<JavaExec>().configureEach { setupNativePathForMingw() }
+
+/**
+ * We need to set the paths for the native library as our library has a transitive dependency on another `.dll`
+ * As windows is unable to resolve the path we need to provide the path
+ */
+private fun Task.setupNativePathForMingw() {
+    if (!operatingSystem.isWindows) return
+
+    val binDirs = mutableListOf<String>()
+
+    for (subproject in rootProject.subprojects) {
+        if (!subproject.path.startsWith(":jvm-core")) continue
+        val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>()
+        val targets = kotlinExp?.targets ?: continue
+        val mingwTarget = targets.findByName("mingwX64") as? KotlinNativeTarget
+
+        mingwTarget?.binaries?.forEach { binary ->
+            binDirs.add(binary.outputFile.parentFile.absolutePath)
+        }
+    }
+
+    val existingPath = System.getenv("PATH") ?: ""
+    val pathDelimiter = ";"
+    val newPath = (existingPath.split(pathDelimiter) + binDirs.distinct())
+        .distinct().joinToString(pathDelimiter)
+
+    // update the enviroment path
+    if (this is ProcessForkOptions) environment("PATH", newPath)
 }
 
