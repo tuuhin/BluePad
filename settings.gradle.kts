@@ -35,5 +35,7 @@ plugins {
 include(":composeApp")
 include(":jvm-core:ble-advertise")
 include(":jvm-core:bt-common")
-include(":androidApp")
 include(":jvm-core:crypto-bridge")
+// App entry points
+include(":androidApp")
+include(":desktopApp")

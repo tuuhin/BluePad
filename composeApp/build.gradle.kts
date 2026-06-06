@@ -205,6 +205,7 @@ compose.resources {
 
 buildkonfig {
     packageName = "com.sam.bluepad"
+    exposeObjectWithName = "BuildKonfig"
 
     defaultConfigs {
         buildConfigField(FieldSpec.Type.STRING, "APP_ID", "e1e55e42-bb6c-4410-94e4-a2cc2e628c05")

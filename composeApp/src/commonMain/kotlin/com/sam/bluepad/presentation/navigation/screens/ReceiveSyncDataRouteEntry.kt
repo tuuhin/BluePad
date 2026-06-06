@@ -31,7 +31,6 @@ fun EntryProviderScope<NavKey>.receiveSyncDataRouteEntry(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val viewModel = koinViewModel<SyncReceiverViewmodel>()
-
     val screenState by viewModel.screenState.collectAsStateWithLifecycle()
 
     UiEventsHandler(
@@ -39,18 +38,27 @@ fun EntryProviderScope<NavKey>.receiveSyncDataRouteEntry(
         onNavigateBack = { backStack.removeLastOrNull() },
     )
 
-    LaunchedEffect(lifecycleOwner) {
+    LaunchedEffect(lifecycleOwner, screenState.foreignDevice) {
+
+        val remoteDevice = screenState.foreignDevice ?: return@LaunchedEffect
+
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            viewModel.workflowEvent.collectLatest { destination ->
-                when (destination) {
+            viewModel.workflowEvent.collectLatest { event ->
+                when (event) {
                     is SyncWorkflowEvent.ReadyForReview -> {
-                        val entry = RootNavGraph.SyncChangesListRouteEntry(destination.sessionId)
+                        val entry = RootNavGraph.SyncChangesListRouteEntry(
+                            remoteDeviceId = remoteDevice.id,
+                            sessionId = event.sessionId,
+                        )
                         backStack.add(entry)
                     }
+
+                    else -> {}
                 }
             }
         }
     }
+
 
     SyncReceiverScreen(
         state = screenState,

@@ -26,7 +26,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 fun EntryProviderScope<NavKey>.syncDeviceRouteEntry(
     backStack: NavBackStack<NavKey>
-) = entry<RootNavGraph.SyncConnectorRoute> {
+) = entry<RootNavGraph.SyncConnectorRoute> { route ->
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -40,12 +40,13 @@ fun EntryProviderScope<NavKey>.syncDeviceRouteEntry(
 
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            viewModel.workflowEvent.collectLatest { destination ->
-                when (destination) {
+            viewModel.workflowEvent.collectLatest { event ->
+                when (event) {
                     is SyncWorkflowEvent.ReadyForReview -> {
-                        val entry = RootNavGraph.SyncChangesListRouteEntry(destination.sessionId)
+                        val entry = RootNavGraph.SyncChangesListRouteEntry(route.deviceId, event.sessionId)
                         backStack.add(entry)
                     }
+                    else -> {}
                 }
             }
         }

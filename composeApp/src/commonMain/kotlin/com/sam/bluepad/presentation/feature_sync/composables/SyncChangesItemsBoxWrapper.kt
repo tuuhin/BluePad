@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
@@ -53,7 +52,7 @@ fun SyncChangesItemsBoxWrapper(
             when {
                 !state.isLoaded -> SyncChangesScreenModes.Loading
                 state.errorMessage != null -> SyncChangesScreenModes.Error(state.errorMessage)
-                state.syncList.isEmpty() -> SyncChangesScreenModes.EmptySyncChanges
+                state.changesList.isEmpty() -> SyncChangesScreenModes.EmptySyncChanges
                 else -> SyncChangesScreenModes.SyncChangesList
             }
         }
@@ -70,7 +69,7 @@ fun SyncChangesItemsBoxWrapper(
         ) { mode ->
             when (mode) {
                 SyncChangesScreenModes.SyncChangesList -> SyncChangesItemList(
-                    items = state.syncList,
+                    items = state.changesList,
                     onEvent = onEvent,
                     contentPadding = PaddingValues(vertical = 4.dp),
                     modifier = Modifier.fillMaxHeight(),

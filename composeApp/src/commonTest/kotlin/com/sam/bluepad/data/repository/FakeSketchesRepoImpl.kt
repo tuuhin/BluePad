@@ -15,24 +15,24 @@ import kotlin.uuid.Uuid
 
 class FakeSketchesRepoImpl : SketchesRepository {
 
-    private val sketches = mutableListOf<SketchModel>()
-
+    private val _sketches = mutableListOf<SketchModel>()
 
     override fun getSketches(): Flow<Resource<List<SketchModel>, Exception>> =
         flow {
             emit(Resource.Loading)
-            emit(Resource.Success(sketches.filter { !it.isDeleted }))
+
+            emit(Resource.Success(_sketches.filter { !it.isDeleted }))
         }
 
     override fun getRevokedSketch(): Flow<Resource<List<SketchModel>, Exception>> =
         flow {
             emit(Resource.Loading)
-            emit(Resource.Success(sketches.filter { it.isDeleted }))
+            emit(Resource.Success(_sketches.filter { it.isDeleted }))
         }
 
-    override fun getDeviceFromId(uuid: Uuid): FlowResourceSketches = flow {
+    override fun getSketchFromIdFlow(uuid: Uuid): FlowResourceSketches = flow {
         emit(Resource.Loading)
-        val sketch = sketches.find { it.id == uuid }
+        val sketch = _sketches.find { it.id == uuid }
         if (sketch != null) {
             emit(Resource.Success(sketch))
         } else {
@@ -45,13 +45,13 @@ class FakeSketchesRepoImpl : SketchesRepository {
         deviceId: Uuid
     ): FlowResourceSketches = flow {
         emit(Resource.Loading)
-        val index = sketches.indexOfFirst { it.id == sketchModel.id }
+        val index = _sketches.indexOfFirst { it.id == sketchModel.id }
         if (index != -1) {
             val updated = sketchModel.copy(
                 modifiedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
                 modifiedByDeviceId = deviceId
             )
-            sketches[index] = updated
+            _sketches[index] = updated
             emit(Resource.Success(updated))
         } else {
             emit(Resource.Error(Exception("Sketch not found")))
@@ -72,7 +72,7 @@ class FakeSketchesRepoImpl : SketchesRepository {
             createdByDeviceId = deviceId,
             modifiedByDeviceId = deviceId
         )
-        sketches.add(newSketch)
+        _sketches.add(newSketch)
         emit(Resource.Success(newSketch))
     }
 
@@ -81,9 +81,9 @@ class FakeSketchesRepoImpl : SketchesRepository {
         deviceId: Uuid
     ): Flow<Resource<Boolean, Exception>> = flow {
         emit(Resource.Loading)
-        val index = sketches.indexOfFirst { it.id == sketchModel.id }
+        val index = _sketches.indexOfFirst { it.id == sketchModel.id }
         if (index != -1) {
-            sketches[index] = sketches[index].copy(
+            _sketches[index] = _sketches[index].copy(
                 isDeleted = true,
                 modifiedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
                 modifiedByDeviceId = deviceId
@@ -95,15 +95,15 @@ class FakeSketchesRepoImpl : SketchesRepository {
     }
 
     override suspend fun readSketches(offset: Int, count: Int): Result<List<SketchModel>> {
-        return runCatching { sketches.drop(offset).take(count) }
+        return runCatching { _sketches.drop(offset).take(count) }
     }
 
     override suspend fun readAllSketches(): Result<Sketches> {
-        return Result.success(sketches.toList())
+        return Result.success(_sketches.toList())
     }
 
     override suspend fun readSketchesByUUID(uuids: List<Uuid>): Result<List<SketchModel>> {
-        val filtered = sketches.filter { it.id in uuids }
+        val filtered = _sketches.filter { it.id in uuids }
         return Result.success(filtered)
     }
 
@@ -117,6 +117,18 @@ class FakeSketchesRepoImpl : SketchesRepository {
             createdByDeviceId = deviceId,
             modifiedByDeviceId = deviceId
         )
-        sketches.add(data)
+        _sketches.add(data)
+    }
+
+    override suspend fun upsertSketches(sketches: List<SketchModel>): Result<Unit> {
+        sketches.forEach { incoming ->
+            val index = this._sketches.indexOfFirst { it.id == incoming.id }
+            if (index != -1)
+                this._sketches[index] = incoming
+             else
+                this._sketches.add(incoming)
+
+        }
+        return Result.success(Unit)
     }
 }
