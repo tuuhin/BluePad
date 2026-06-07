@@ -73,12 +73,12 @@ actual class BLEAdvertisementImpl(
                 when (type) {
                     BLEConnectionType.DEVICE_DISCOVERY -> {
                         _advertiser.addService(BLEServiceToGatt.deviceDiscoveryService)
-                        Logger.d(TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
+                        Logger.d(tag = TAG) { "BLE ADVERTISEMENT FOR DEVICE DISCOVERY" }
                     }
 
                     BLEConnectionType.PROXIMITY_AND_SYNC -> {
                         _advertiser.addService(BLEServiceToGatt.deviceSyncService)
-                        Logger.d(TAG) { "BLE ADVERTISEMENT FOR SYNC " }
+                        Logger.d(tag = TAG) { "BLE ADVERTISEMENT FOR SYNC " }
                     }
                 }
 
@@ -96,11 +96,14 @@ actual class BLEAdvertisementImpl(
     private suspend fun handleNotification(address: String, uuid: Uuid, value: ByteArray): Boolean {
         return withContext(platformDispatchers.io) {
             try {
-                _advertiser.sendNotification(
+                Logger.d(tag = TAG) { "SENDING NOTIFICATION" }
+                val result = _advertiser.sendNotification(
                     deviceAddress = address,
                     characteristicUuid = uuid.toString(),
                     value = value,
                 )
+                Logger.d(tag = TAG) { "NOTIFICATION SEND :$result" }
+                result
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Logger.e(tag = TAG, throwable = e) { "FAILED TO SEND NOTIFICATION" }

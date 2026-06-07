@@ -78,8 +78,8 @@ IAsyncOperation<bool> bluetooth_caller::is_bluetooth_active() {
 
     try {
         if (!m_selected_bt_radio) {
-            const auto accessStatus = co_await Radio::RequestAccessAsync();
-            if (accessStatus != RadioAccessStatus::Allowed) {
+            if (const auto accessStatus = co_await Radio::RequestAccessAsync();
+                accessStatus != RadioAccessStatus::Allowed) {
                 WIN_LOG(L"Access denied. Check Windows Privacy Settings");
                 co_return false;
             }
@@ -106,22 +106,20 @@ IAsyncOperation<bool> bluetooth_caller::is_bluetooth_active() {
                 }
             }
         }
-        WIN_LOG("READING BT STATE");
 
-        winrt::Windows::Devices::Radios::RadioState state;
+        RadioState state;
         {
             std::lock_guard lock(m_mutex);
             if (!m_selected_bt_radio) co_return false;
             state = m_selected_bt_radio.State();
         }
+        WIN_LOG(L"READING BLUETOOTH STATE IS_ACTIVE: " << static_cast<unsigned int>(state));
 
-        co_return state == winrt::Windows::Devices::Radios::RadioState::On;
-
-        co_return m_selected_bt_radio&& m_selected_bt_radio.State() == RadioState::On;
-    } catch (const winrt::hresult_error& ex) {
+        co_return state == RadioState::On;
+    } catch (const hresult_error& ex) {
         // Catch specific WinRT/COM exceptions (provides HRESULT and Message)
-        WIN_LOG(L"WinRT Exception caught in Bluetooth initialization. HRESULT:" << ex.code().value
-                                                                                << L"MESSAGE: " << ex.message().c_str());
+        WIN_LOG(L"WinRT Exception caught in Bluetooth initialization. HRESULT:" << ex.code().value << L"MESSAGE: "
+                                                                                << ex.message().c_str());
         co_return false;
     } catch (const std::exception& ex) {
         // Catch standard library exceptions
@@ -160,14 +158,13 @@ IAsyncAction bluetooth_caller::register_bt_listener(const std::function<void(boo
 
     try {
         if (!m_selected_bt_radio) {
-            const auto accessStatus = co_await Radio::RequestAccessAsync();
-            if (accessStatus != RadioAccessStatus::Allowed) {
+            if (const auto accessStatus = co_await Radio::RequestAccessAsync();
+                accessStatus != RadioAccessStatus::Allowed) {
                 WIN_LOG(L"Access denied. Check Windows Privacy Settings");
                 co_return;
             }
 
-            const auto radios = co_await Radio::GetRadiosAsync();
-            for (auto&& r : radios) {
+            for (const auto radios = co_await Radio::GetRadiosAsync(); auto&& r : radios) {
                 if (r.Kind() == RadioKind::Bluetooth) {
                     m_selected_bt_radio = r;
                     break;

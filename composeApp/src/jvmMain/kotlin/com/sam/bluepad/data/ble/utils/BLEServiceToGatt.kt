@@ -1,6 +1,7 @@
 package com.sam.bluepad.data.ble.utils
 
 import com.sam.ble_advertise.models.Characteristic
+import com.sam.ble_advertise.models.Descriptor
 import com.sam.ble_advertise.models.Service
 import com.sam.bluepad.domain.ble.BLEConstants
 
@@ -22,12 +23,16 @@ object BLEServiceToGatt {
                 Characteristic.builder(BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID)
                     .canRead(true)
                     .canWriteRequest(true)
+                    // ccc descriptor will be automatically added
+                    .addDescriptor(Descriptor(BLEConstants.CCC_DESCRIPTOR))
                     .canNotify(true)
                     .build(),
             )
             .addCharacteristic(
                 Characteristic.builder(BLEConstants.SYNC_DATA_CHARACTERISTICS_ID)
                     .canWriteRequest(true)
+                    // ccc descriptor will be automatically added
+                    .addDescriptor(Descriptor(BLEConstants.CCC_DESCRIPTOR))
                     .canNotify(true)
                     .build(),
             )

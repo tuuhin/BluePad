@@ -6,6 +6,10 @@ import com.sam.ble_advertise.models.Service
 import com.sam.ble_advertise.platform.BLECharacteristicsModel
 import com.sam.ble_advertise.platform.PlatformBLEAdvertiser
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlin.uuid.Uuid
@@ -13,25 +17,32 @@ import kotlin.uuid.Uuid
 fun PlatformBLEAdvertiser.getStatus(): BLEAdvertisementStatus =
     BLEAdvertisementStatus.bLEAdvertisementStatusFromInt(getStatusInt())
 
-fun PlatformBLEAdvertiser.addService(service: Service) {
+suspend fun PlatformBLEAdvertiser.addService(service: Service) = coroutineScope {
     addService(service.uuid.toHexDashString())
-    service.characteristics.forEach { characteristic ->
-        val characteristics = BLECharacteristicsModel(
-            characteristicUuid = characteristic.uuid.toHexDashString(),
-            canRead = characteristic.canRead,
-            canIndicate = characteristic.canIndicate,
-            canNotify = characteristic.canNotify,
-            canWrite = characteristic.canWriteRequest,
-            canWriteNoResponse = characteristic.canWriteCommand,
-        )
-        addCharacteristic(characteristics)
-        characteristic.descriptors.forEach { desc ->
-            addDescriptor(
+    val addCharacteristicsOp = service.characteristics.map { characteristic ->
+        async(Dispatchers.IO) {
+            val characteristics = BLECharacteristicsModel(
                 characteristicUuid = characteristic.uuid.toHexDashString(),
-                descriptorUuid = desc.uuid.toHexDashString(),
+                canRead = characteristic.canRead,
+                canIndicate = characteristic.canIndicate,
+                canNotify = characteristic.canNotify,
+                canWrite = characteristic.canWriteRequest,
+                canWriteNoResponse = characteristic.canWriteCommand,
             )
+            addCharacteristic(characteristics)
+            val descriptorOp = characteristic.descriptors.map { desc ->
+                async(Dispatchers.IO) {
+                    addDescriptor(
+                        characteristicUuid = characteristic.uuid.toHexDashString(),
+                        descriptorUuid = desc.uuid.toHexDashString(),
+                    )
+                }
+            }
+            descriptorOp.awaitAll()
         }
     }
+    addCharacteristicsOp.awaitAll()
+    Unit
 }
 
 
