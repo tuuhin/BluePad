@@ -1,6 +1,8 @@
 import io.github.kdroidfilter.nucleus.desktop.application.dsl.CompressionLevel
 import io.github.kdroidfilter.nucleus.desktop.application.dsl.TargetFormat
 import org.gradle.internal.os.OperatingSystem
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
     alias(libs.plugins.jetbrains.kotlin.jvm)
@@ -31,6 +33,8 @@ dependencies {
     // koin
     implementation(libs.koin.core)
     implementation(libs.koin.compose)
+    // kotlinx datetime
+    implementation(libs.kotlinx.datetime)
     // kdroid filter
     implementation(libs.kdroidfilter.core.runtime)
     implementation(libs.kdroidfilter.decorated.window)
@@ -51,9 +55,11 @@ nucleus.application {
     buildTypes {
         release {
             proguard {
-                isEnabled = true
+                version = "7.9.1"
+                isEnabled = false
                 optimize = true
                 obfuscate = false
+                joinOutputJars = true
                 configurationFiles.from(project.file("proguard-rules.pro"))
             }
         }
@@ -66,17 +72,19 @@ nucleus.application {
         packageName = "BluePad"
         packageVersion = "0.1.0"
         description =
-            "A desktop app to send sketches via bluetooth to the receiver application can be any other targets"
+            "BluePad is a offline-first sketch and idea synchronization app. It allows users to securely sync text-based " +
+                "sketches between their own nearby devices without relying on the internet, cloud services, or user accounts, but using only bluetooth"
 
         modules("java.instrument", "jdk.unsupported")
 
         outputBaseDir.set(project.layout.buildDirectory.dir("desktop"))
         appResourcesRootDir.set(project.layout.projectDirectory.dir("desktopResources"))
-        licenseFile.set(rootProject.file("LICENSE"))
+        licenseFile.set(rootProject.file("LICENCE"))
 
-        compressionLevel = CompressionLevel.Maximum
+        compressionLevel = CompressionLevel.Normal
         artifactName = "${name}-${version}-${operatingSystem.name}-${arch}.${ext}"
 
+        // strips non targets file from dependency jar
         cleanupNativeLibs = true
 
         windows {
@@ -100,5 +108,38 @@ compose.resources {
             layout.projectDirectory.dir("src/main/resources/composeResources")
         },
     )
+}
+
+
+tasks.withType<Test>().configureEach { setupNativePathForMingw() }
+tasks.withType<JavaExec>().configureEach { setupNativePathForMingw() }
+
+/**
+ * We need to set the paths for the native library as our library has a transitive dependency on another `.dll`
+ * As windows is unable to resolve the path we need to provide the path
+ */
+private fun Task.setupNativePathForMingw() {
+    if (!operatingSystem.isWindows) return
+
+    val binDirs = mutableListOf<String>()
+
+    for (subproject in rootProject.subprojects) {
+        if (!subproject.path.startsWith(":jvm-core")) continue
+        val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>()
+        val targets = kotlinExp?.targets ?: continue
+        val mingwTarget = targets.findByName("mingwX64") as? KotlinNativeTarget
+
+        mingwTarget?.binaries?.forEach { binary ->
+            binDirs.add(binary.outputFile.parentFile.absolutePath)
+        }
+    }
+
+    val existingPath = System.getenv("PATH") ?: ""
+    val pathDelimiter = ";"
+    val newPath = (existingPath.split(pathDelimiter) + binDirs.distinct())
+        .distinct().joinToString(pathDelimiter)
+
+    // update the enviroment path
+    if (this is ProcessForkOptions) environment("PATH", newPath)
 }
 

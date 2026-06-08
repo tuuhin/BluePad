@@ -9,7 +9,6 @@ import com.juul.kable.Peripheral
 import com.juul.kable.Scanner
 import com.juul.kable.WriteType
 import com.juul.kable.logs.Logging
-import com.sam.ble_common.BluetoothInfoProvider
 import com.sam.bluepad.data.ble.delegate.BLEConnectorSyncHandlerDelegate
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLESyncConnectionManager
@@ -24,6 +23,9 @@ import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.sync.InPayloadManager
 import com.sam.bluepad.domain.sync.OutPayloadManager
 import com.sam.bluepad.domain.utils.Resource
+import com.sam.bt_common.isBTActive
+import com.sam.bt_common.isLEConnectionAvailable
+import com.sam.bt_common.platform.PlatformBTInfoProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -92,13 +94,12 @@ actual class BLESyncConnectionManagerImpl private constructor(
 
     override fun discoverAndConnect(timeout: Duration): Flow<ResourcesSyncDataEvents> =
         flow<ResourcesSyncDataEvents> {
-
-            if (!BluetoothInfoProvider.isBluetoothActive()) {
+            if (!PlatformBTInfoProvider.isBTActive) {
                 emit(Resource.Error(BluetoothNotEnabledException()))
                 return@flow
             }
 
-            if (!BluetoothInfoProvider.isLEConnectionAllowed()) {
+            if (!PlatformBTInfoProvider.isLEConnectionAvailable) {
                 emit(Resource.Error(BLENotSupportedException()))
                 return@flow
             }

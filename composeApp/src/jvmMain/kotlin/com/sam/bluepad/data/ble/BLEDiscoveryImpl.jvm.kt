@@ -5,16 +5,19 @@ import co.touchlab.kermit.Logger
 import com.juul.kable.Advertisement
 import com.juul.kable.Scanner
 import com.juul.kable.logs.Logging
-import com.sam.ble_common.BluetoothInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
 import com.sam.bluepad.domain.ble.models.BLEPeerDevice
 import com.sam.bluepad.domain.exceptions.BLENotSupportedException
 import com.sam.bluepad.domain.exceptions.BLEScanRunningException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
+import com.sam.bt_common.isBTActive
+import com.sam.bt_common.isLEConnectionAvailable
+import com.sam.bt_common.platform.PlatformBTInfoProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,10 +65,10 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
     override suspend fun startScan(timeout: Duration): Result<Unit> {
 
         return withContext(Dispatchers.IO) {
-            if (!BluetoothInfoProvider.isBluetoothActive())
+            if (!PlatformBTInfoProvider.isBTActive)
                 return@withContext Result.failure(BluetoothNotEnabledException())
 
-            if (!BluetoothInfoProvider.isLEConnectionAllowed())
+            if (!PlatformBTInfoProvider.isLEConnectionAvailable)
                 return@withContext Result.failure(BLENotSupportedException())
 
             if (_isScanning.value) return@withContext Result.failure(BLEScanRunningException())
@@ -80,20 +83,22 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
                                 .collect(::handleAdvertisement)
                         }
                     } catch (_: TimeoutCancellationException) {
-                        Logger.d(TAG) { "SCAN TIMEOUT" }
+                        Logger.d(tag = TAG) { "SCAN TIMEOUT" }
                     }
                 }
-                Logger.d(TAG) { "ADDING SCAN JOB" }
+                Logger.d(tag = TAG) { "ADDING SCAN JOB" }
                 _scanJob?.join()
                 Result.success(Unit)
             } catch (e: CancellationException) {
-                Logger.d(TAG) { "SCAN CANCELLED" }
+                Logger.d(tag = TAG) { "SCAN CANCELLED" }
                 throw e
             } catch (e: Exception) {
-                Logger.e(TAG, e) { "SOME EXCEPTION OCCURRED" }
+                Logger.e(tag = TAG, throwable = e) { "SOME EXCEPTION OCCURRED" }
                 Result.failure(e)
             } finally {
-                stopScanning()
+                withContext(NonCancellable) {
+                    stopScanning()
+                }
             }
         }
     }
@@ -101,7 +106,7 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
     override suspend fun stopScanning() {
         _isStopLock.withLock {
             if (_scanJob?.isActive == true) {
-                Logger.d(TAG) { " SCAN JOB WAS ACTIVE CANCELLING IT" }
+                Logger.d(tag = TAG) { " SCAN JOB WAS ACTIVE CANCELLING IT" }
                 _scanJob?.cancel()
                 _scanJob = null
             }
@@ -111,7 +116,7 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
 
     override fun onClearScanResults() {
         _peers.update { emptyList() }
-        Logger.d(TAG) { "PEER LIST CLEARED" }
+        Logger.d(tag = TAG) { "PEER LIST CLEARED" }
     }
 
     private fun handleAdvertisement(advertisement: Advertisement) {
@@ -141,20 +146,20 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
             val updatedDevice = BLEPeerDevice(
                 bleDeviceName = advertisement.peripheralName,
                 deviceAddress = address,
-                rssi = advertisement.rssi
+                rssi = advertisement.rssi,
             )
             _peers.update { oldPeers -> (oldPeers + updatedDevice).distinctBy { it.deviceAddress } }
-            Logger.i(TAG) { "NEW DEVICE ADDED IDENTIFIER:${address}" }
+            Logger.i(tag = TAG) { "NEW DEVICE ADDED IDENTIFIER:${address}" }
         }
     }
 
     private fun onStartAdvertisements() {
-        Logger.i(TAG) { "JVM BLE SCAN STARTED" }
+        Logger.i(tag = TAG) { "JVM BLE SCAN STARTED" }
         _isScanning.update { true }
     }
 
     private fun onStopAdvertisements() {
-        Logger.i(TAG) { "JVM BLE SCAN STOPPED" }
+        Logger.i(tag = TAG) { "JVM BLE SCAN STOPPED" }
         _isScanning.update { false }
     }
 }

@@ -45,7 +45,7 @@ actual fun createPlatformModule(): Module = module {
     singleOf(::BLEConnectionManagerImpl) bind BLEConnectionManager::class
     // advertiser
     factoryOf(::BLEAdvertisementCallback)
-    singleOf(::BLEAdvertisementImpl) bind BLEAdvertisementManager::class
+    factoryOf(::BLEAdvertisementImpl) bind BLEAdvertisementManager::class
     // ble sync connection manager
     singleOf(::BLESyncConnectionManagerImpl) bind BLESyncConnectionManager::class
 

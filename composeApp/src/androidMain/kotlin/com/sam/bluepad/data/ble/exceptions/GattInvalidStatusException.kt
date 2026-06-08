@@ -15,7 +15,7 @@ class GattInvalidStatusException(val status: Int) : Exception("GATT Status Faile
             BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> "MTU IS SHORT AS PER THE GIVEN PAYLOAD"
             BluetoothGatt.GATT_CONNECTION_CONGESTED -> "Congested connection"
             BluetoothGatt.GATT_CONNECTION_TIMEOUT -> "Connection timeout"
-            BluetoothGatt.GATT_FAILURE -> "Bluetooth gatt connection failed"
+            BluetoothGatt.GATT_FAILURE -> "Bluetooth GATT connection failed"
             else -> "Some invalid state"
         }
 }
