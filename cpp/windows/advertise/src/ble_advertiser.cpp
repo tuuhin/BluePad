@@ -42,6 +42,19 @@ const char* log_advertisement_status(const GattServiceProviderAdvertisementStatu
     }
 }
 
+hstring get_remote_device_address(hstring const& winString) {
+
+    std::wstring_view strView{winString};
+
+    if (strView.length() < 17) return L"";
+    std::wstring mac{strView.substr(strView.length() - 17)};
+
+    // Standardize to uppercase (convention for MAC addresses)
+    std::ranges::transform(mac, mac.begin(), [](const wchar_t c) { return towupper(c); });
+
+    return hstring{mac};
+}
+
 } // namespace
 
 ble_advertiser::ble_advertiser() {
@@ -202,7 +215,7 @@ void ble_advertiser::add_characteristic(const ble_characteristics characteristic
 
         if (characteristics.can_read) {
             properties |= GattCharacteristicProperties::Read;
-            params.ReadProtectionLevel(GattProtectionLevel::EncryptionAndAuthenticationRequired);
+            params.ReadProtectionLevel(GattProtectionLevel::EncryptionRequired);
         }
         if (characteristics.can_write) {
             properties |= GattCharacteristicProperties::Write;
@@ -232,18 +245,27 @@ void ble_advertiser::add_characteristic(const ble_characteristics characteristic
                 const auto clients                = ch.SubscribedClients();
                 const auto characteristics_uuid_h = to_clean_hstring(ch.Uuid());
 
-                WIN_LOG(L"SUBSCRIBED CLIENTS CHANGED FOR CHARACTERISTIC: " << characteristics_uuid_h);
+                // 1. Determine the exact type string for cleaner logs
+                const bool is_indication = (ch.CharacteristicProperties() & GattCharacteristicProperties::Indicate) ==
+                                           GattCharacteristicProperties::Indicate;
+                const wchar_t* sub_type = is_indication ? L"INDICATION" : L"NOTIFICATION";
 
+                WIN_LOG(L"--- SUBSCRIBED CLIENTS CHANGED ---");
+                WIN_LOG(L"CHARACTERISTICS UUID : " << characteristics_uuid_h.c_str());
+                WIN_LOG(L"SUBSCRIPTION TYPE   : " << sub_type);
+                WIN_LOG(L"NO OF ACTIVE CLIENTS: " << clients.Size());
+
+                // 2. Log each subscribed client cleanly
                 for (GattSubscribedClient const& client : clients) {
                     auto address = client.Session().DeviceId().Id();
-                    WIN_LOG(L"DEVICE ADDRESS " << address << " IS CURRENTLY SUBSCRIBED TO "
-                                               << characteristics_uuid_h.c_str());
+                    WIN_LOG(L"SUBSCRIBER ADDRESS: " << get_remote_device_address(address).c_str());
                 }
+                WIN_LOG(L"----------------------------------");
             });
         }
 
         characteristic.ReadRequested(
-            [this, w_service_uuid, h_uuid](GattLocalCharacteristic const&, GattReadRequestedEventArgs const& args) {
+            [this, w_service_uuid, h_uuid](GattLocalCharacteristic const& ch, GattReadRequestedEventArgs const& args) {
                 WIN_LOG(L"CHARACTERISTIC READ REQUESTED. UUID: " << h_uuid.c_str());
                 const auto deferral  = args.GetDeferral();
                 const auto request   = args.GetRequestAsync().get();
@@ -267,33 +289,39 @@ void ble_advertiser::add_characteristic(const ble_characteristics characteristic
                 }
             });
 
-        characteristic.WriteRequested(
-            [this, w_service_uuid, h_uuid](GattLocalCharacteristic const&, GattWriteRequestedEventArgs const& args) {
-                WIN_LOG(L"CHARACTERISTIC WRITE REQUESTED. UUID: " << h_uuid.c_str());
-                const auto deferral  = args.GetDeferral();
-                const auto request   = args.GetRequestAsync().get();
-                const auto device_id = args.Session().DeviceId().Id();
-                const auto buffer    = request.Value();
+        characteristic.WriteRequested([this, w_service_uuid, h_uuid](GattLocalCharacteristic const& ch,
+                                                                     GattWriteRequestedEventArgs const& args) {
+            const bool is_write_without_response =
+                (ch.CharacteristicProperties() & GattCharacteristicProperties::WriteWithoutResponse) ==
+                GattCharacteristicProperties::WriteWithoutResponse;
 
-                OnWriteCharacteristicCallback write_cb = nullptr;
-                void* cb_user_data                     = nullptr;
-                {
-                    std::lock_guard cb_lock(m_mutex);
-                    write_cb     = m_callbacks.on_write_characteristic;
-                    cb_user_data = m_callbacks.user_data;
-                }
-                if (write_cb) {
-                    auto* req_ctx = new BLERequestContext(args, request, deferral);
-                    write_cb(reinterpret_cast<BLERequestHandle>(req_ctx), to_string(device_id).c_str(),
-                             to_string(w_service_uuid).c_str(), to_string(h_uuid).c_str(), buffer.data(),
-                             buffer.Length(), request.Option() == GattWriteOption::WriteWithResponse, cb_user_data);
+            const wchar_t* write_type = is_write_without_response ? L"WRITE WITHOUT RESPONSE" : L" WRITE WITH RESPONSE";
 
-                    // deferral should be handled from read_response_call
-                } else {
-                    WIN_LOG(L"NO WRITE CALLBACK REGISTERED FOR CHARACTERISTIC");
-                    deferral.Complete();
-                }
-            });
+            WIN_LOG(L"CHARACTERISTIC WRITE REQUESTED. UUID: " << h_uuid.c_str() << L" PROPERTY: " << write_type);
+            const auto deferral  = args.GetDeferral();
+            const auto request   = args.GetRequestAsync().get();
+            const auto device_id = args.Session().DeviceId().Id();
+            const auto buffer    = request.Value();
+
+            OnWriteCharacteristicCallback write_cb = nullptr;
+            void* cb_user_data                     = nullptr;
+            {
+                std::lock_guard cb_lock(m_mutex);
+                write_cb     = m_callbacks.on_write_characteristic;
+                cb_user_data = m_callbacks.user_data;
+            }
+            if (write_cb) {
+                auto* req_ctx = new BLERequestContext(args, request, deferral);
+                write_cb(reinterpret_cast<BLERequestHandle>(req_ctx), to_string(device_id).c_str(),
+                         to_string(w_service_uuid).c_str(), to_string(h_uuid).c_str(), buffer.data(), buffer.Length(),
+                         request.Option() == GattWriteOption::WriteWithResponse, cb_user_data);
+
+                // deferral should be handled from read_response_call
+            } else {
+                WIN_LOG(L"NO WRITE CALLBACK REGISTERED FOR CHARACTERISTIC");
+                deferral.Complete();
+            }
+        });
     } catch (hresult_error const& ex) {
         WIN_LOG(L"WINRT EXCEPTION IN ADD_CHARACTERISTIC: " << ex.message().c_str());
     } catch (...) {
@@ -323,7 +351,7 @@ void ble_advertiser::add_descriptor(const char* characteristic_uuid, const char*
             return;
         }
         const GattLocalDescriptorParameters params;
-        params.ReadProtectionLevel(GattProtectionLevel::Plain);
+        params.ReadProtectionLevel(GattProtectionLevel::EncryptionRequired);
         params.WriteProtectionLevel(GattProtectionLevel::EncryptionAndAuthenticationRequired);
 
         const auto result     = characteristic.CreateDescriptorAsync(guid(w_desc_uuid), params).get();
@@ -474,7 +502,7 @@ bool ble_advertiser::send_notification(const char* device_address, const char* c
 
 void ble_advertiser::respond_read(BLERequestHandle request, const uint8_t* data, const size_t len,
                                   const int32_t status) {
-    WIN_LOG(L"RESPONDING TO READ REQUEST. STATUS: " << status);
+
     auto* req_ctx = static_cast<BLERequestContext*>(request);
     if (!req_ctx) return;
 
@@ -487,6 +515,7 @@ void ble_advertiser::respond_read(BLERequestHandle request, const uint8_t* data,
         } else {
             read->request.RespondWithProtocolError(static_cast<uint8_t>(status));
         }
+        WIN_LOG(L"RESPONDING TO READ REQUEST CLEARING DEFERRAL ANC REQ CONTEXT");
         read->deferral.Complete();
     }
 
@@ -494,7 +523,7 @@ void ble_advertiser::respond_read(BLERequestHandle request, const uint8_t* data,
 }
 
 void ble_advertiser::respond_write(BLERequestHandle request, const int32_t status) {
-    WIN_LOG(L"RESPONDING TO WRITE REQUEST. STATUS: " << status);
+
     auto* req_ctx = static_cast<BLERequestContext*>(request);
     if (!req_ctx) return;
 
@@ -506,6 +535,7 @@ void ble_advertiser::respond_write(BLERequestHandle request, const int32_t statu
                 write->request.RespondWithProtocolError(static_cast<uint8_t>(status));
             }
         }
+        WIN_LOG(L"RESPONDING TO WRITE REQUEST CLEARING DEFERRAL AND REQ OBJECT");
         write->deferral.Complete();
     }
 
