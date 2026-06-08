@@ -1,5 +1,4 @@
 import com.codingfeline.buildkonfig.compiler.FieldSpec
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
@@ -15,7 +14,7 @@ plugins {
 
 kotlin {
 
-    jvmToolchain(25)
+    jvmToolchain(22)
 
     android {
         namespace = "com.sam.bluepad.library"
@@ -68,6 +67,7 @@ kotlin {
             //di
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
+            implementation(libs.koin.viewmodel)
             implementation(libs.koin.compose.viewmodel)
             implementation(libs.koin.compose.nav3)
             // navigation
@@ -118,9 +118,13 @@ kotlin {
             implementation(libs.kable.exceptions)
 
             // local modules
-            implementation(projects.jvmCore.bleCommon)
+            implementation(projects.jvmCore.btCommon)
             implementation(projects.jvmCore.bleAdvertise)
             implementation(projects.jvmCore.cryptoBridge)
+
+            // kdroid
+            implementation(libs.kdroidfilter.decorated.window)
+            implementation(libs.kdroidfilter.decorated.window.material3)
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
@@ -135,6 +139,7 @@ kotlin {
         optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
     }
 }
+
 
 room {
     schemaDirectory("$projectDir/schemas")
@@ -152,20 +157,6 @@ dependencies {
     "androidRuntimeClasspath"(libs.androidx.ui.tooling.preview)
 }
 
-compose.desktop {
-    application {
-        mainClass = "com.sam.bluepad.MainKt"
-
-        nativeDistributions {
-            // no osx or linux target for now
-            val targets = arrayOf(TargetFormat.Msi)
-            targetFormats(*targets)
-            packageName = "com.sam.bluepad"
-            packageVersion = "1.0.0"
-        }
-    }
-}
-
 compose.resources {
 
     publicResClass = false
@@ -176,14 +167,14 @@ compose.resources {
     customDirectory(
         sourceSetName = "jvmMain",
         directoryProvider = provider {
-            layout.projectDirectory.dir("src").dir("jvmMain").dir("resources")
-                .dir("desktopResources")
+            layout.projectDirectory.dir("src/jvmMain/resources/compose")
         },
     )
 }
 
 buildkonfig {
     packageName = "com.sam.bluepad"
+    exposeObjectWithName = "BuildKonfig"
 
     defaultConfigs {
         buildConfigField(FieldSpec.Type.STRING, "APP_ID", "e1e55e42-bb6c-4410-94e4-a2cc2e628c05")

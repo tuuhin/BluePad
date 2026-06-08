@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,10 +39,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
-import com.sam.bluepad.domain.sync_diff.SyncChanges
 import com.sam.bluepad.presentation.feature_sync.composables.SyncChangesItemsBoxWrapper
 import com.sam.bluepad.presentation.feature_sync.event.SyncChangesScreenEvent
+import com.sam.bluepad.presentation.feature_sync.state.ContentSaveState
 import com.sam.bluepad.presentation.feature_sync.state.ReviewSyncChangesScreenState
+import com.sam.bluepad.presentation.feature_sync.state.toApprovedModel
 import com.sam.bluepad.presentation.utils.PreviewFakes
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.ic_cancel
@@ -48,6 +51,7 @@ import com.sam.bluepad.resources.ic_double_tick
 import com.sam.bluepad.theme.BluePadTheme
 import com.sam.bluepad.theme.Dimensions
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
@@ -58,7 +62,7 @@ fun ReviewSyncChangesSheetContent(
 ) {
 
     val isSaveEnabled by remember(state) {
-        derivedStateOf { state.syncList.isNotEmpty() }
+        derivedStateOf { state.changesList.isNotEmpty() }
     }
 
     Column(
@@ -100,14 +104,40 @@ fun ReviewSyncChangesSheetContent(
                 color = MaterialTheme.colorScheme.tertiary,
             )
         }
-        SubmitOrChangesActions(
-            onSaveSelectedChanges = { onEvent(SyncChangesScreenEvent.OnApproveAction) },
-            onCancel = { onEvent(SyncChangesScreenEvent.OnCancelAction) },
-            isSaveEnabled = isSaveEnabled,
-            isCancelEnabled = state.isLoaded,
-            isSavingChanges = state.isSaving,
+        AnimatedVisibility(
+            visible = state.isLoaded,
             modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
+            enter = slideInVertically(),
+            exit = slideOutVertically(),
+        ) {
+            SubmitOrChangesActions(
+                onSaveSelectedChanges = { onEvent(SyncChangesScreenEvent.OnApproveSave) },
+                onCancel = { onEvent(SyncChangesScreenEvent.OnCancelAction) },
+                isCancelEnabled = state.isLoaded,
+                saveState = state.saveState,
+            )
+        }
+        AnimatedVisibility(visible = state.saveState == ContentSaveState.Saved) {
+            Button(
+                onClick = { onEvent(SyncChangesScreenEvent.OnViewItems) },
+                modifier = Modifier.heightIn(ButtonDefaults.MediumContainerHeight)
+                    .fillMaxWidth(),
+                contentPadding = ButtonDefaults.MediumContentPadding,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ),
+                shapes = ButtonDefaults.shapes(
+                    shape = ButtonDefaults.elevatedShape,
+                    pressedShape = ButtonDefaults.mediumPressedShape,
+                ),
+            ) {
+                Text(
+                    text = "View Items",
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                )
+            }
+        }
     }
 }
 
@@ -117,8 +147,7 @@ private fun SubmitOrChangesActions(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     isCancelEnabled: Boolean = true,
-    isSaveEnabled: Boolean = true,
-    isSavingChanges: Boolean = false,
+    saveState: ContentSaveState = ContentSaveState.NotSaved,
 ) {
     Row(
         modifier = modifier,
@@ -158,19 +187,22 @@ private fun SubmitOrChangesActions(
                 shape = ButtonDefaults.elevatedShape,
                 pressedShape = ButtonDefaults.mediumPressedShape,
             ),
-            enabled = isSaveEnabled && !isSavingChanges,
+            enabled = saveState == ContentSaveState.NotSaved,
         ) {
-            Crossfade(targetState = isSavingChanges) { isSaving ->
-                if (isSaving) CircularProgressIndicator(modifier = Modifier.size(ButtonDefaults.IconSize))
-                else Icon(
-                    painter = painterResource(Res.drawable.ic_double_tick),
-                    contentDescription = "Reset Receiver",
-                    modifier = Modifier.size(ButtonDefaults.IconSize),
-                )
+            Crossfade(targetState = saveState) { state ->
+                when (state) {
+                    ContentSaveState.Saving -> CircularProgressIndicator(modifier = Modifier.size(ButtonDefaults.IconSize))
+                    else -> Icon(
+                        painter = painterResource(Res.drawable.ic_double_tick),
+                        contentDescription = "Reset Receiver",
+                        modifier = Modifier.size(ButtonDefaults.IconSize),
+                    )
+
+                }
             }
             Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
             Text(
-                text = "Save Changes",
+                text = "Save",
                 style = MaterialTheme.typography.titleMediumEmphasized,
             )
         }
@@ -180,26 +212,35 @@ private fun SubmitOrChangesActions(
 private class SyncChangesUIStatePreviewParams : PreviewParameterProvider<ReviewSyncChangesScreenState> {
     override val values: Sequence<ReviewSyncChangesScreenState>
         get() = sequenceOf(
-            ReviewSyncChangesScreenState(isLoaded = false),
-            ReviewSyncChangesScreenState(isLoaded = true, errorMessage = "Failed to load data"),
-            ReviewSyncChangesScreenState(isLoaded = true),
+            ReviewSyncChangesScreenState(isLoaded = false, changesList = persistentListOf()),
             ReviewSyncChangesScreenState(
                 isLoaded = true,
-                syncList = persistentListOf<SyncChanges>()
-                    .addAll(
-                        listOf(
-                            PreviewFakes.FAKE_SYNC_CHANGE_DELETE,
-                            PreviewFakes.FAKE_SYNC_CHANGE_INSERT,
-                            PreviewFakes.FAKE_SYNC_CHANGE_DELETE_WITH_UPDATED_CONTENT,
-                            PreviewFakes.FAKE_SYNC_CHANGE_UPDATE,
-                        ),
-                    ),
+                errorMessage = "Failed to load data",
+                changesList = persistentListOf(),
+            ),
+            ReviewSyncChangesScreenState(isLoaded = true, changesList = persistentListOf()),
+            ReviewSyncChangesScreenState(
+                isLoaded = true,
+                changesList = listOf(
+                    PreviewFakes.FAKE_SYNC_CHANGE_DELETE,
+                    PreviewFakes.FAKE_SYNC_CHANGE_INSERT,
+                    PreviewFakes.FAKE_SYNC_CHANGE_DELETE_WITH_UPDATED_CONTENT,
+                    PreviewFakes.FAKE_SYNC_CHANGE_UPDATE,
+                ).map { it.toApprovedModel() }
+                    .toImmutableList(),
             ),
             ReviewSyncChangesScreenState(
                 isLoaded = true,
-                isSaving = true,
-                syncList = persistentListOf<SyncChanges>()
-                    .addAll(listOf(PreviewFakes.FAKE_SYNC_CHANGE_INSERT)),
+                saveState = ContentSaveState.Saving,
+                changesList = listOf(PreviewFakes.FAKE_SYNC_CHANGE_INSERT)
+                    .map { it.toApprovedModel() }
+                    .toImmutableList(),
+            ),
+            ReviewSyncChangesScreenState(
+                isLoaded = true,
+                saveState = ContentSaveState.Saved,
+                changesList = listOf(PreviewFakes.FAKE_SYNC_CHANGE_INSERT).map { it.toApprovedModel() }
+                    .toImmutableList(),
             ),
         )
 }

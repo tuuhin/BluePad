@@ -1,9 +1,9 @@
 package com.sam.bluepad.data.ble.callbacks
 
 import co.touchlab.kermit.Logger
-import com.sam.blejavaadvertise.callbacks.GATTServerCallback
-import com.sam.blejavaadvertise.models.GATTBluetoothError
-import com.sam.blejavaadvertise.models.GATTServiceAdvertisementStatus
+import com.sam.ble_advertise.BLEAdvertiserListener
+import com.sam.ble_advertise.models.BLEAdvertisementStatus
+import com.sam.ble_advertise.models.GattWriteResponse
 import com.sam.bluepad.data.ble.delegate.BLEAdvertiserSyncHandlerDelegate
 import com.sam.bluepad.data.sync.dto.BLESyncDataType
 import com.sam.bluepad.data.sync.dto.BLESyncSession
@@ -12,41 +12,34 @@ import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.models.ExternalDeviceModel
+import com.sam.bluepad.domain.models.LocalDeviceInfoModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.sync.InPayloadManager
 import com.sam.bluepad.domain.sync.OutPayloadManager
 import com.sam.bluepad.domain.use_cases.BytesEncoder
 import com.sam.bluepad.domain.use_cases.RandomGenerator
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
 
 private const val TAG = "BLE_ADVERTISEMENT_CALLBACK"
 
-private typealias NotifyCharacteristicsChanged = (deviceAddress: String, characteristicsUuid: String, value: ByteArray) -> Boolean
+private typealias NotifyCharacteristicsChanged = suspend (deviceAddress: String, characteristicsUuid: Uuid, value: ByteArray) -> Boolean
 
 class BLEAdvertisementCallback private constructor(
-    deviceInfoProvider: LocalDeviceInfoProvider,
+    private val deviceInfoProvider: LocalDeviceInfoProvider,
     private val externalDevicesRepo: ExternalDevicesRepository,
     private val delegate: BLEAdvertiserSyncHandlerDelegate,
-) : GATTServerCallback {
+) : BLEAdvertiserListener {
 
     constructor(
         protoBuf: ProtoBuf,
@@ -70,13 +63,9 @@ class BLEAdvertisementCallback private constructor(
         ),
     )
 
-    private val _scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-    private val _deviceInfo = deviceInfoProvider.readDeviceInfo.stateIn(
-        scope = _scope,
-        started = SharingStarted.Eagerly,
-        initialValue = null,
-    )
+    private suspend fun readLocalDevice(): LocalDeviceInfoModel {
+        return deviceInfoProvider.readDeviceInfo.first()
+    }
 
     private var _notifyCharacteristicsChanged: NotifyCharacteristicsChanged? = null
     fun setNotifyCharacteristicsChanged(callback: NotifyCharacteristicsChanged) {
@@ -95,138 +84,104 @@ class BLEAdvertisementCallback private constructor(
 
     private val _activeSyncDeviceInfo = ConcurrentHashMap<String, ExternalDeviceModel>()
 
-    override fun onServiceAdded(
-        serviceUuid: String,
-        success: Boolean,
-        error: GATTBluetoothError
-    ) {
+    override suspend fun onServiceAdded(serviceUuid: Uuid, success: Boolean, errorCode: Int) {
         if (success) Logger.i(tag = TAG) { "SERVICE :$serviceUuid ADDED SUCCESSFULLY" }
-        else Logger.i(tag = TAG) { "SERVICE $serviceUuid FAILED ADDED ERROR CODE: $error" }
+        else Logger.i(tag = TAG) { "SERVICE $serviceUuid FAILED ADDED ERROR CODE: $errorCode" }
     }
 
-    override fun onServiceStatusChange(status: GATTServiceAdvertisementStatus?) {
+    override suspend fun onServiceStatusChange(status: BLEAdvertisementStatus) {
         Logger.d(tag = TAG) { "ADVERTISEMENT STATUS :$status" }
-        _isRunning.value = status == GATTServiceAdvertisementStatus.STARTED ||
-            status == GATTServiceAdvertisementStatus.STARTED_WITHOUT_ADVERTISEMENT
+        _isRunning.value = status == BLEAdvertisementStatus.Started ||
+            status == BLEAdvertisementStatus.StartedWithoutAdvertisementData
     }
 
-    override fun onReadCharacteristics(
-        deviceAddress: String?,
-        serviceUuid: String?,
-        characteristicUuid: String?,
+    override suspend fun onReadCharacteristic(
+        deviceAddress: String,
+        serviceUuid: Uuid,
+        characteristicUuid: Uuid
     ): ByteArray? {
-
-        if (serviceUuid == null || characteristicUuid == null || deviceAddress == null)
-            return null
-
-        val characteristicsId = Uuid.parse(characteristicUuid)
-        val serviceId = Uuid.parse(serviceUuid)
-
-
-        when (characteristicsId) {
-            // HANDLE DEVICE DISCOVERY ADVERTISEMENT HERE
-            BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID if (serviceId == BLEConstants.DEVICE_INFO_SERVICE_ID) -> {
-                Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicsId FROM DISCOVERY SERVICE" }
-
-                val result = delegate.handleDeviceReadRequest(currentDeviceInfo = _deviceInfo.value)
+        when (characteristicUuid) {
+            BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID if (serviceUuid == BLEConstants.DEVICE_INFO_SERVICE_ID) -> {
+                Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicUuid FROM DISCOVERY SERVICE" }
+                val device = readLocalDevice()
+                val result = delegate.handleDeviceReadRequest(currentDeviceInfo = device)
                 return result.getOrNull()
             }
 
-            // HANDLE SYNC SERVICE PROXIMITY CHECK ADVERTISEMENT HERE
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
-                Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicsId FROM SYNC SERVICE" }
-
-                // handshake requested
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceUuid == BLEConstants.SYNC_SERVICE_ID) -> {
+                Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicUuid FROM SYNC SERVICE" }
                 _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeStarted)
+                val device = readLocalDevice()
+                val result =
+                    delegate.handleProximityReadRequest(address = deviceAddress, currentDevice = device)
 
-                val result = runBlocking {
-                    delegate.handleProximityReadRequest(
-                        address = deviceAddress,
-                        currentDevice = _deviceInfo.value,
-                    )
-                }
                 return result.getOrNull()
             }
 
             else -> {
-                Logger.w(tag = TAG) { "CANNOT FIND ANY CHARACTERISTICS:${characteristicsId} WITH SERVICE:${serviceId}" }
+                Logger.w(tag = TAG) { "CANNOT FIND ANY CHARACTERISTICS:${characteristicUuid} WITH SERVICE:${serviceUuid}" }
                 return null
             }
         }
     }
 
-    override fun onWriteCharacteristicRequest(
-        deviceAddress: String?,
-        serviceUuid: String?,
-        characteristicUuid: String?,
-        value: ByteArray?
-    ) {
-        if (deviceAddress == null || characteristicUuid == null || serviceUuid == null || value == null)
-            return
-
-        val characteristicId = Uuid.parse(characteristicUuid)
-        val serviceId = Uuid.parse(serviceUuid)
-
-        when (characteristicId) {
-            // HANDLE DEVICE DISCOVERY ADVERTISEMENT HERE
-            BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID if (serviceId == BLEConstants.DEVICE_INFO_SERVICE_ID) -> {
-                Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicId FROM DISCOVERY SERVICE" }
-
+    override suspend fun onWriteCharacteristic(
+        address: String,
+        serviceUuid: Uuid,
+        characteristicUuid: Uuid,
+        value: ByteArray,
+    ): GattWriteResponse {
+        when (characteristicUuid) {
+            BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID if (serviceUuid == BLEConstants.DEVICE_INFO_SERVICE_ID) -> {
+                Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicUuid FROM DISCOVERY SERVICE" }
                 val result = delegate.handleDeviceWriteRequest(value = value)
-                val peerDevice = result.getOrNull() ?: return
+                val peerDevice = result.getOrNull() ?: return GattWriteResponse.FAILED
                 _peerDevices.update { device -> (device + peerDevice).distinctBy { it.deviceId } }
+                return GattWriteResponse.SUCCESS
             }
 
-            // HANDLE SYNC AND PROXIMITY SERVICE FROM HERE
-            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
-                Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicId FROM SYNC SERVICE" }
+            BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID if (serviceUuid == BLEConstants.SYNC_SERVICE_ID) -> {
+                Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicUuid FROM SYNC SERVICE" }
 
-                if (!_scope.isActive) {
-                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
-                    return
-                }
-                _scope.launch {
-                    val result = delegate.handleProximityWriteRequest(
-                        value = value,
-                        address = deviceAddress,
-                        onNotify = { bytes ->
-                            _notifyCharacteristicsChanged?.invoke(deviceAddress, characteristicUuid, bytes)
-                                ?: false
-                        },
-                        savedDevices = { id -> externalDevicesRepo.getDeviceByUuid(id) },
-                        currentDeviceInfo = _deviceInfo.value,
-                    )
-                    result.fold(
-                        onSuccess = { device ->
-                            _activeSyncDeviceInfo[deviceAddress] = device
-                            _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeSuccess(device))
-                        },
-                        onFailure = { err ->
-                            _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeFailed("Handshake failed: ${err.message}"))
-                        },
-                    )
-                }
+                val device = readLocalDevice()
+
+                val result = delegate.handleProximityWriteRequest(
+                    value = value,
+                    address = address,
+                    onNotify = { bytes ->
+                        _notifyCharacteristicsChanged
+                            ?.invoke(address, characteristicUuid, bytes)
+                            ?: false
+                    },
+                    savedDevices = { id -> externalDevicesRepo.getDeviceByUuid(id) },
+                    currentDeviceInfo = device,
+                )
+                result.fold(
+                    onSuccess = { device ->
+                        _activeSyncDeviceInfo[address] = device
+                        _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeSuccess(device))
+                        return GattWriteResponse.SUCCESS
+                    },
+                    onFailure = { err ->
+                        _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeFailed("Handshake failed: ${err.message}"))
+                    },
+                )
             }
 
-            // HANDLE SYNC AND PROXIMITY SERVICE FROM HERE
-            BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if (serviceId == BLEConstants.SYNC_SERVICE_ID) -> {
-                Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicId FROM SYNC SERVICE" }
+            BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if (serviceUuid == BLEConstants.SYNC_SERVICE_ID) -> {
+                Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicUuid FROM SYNC SERVICE" }
 
-                if (!_scope.isActive) {
-                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
-                    return
-                }
-                _scope.launch {
-                    val result = delegate.handleSyncDataWriteRequest(
-                        value = value,
-                        onNotify = { bytes ->
-                            _notifyCharacteristicsChanged?.invoke(deviceAddress, characteristicUuid, bytes) ?: false
-                        },
-                    )
+                val result = delegate.handleSyncDataWriteRequest(
+                    value = value,
+                    onNotify = { bytes ->
+                        _notifyCharacteristicsChanged?.invoke(address, characteristicUuid, bytes) ?: false
+                    },
+                )
 
-                    result.fold(
-                        onSuccess = { session ->
-                            val device = _activeSyncDeviceInfo[deviceAddress] ?: return@fold
+                result.fold(
+                    onSuccess = { session ->
+                        val device = _activeSyncDeviceInfo[address]
+                        if (device != null) {
                             val event = when (session) {
                                 is BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
                                 is BLESyncSession.SyncSessionSuccessful ->
@@ -236,101 +191,94 @@ class BLEAdvertisementCallback private constructor(
                                 is BLESyncSession.SyncPacketTransition -> {
                                     val isHalfDone =
                                         session.prevType == BLESyncDataType.CONTENT && session.newType == BLESyncDataType.METADATA
-                                    if (!isHalfDone) return@fold
-                                    // half completed
-                                    AdvertiserSyncEvent.HalfDuplexCompleted(device)
+                                    if (isHalfDone) AdvertiserSyncEvent.HalfDuplexCompleted(device) else null
                                 }
 
-                                else -> return@fold
+                                else -> null
                             }
-                            _advertiserEvents.tryEmit(event)
-                        },
-                        onFailure = { error ->
-                            val event = AdvertiserSyncEvent.SyncFailed(error.message ?: "Unknown Error")
-                            _advertiserEvents.tryEmit(event)
-                        },
-                    )
-                }
+                            if (event != null) _advertiserEvents.tryEmit(event)
+                        }
+                        return GattWriteResponse.SUCCESS
+                    },
+                    onFailure = { error ->
+                        val event = AdvertiserSyncEvent.SyncFailed(error.message ?: "Unknown Error")
+                        _advertiserEvents.tryEmit(event)
+                    },
+                )
             }
 
             else -> {}
         }
+
+        return GattWriteResponse.FAILED
     }
 
-
-    override fun onReadDescriptor(
-        deviceAddress: String?,
-        serviceUuid: String?,
-        characteristicsUuid: String?,
-        descriptorUuid: String?
+    override suspend fun onReadDescriptor(
+        address: String,
+        serviceUuid: Uuid,
+        characteristicUuid: Uuid,
+        descriptorUuid: Uuid,
+        status: Int,
     ): ByteArray? {
-        if (deviceAddress == null || descriptorUuid == null || characteristicsUuid == null || serviceUuid == null)
-            return null
+        Logger.i(tag = TAG) { "READ REQUEST DESCRIPTOR ID $descriptorUuid CHARACTERISTIC ID : $characteristicUuid" }
+        if (serviceUuid != BLEConstants.SYNC_SERVICE_ID) return null
 
-        Logger.i(tag = TAG) { "READ REQUEST DESCRIPTOR ID $descriptorUuid CHARACTERISTIC ID : $characteristicsUuid" }
-
-        val descriptorId = Uuid.parse(descriptorUuid)
-        val characteristicsId = Uuid.parse(characteristicsUuid)
-        val serviceId = Uuid.parse(serviceUuid)
-
-        if (serviceId != BLEConstants.SYNC_SERVICE_ID) return null
-
-        when (characteristicsId) {
+        when (characteristicUuid) {
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
-                // need to use blocking code otherwise we cannot return the data
-                val result = runBlocking {
-                    delegate.handleCCCReadRequest(
-                        address = deviceAddress,
-                        isIndication = true,
-                        characteristicsId = characteristicsId,
-                        descriptorUuid = descriptorId,
-                    )
-                }
+                val result = delegate.handleCCCReadRequest(
+                    address = address,
+                    isIndication = true,
+                    characteristicsId = characteristicUuid,
+                    descriptorUuid = descriptorUuid,
+                )
+
                 return result.getOrNull()
             }
 
-            else -> return null
+            else -> {}
         }
+        return null
     }
 
-    override fun onWriteDescriptor(
-        deviceAddress: String?,
-        serviceUuid: String?,
-        characteristicsUuid: String?,
-        descriptorUuid: String?,
-        value: ByteArray?
-    ) {
-        if (deviceAddress == null || descriptorUuid == null || value == null || characteristicsUuid == null || serviceUuid == null) return
+    override suspend fun onWriteDescriptor(
+        address: String,
+        serviceUuid: Uuid,
+        characteristicUuid: Uuid,
+        descriptorUuid: Uuid,
+        value: ByteArray,
+    ): GattWriteResponse {
 
-        Logger.i(tag = TAG) { "WRITE REQUEST DESCRIPTOR ID $descriptorUuid CHARACTERISTIC ID : $characteristicsUuid" }
+        Logger.i(tag = TAG) { "WRITE REQUEST DESCRIPTOR ID $descriptorUuid CHARACTERISTIC ID : $characteristicUuid" }
 
-        val descriptorId = Uuid.parse(descriptorUuid)
-        val characteristicId = Uuid.parse(characteristicsUuid)
-        val serviceId = Uuid.parse(serviceUuid)
+        if (serviceUuid != BLEConstants.SYNC_SERVICE_ID) {
+            return GattWriteResponse.FAILED
+        }
 
-        Logger.d(tag = TAG) { "WRITE REQUEST DESCRIPTOR ID $descriptorId CHARACTERISTIC ID : $characteristicId" }
-
-        // only handle sync service id
-        if (serviceId != BLEConstants.SYNC_SERVICE_ID) return
-
-        when (characteristicId) {
+        when (characteristicUuid) {
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
-                if (!_scope.isActive) {
-                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
-                    return
-                }
-                _scope.launch {
-                    delegate.handleCCCWriteRequest(
-                        address = deviceAddress,
-                        descriptorUuid = descriptorId,
-                        characteristicsId = characteristicId,
-                        value = value,
-                    )
-                }
+
+                val result = delegate.handleCCCWriteRequest(
+                    address = address,
+                    characteristicsId = characteristicUuid,
+                    descriptorUuid = descriptorUuid,
+                    value = value,
+                )
+                if (result.isSuccess) return GattWriteResponse.SUCCESS
             }
 
             else -> {}
         }
+        return GattWriteResponse.FAILED
+    }
+
+    override suspend fun onIndicationResult(
+        address: String,
+        characteristicUuid: Uuid,
+        success: Boolean,
+        status: Int,
+        errorCode: Int
+    ) {
+
     }
 
     fun setRunning(value: Boolean) {
@@ -338,13 +286,9 @@ class BLEAdvertisementCallback private constructor(
     }
 
     fun cleanUp() {
-        // clears everything on done
-        if (_scope.isActive) _scope.cancel()
-        // clear the maps
         delegate.cleanUp()
         _peerDevices.value = emptyList()
         _activeSyncDeviceInfo.clear()
-        // clear the callback ref
         _notifyCharacteristicsChanged = null
     }
 }

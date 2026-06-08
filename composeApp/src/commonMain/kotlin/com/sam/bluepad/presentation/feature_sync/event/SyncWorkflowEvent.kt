@@ -5,4 +5,6 @@ import kotlin.uuid.Uuid
 sealed interface SyncWorkflowEvent {
 
     data class ReadyForReview(val sessionId: Uuid) : SyncWorkflowEvent
+
+    data object ReviewedAndSaved : SyncWorkflowEvent
 }

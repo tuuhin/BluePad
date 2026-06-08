@@ -30,6 +30,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.toJavaUuid
 import kotlin.uuid.toKotlinUuid
 
@@ -123,7 +124,7 @@ class SyncDeviceConnectionCallback private constructor(
             val servicesIsEmpty = gatt.services.isEmpty()
             if (servicesIsEmpty) {
                 // a bit of input delay to load the service into the buffer
-                delay(200L)
+                delay(100.milliseconds)
             }
             Logger.d(tag = TAG) { "REQUESTING HANDSHAKE FOR SYNC" }
             val response = requestHandshakeCharacteristics(gatt = gatt)
@@ -151,7 +152,7 @@ class SyncDeviceConnectionCallback private constructor(
         status: Int,
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
-        onCharacteristicRead(gatt, characteristic, characteristic.value, status)
+        onCharacteristicRead(gatt, characteristic, characteristic.value ?: byteArrayOf(), status)
     }
 
 
@@ -162,7 +163,7 @@ class SyncDeviceConnectionCallback private constructor(
         status: Int,
     ) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(tag = TAG) { "CANNOT READ CHARACTERISTIC : ${characteristic.uuid}" }
+            Logger.w(tag = TAG) { "CANNOT READ CHARACTERISTIC : ${characteristic.uuid} STATUS: $status" }
             _onError?.invoke(GattInvalidStatusException(status))
             return
         }
@@ -240,7 +241,7 @@ class SyncDeviceConnectionCallback private constructor(
     ) {
         if (gatt == null || descriptor == null) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
-        onDescriptorRead(gatt, descriptor, status, descriptor.value)
+        onDescriptorRead(gatt, descriptor, status, descriptor.value ?: byteArrayOf())
     }
 
     override fun onDescriptorRead(
@@ -255,7 +256,7 @@ class SyncDeviceConnectionCallback private constructor(
         }
         val descriptorId = descriptor.uuid.toKotlinUuid()
         val serviceId = descriptor.characteristic.service.uuid.toKotlinUuid()
-        val characteristic = descriptor.characteristic
+        val characteristicId = descriptor.characteristic.uuid.toKotlinUuid()
 
         when (descriptorId) {
             BLEConstants.CCC_DESCRIPTOR -> {
@@ -267,9 +268,9 @@ class SyncDeviceConnectionCallback private constructor(
                 _scope.launch {
                     delegate.onEnabledDisabledCCCDescriptor(
                         address = gatt.device.address,
-                        characteristicId = characteristic.uuid.toKotlinUuid(),
+                        characteristicId = characteristicId,
                         bytes = value,
-                        onWriteBytes = { bytes -> gatt.writeToCharacteristics(characteristic, bytes) },
+                        onWriteBytes = { bytes -> gatt.writeToCharacteristics(descriptor.characteristic, bytes) },
                         onToggleNotification = { uuid, enable ->
                             val notificationCharacteristic = gatt.getService(serviceId.toJavaUuid())
                                 .getCharacteristic(uuid.toJavaUuid()) ?: return@launch
@@ -303,9 +304,17 @@ class SyncDeviceConnectionCallback private constructor(
         when (descriptorId) {
             BLEConstants.CCC_DESCRIPTOR -> {
                 Logger.d(tag = TAG) { "WRITE CCC DESCRIPTOR ENABLE/DISABLE SUCCEED ON CHARACTERISTICS:${characteristic.uuid}" }
-                // write was successful good now to know what is being written and
-                // manage then we read the characteristics
-                gatt.readDescriptor(descriptor)
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    _onError?.invoke(WrongLifecycleRoutineException())
+                    return
+                }
+                _scope.launch {
+                    // write was successful good now to know what is being written and
+                    // manage then we read the characteristics
+                    val bool = gatt.readDescriptor(descriptor)
+                    Logger.d(tag = TAG) { "READING DESCRIPTOR VALUE STATUS:$bool" }
+                }
             }
 
             else -> {
