@@ -47,7 +47,7 @@ kotlin {
 
         currentOs.isMacOsX -> macosArm64 {
             compilations.getByName("main").cinterops.create(cInterOpName) {
-                definitionFile.set(project.file("src/nativeInterop/cinterop/macos_bt_common.def"))
+                definitionFile.set(project.file("src/nativeInterop/cinterop/macosx_bt_common.def"))
                 packageName = "com.sam.bt_common.platform.osx"
             }
         }
@@ -75,6 +75,11 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+        }
+
+        // platform specific
+        if (currentOs.isMacOsX) macosArm64Main.dependencies {
+            implementation(libs.kotlin.logging)
         }
     }
 
