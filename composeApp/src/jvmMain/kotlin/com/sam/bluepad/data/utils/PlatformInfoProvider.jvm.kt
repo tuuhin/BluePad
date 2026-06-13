@@ -8,7 +8,8 @@ actual class PlatformInfoProvider {
 		get() {
 			val os = System.getProperty("os.name").lowercase()
 			return when {
-				os.contains("windows") -> DevicePlatformOS.WINDOWS
+				os.contains("win") -> DevicePlatformOS.WINDOWS
+                os.contains("mac")-> DevicePlatformOS.MACOS
 				else -> throw UnsupportedOperationException("Unsupported operating system: $os")
 			}
 		}

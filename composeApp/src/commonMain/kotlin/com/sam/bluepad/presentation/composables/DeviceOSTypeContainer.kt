@@ -19,6 +19,7 @@ import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.ic_os_android
 import com.sam.bluepad.resources.ic_os_unknown
 import com.sam.bluepad.resources.ic_os_windows
+import com.sam.bluepad.resources.ic_os_mac
 import com.sam.bluepad.resources.scan_results_save_device_warning
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -38,7 +39,7 @@ fun DeviceOSTypeContainer(
 				shape = when (deviceOs) {
 					DevicePlatformOS.ANDROID -> MaterialShapes.Cookie4Sided.toShape()
 					DevicePlatformOS.WINDOWS -> MaterialShapes.Square.toShape()
-					DevicePlatformOS.UNKNOWN -> MaterialShapes.Arch.toShape()
+					else -> MaterialShapes.Arch.toShape()
 				},
 			),
 		contentAlignment = Alignment.Center,
@@ -47,6 +48,7 @@ fun DeviceOSTypeContainer(
 			painter = when (deviceOs) {
 				DevicePlatformOS.ANDROID -> painterResource(Res.drawable.ic_os_android)
 				DevicePlatformOS.WINDOWS -> painterResource(Res.drawable.ic_os_windows)
+                DevicePlatformOS.MACOS -> painterResource(Res.drawable.ic_os_mac)
 				DevicePlatformOS.UNKNOWN -> painterResource(Res.drawable.ic_os_unknown)
 			},
 			contentDescription = stringResource(Res.string.scan_results_save_device_warning),
