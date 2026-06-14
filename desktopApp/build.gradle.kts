@@ -67,10 +67,10 @@ nucleus.application {
 
     nativeDistributions {
         // no osx or linux target for now
-        targetFormats(TargetFormat.Msi, TargetFormat.AppX)
+        targetFormats(TargetFormat.Msi, TargetFormat.AppX, TargetFormat.Dmg)
         appName = "BluePad"
         packageName = "BluePad"
-        packageVersion = "0.1.0"
+        packageVersion = "1.0.0"
         description =
             "BluePad is a offline-first sketch and idea synchronization app. It allows users to securely sync text-based " +
                 "sketches between their own nearby devices without relying on the internet, cloud services, or user accounts, but using only bluetooth"
@@ -92,6 +92,50 @@ nucleus.application {
             console = false
             perUserInstall = true
             dirChooser = true
+        }
+
+        macOS {
+            bundleID = "com.sam.bluepad.app"
+            dockName = "Bluepad"
+            appCategory = "public.app-category.productivity"
+
+            minimumSystemVersion = "12.0"
+            macOsSdkVersion = "26.0"
+
+            installationPath = "/Applications"
+
+            layeredIconDir.set(appResourcesRootDir.dir("macos/icons/BluePad.icon"))
+            iconFile.set(appResourcesRootDir.file("macos/icons/BluePad.icns"))
+
+//            entitlementsFile.set(appResourcesRootDir.file("macos/entitlements.plist"))
+//            runtimeEntitlementsFile.set(appResourcesRootDir.file("macos/runtime-entitlements.plist"))
+
+            infoPlist {
+                extraKeysRawXml = """
+                <key>CFBundleDisplayName</key>
+                <string>BluePad</string>
+                <key>NSBluetoothAlwaysUsageDescription</key>
+                <string>BluePad uses Bluetooth to discover and sync notes between your devices.</string>
+                <key>NSBluetoothPeripheralUsageDescription</key>
+                <string>BluePad uses Bluetooth to communicate with nearby devices.</string>
+            """.trimIndent()
+            }
+
+            dmg {
+                title = "$packageName $version"
+                badgeIcon.set(appResourcesRootDir.file("macos/icons/BluePad.icns"))
+                backgroundColor = "#90CBFF"
+
+                iconSize = 128
+                iconTextSize = 12
+
+                window {
+                    x = 400
+                    y = 100
+                    width = 640
+                    height = 420
+                }
+            }
         }
     }
 }
