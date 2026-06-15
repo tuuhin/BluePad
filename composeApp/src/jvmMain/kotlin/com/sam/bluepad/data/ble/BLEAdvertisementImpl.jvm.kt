@@ -56,7 +56,7 @@ actual class BLEAdvertisementImpl(
 
     override suspend fun startAdvertising(type: BLEConnectionType): Result<Unit> {
 
-        if (!PlatformBTInfoProvider.isBTActive)
+        if (!PlatformBTInfoProvider.isBTActive())
             return Result.failure(BluetoothNotEnabledException())
 
         if (!PlatformBTInfoProvider.isLEConnectionAvailable)

@@ -65,7 +65,7 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
     override suspend fun startScan(timeout: Duration): Result<Unit> {
 
         return withContext(Dispatchers.IO) {
-            if (!PlatformBTInfoProvider.isBTActive)
+            if (!PlatformBTInfoProvider.isBTActive())
                 return@withContext Result.failure(BluetoothNotEnabledException())
 
             if (!PlatformBTInfoProvider.isLEConnectionAvailable)

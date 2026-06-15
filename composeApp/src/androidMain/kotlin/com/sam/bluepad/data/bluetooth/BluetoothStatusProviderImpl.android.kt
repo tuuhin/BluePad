@@ -19,13 +19,12 @@ actual class BluetoothStateProviderImpl(private val context: Context) : Bluetoot
 
     private val _btManager by lazy { context.getSystemService<BluetoothManager>() }
 
-    override val isBtActive: Boolean
-        get() = _btManager?.adapter?.isEnabled == true
+    override suspend fun isBtActive(): Boolean = _btManager?.adapter?.isEnabled == true
 
     override val bluetoothStatusFlow: Flow<Boolean>
         get() = callbackFlow {
 
-            trySend(isBtActive)
+            trySend(isBtActive())
 
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
