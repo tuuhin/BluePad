@@ -1,6 +1,7 @@
 #ifndef BT_COMMON_C_API_H
 #define BT_COMMON_C_API_H
 
+#include "bluetooth_enums.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -22,6 +23,10 @@ extern "C" {
 BT_COMMON_API bool ble_is_bluetooth_active();
 BT_COMMON_API bool ble_is_secure_connection_available();
 BT_COMMON_API bool ble_is_peripheral_role_supported();
+
+// functions to check the pairing capabilities
+BT_COMMON_API enum bluetooth_bond_state is_device_bonded(const char* device_address);
+BT_COMMON_API enum bluetooth_bond_response request_bond(const char* device_address, uint32_t timeout_in_millis);
 
 // Instance-based caller
 typedef void* BluetoothCallerPtr;

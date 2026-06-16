@@ -48,4 +48,14 @@ void bluetooth_caller_unregister_listener(BluetoothCallerPtr caller) {
 
     delete bt_caller;
 }
+
+BT_COMMON_API bluetooth_bond_state is_device_bonded(const char* device_address) {
+
+    const auto state = bluetooth_caller::is_device_bonded(device_address).get();
+    return static_cast<bluetooth_bond_state>(state);
+}
+BT_COMMON_API bluetooth_bond_response request_bond(const char* device_address, const uint32_t timeout_in_millis) {
+    const auto response = bluetooth_caller::request_device_bond(device_address, timeout_in_millis).get();
+    return static_cast<bluetooth_bond_response>(response);
+}
 }

@@ -1,4 +1,5 @@
 #include "bluetooth_caller.h"
+#include "bluetooth_enums.h"
 #include <iostream>
 #include <mutex>
 #include <winrt/Windows.Devices.Bluetooth.Advertisement.h>
@@ -30,29 +31,40 @@ IAsyncOperation<bool> bluetooth_caller::is_peripheral_role_supported() {
     co_return adapter.IsPeripheralRoleSupported();
 }
 
-IAsyncOperation<bool> bluetooth_caller::is_device_paired(const std::string& device_address) {
-    const auto bt_address = static_cast<unsigned int>(std::stoul(device_address));
-    const auto device     = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bt_address);
+IAsyncOperation<int8_t> bluetooth_caller::is_device_bonded(const std::string& device_address) {
+    init_apartment();
 
-    if (device == nullptr) {
-        WIN_LOG(L"UNABLE TO READ DEVICE FROM THE GIVEN DEVICE ID " << to_hstring(device_address));
-        co_return false;
+    try {
+        const auto bt_address = static_cast<unsigned int>(std::stoul(device_address));
+        const auto device     = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bt_address);
+
+        if (device == nullptr) {
+            WIN_LOG(L"UNABLE TO READ DEVICE FROM THE GIVEN DEVICE ID " << to_hstring(device_address));
+            co_return ERROR_INVALID_DEVICE;
+        }
+
+        const auto device_info = co_await DeviceInformation::CreateFromIdAsync(device.DeviceId());
+        const auto pairState   = device_info.Pairing();
+        co_return pairState.IsPaired() ? DEVICE_BONDED : DEVICE_NOT_BONDED;
+    } catch (const hresult_error& ex) {
+        // Catch specific WinRT/COM exceptions (provides HRESULT and Message)
+        WIN_LOG(L"WINRT EXCEPTION WHILE CHECKING BOND STATE HRESULT:" << ex.code().value << L"MESSAGE: "
+                                                                      << ex.message().c_str());
+    } catch (...) {
+        WIN_LOG(L"UNKNOWN EXCEPTION OCCURRED");
     }
-
-    const auto device_info = co_await DeviceInformation::CreateFromIdAsync(device.DeviceId());
-    const auto pairState   = device_info.Pairing();
-    co_return pairState.IsPaired();
+    co_return ERROR_UNKNOWN;
 }
 
-IAsyncOperation<bool> bluetooth_caller::try_pairing_device(const std::string& device_address,
-                                                           const std::function<void(bool)>& callback) {
+IAsyncOperation<int> bluetooth_caller::request_device_bond(const std::string& device_address,
+                                                           uint32_t timeout_in_millis) {
 
     const auto bt_address = static_cast<unsigned int>(std::stoul(device_address));
     const auto device     = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bt_address);
 
     if (device == nullptr) {
         WIN_LOG(L"UNABLE TO READ DEVICE FROM THE GIVEN DEVICE ID " << to_hstring(device_address));
-        co_return false;
+        co_return - 1;
     }
 
     const auto device_info = co_await DeviceInformation::CreateFromIdAsync(device.DeviceId());
@@ -60,17 +72,41 @@ IAsyncOperation<bool> bluetooth_caller::try_pairing_device(const std::string& de
 
     if (pair_state.IsPaired()) {
         WIN_LOG(L"DEVICE WITH ADDRESS" << to_hstring(device_address) << "IS ALREADY PAIRED");
-        co_return false;
+        co_return - 1;
     }
 
     if (!pair_state.CanPair()) {
         WIN_LOG(L"DEVICE WITH ADDRESS" << to_hstring(device_address) << "CANNOT BE PAIRED");
-        co_return false;
+        co_return - 1;
     }
+    const auto co_operation = pair_state.PairAsync(DevicePairingProtectionLevel::Encryption);
 
-    const auto result = co_await pair_state.PairAsync();
+    auto timeout = [timeout_in_millis, co_operation]() -> fire_and_forget {
+        // wait for the operation to be completed otherwise cancel it
+        co_await resume_after(std::chrono::milliseconds(timeout_in_millis));
+        if (co_operation.Status() == AsyncStatus::Completed) {
+            WIN_LOG(L"PAIRING TIMEOUT WAITED FOR " << timeout_in_millis << "MILLISECONDS");
+            co_operation.Cancel();
+        }
+    };
 
-    co_return pair_state.IsPaired();
+    try {
+        // ensures the cancellation called it made
+        timeout();
+        // now call the operation
+        const auto result = co_await co_operation;
+        const auto status = static_cast<int32_t>(result.Status());
+        WIN_LOG(L"PAIRING STATUS_CODE: " << status);
+        co_return status;
+    } catch (const hresult_error& ex) {
+        // Catch specific WinRT/COM exceptions (provides HRESULT and Message)
+        WIN_LOG(L"WINRT EXCEPTION WHILE CHECKING BOND STATE HRESULT:" << ex.code().value << L"MESSAGE: "
+                                                                      << ex.message().c_str());
+        co_return RESPONSE_ERROR_OPERATION_CANCELLED;
+    } catch (...) {
+        WIN_LOG(L"UNKNOWN EXCEPTION OCCURRED");
+    }
+    co_return RESPONSE_ERROR_UNKNOWN;
 }
 
 IAsyncOperation<bool> bluetooth_caller::is_bluetooth_active() {
