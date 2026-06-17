@@ -19,6 +19,21 @@ using namespace Windows::Devices::Enumeration;
 
 #define WIN_LOG(msg) wclog << "[NATIVE-WINDOWS] " << msg << endl;
 
+uint64_t parse_mac_address(const std::string& mac_str) {
+    unsigned int bytes[6];
+
+    // Parse the hex pairs separated by colons
+    const int scanned = sscanf_s(mac_str.c_str(), "%x:%x:%x:%x:%x:%x", &bytes[0], &bytes[1], &bytes[2], &bytes[3],
+                                 &bytes[4], &bytes[5]);
+
+    if (scanned != 6) throw std::invalid_argument("Invalid MAC address format");
+    uint64_t result = 0;
+    for (const unsigned int byte : bytes) {
+        result = (result << 8) | (byte & 0xFF);
+    }
+    return result;
+}
+
 IAsyncOperation<bool> bluetooth_caller::is_ble_secure_connection_available() {
     init_apartment();
     const auto adapter = co_await BluetoothAdapter::GetDefaultAsync();
@@ -35,7 +50,7 @@ IAsyncOperation<int8_t> bluetooth_caller::is_device_bonded(const std::string& de
     init_apartment();
 
     try {
-        const auto bt_address = static_cast<unsigned int>(std::stoul(device_address));
+        const auto bt_address = static_cast<unsigned int>(parse_mac_address(device_address));
         const auto device     = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bt_address);
 
         if (device == nullptr) {
@@ -48,8 +63,11 @@ IAsyncOperation<int8_t> bluetooth_caller::is_device_bonded(const std::string& de
         co_return pairState.IsPaired() ? DEVICE_BONDED : DEVICE_NOT_BONDED;
     } catch (const hresult_error& ex) {
         // Catch specific WinRT/COM exceptions (provides HRESULT and Message)
-        WIN_LOG(L"WINRT EXCEPTION WHILE CHECKING BOND STATE HRESULT:" << ex.code().value << L"MESSAGE: "
-                                                                      << ex.message().c_str());
+        WIN_LOG(L"WINRT EXCEPTION WHILE CHECKING BOND STATE CODE:" << ex.code().value << L"MESSAGE: "
+                                                                   << ex.message().c_str());
+    } catch (const std::exception& ex) {
+        // Catch standard library exceptions
+        WIN_LOG(L"CPP EXCEPTION " << ex.what());
     } catch (...) {
         WIN_LOG(L"UNKNOWN EXCEPTION OCCURRED");
     }
@@ -59,7 +77,7 @@ IAsyncOperation<int8_t> bluetooth_caller::is_device_bonded(const std::string& de
 IAsyncOperation<int> bluetooth_caller::request_device_bond(const std::string& device_address,
                                                            uint32_t timeout_in_millis) {
 
-    const auto bt_address = static_cast<unsigned int>(std::stoul(device_address));
+    const auto bt_address = static_cast<unsigned int>(parse_mac_address(device_address));
     const auto device     = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bt_address);
 
     if (device == nullptr) {
@@ -83,7 +101,7 @@ IAsyncOperation<int> bluetooth_caller::request_device_bond(const std::string& de
 
     auto timeout = [timeout_in_millis, co_operation]() -> fire_and_forget {
         // wait for the operation to be completed otherwise cancel it
-        co_await resume_after(std::chrono::milliseconds(timeout_in_millis));
+        co_await resume_after((std::chrono::milliseconds(timeout_in_millis)));
         if (co_operation.Status() == AsyncStatus::Completed) {
             WIN_LOG(L"PAIRING TIMEOUT WAITED FOR " << timeout_in_millis << "MILLISECONDS");
             co_operation.Cancel();

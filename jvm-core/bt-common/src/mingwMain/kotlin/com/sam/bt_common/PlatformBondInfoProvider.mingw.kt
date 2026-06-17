@@ -5,6 +5,8 @@ import com.sam.bt_common.platform.mingw.request_bond
 
 actual class PlatformBondInfoProvider : BTBondInfoProvider {
 
+    actual override val canReadBondInfo: Boolean = true
+
     actual override fun checkDeviceBondState(address: String): Int =
         is_device_bonded(address)
 
