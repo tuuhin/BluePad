@@ -47,18 +47,19 @@ IAsyncOperation<bool> bluetooth_caller::is_peripheral_role_supported() {
 }
 
 IAsyncOperation<int8_t> bluetooth_caller::is_device_bonded(const std::string& device_address) {
-    init_apartment();
 
     try {
-        const auto bt_address = static_cast<unsigned int>(parse_mac_address(device_address));
-        const auto device     = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bt_address);
+        const uint64_t bt_address   = parse_mac_address(device_address);
+        constexpr auto address_type = BluetoothAddressType::Random;
+        // read the device from random mac address
+        const auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bt_address, address_type);
 
         if (device == nullptr) {
             WIN_LOG(L"UNABLE TO READ DEVICE FROM THE GIVEN DEVICE ID " << to_hstring(device_address));
             co_return ERROR_INVALID_DEVICE;
         }
 
-        const auto device_info = co_await DeviceInformation::CreateFromIdAsync(device.DeviceId());
+        const auto device_info = device.DeviceInformation();
         const auto pairState   = device_info.Pairing();
         co_return pairState.IsPaired() ? DEVICE_BONDED : DEVICE_NOT_BONDED;
     } catch (const hresult_error& ex) {
@@ -77,15 +78,18 @@ IAsyncOperation<int8_t> bluetooth_caller::is_device_bonded(const std::string& de
 IAsyncOperation<int> bluetooth_caller::request_device_bond(const std::string& device_address,
                                                            uint32_t timeout_in_millis) {
 
-    const auto bt_address = static_cast<unsigned int>(parse_mac_address(device_address));
-    const auto device     = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bt_address);
+    const uint64_t bt_address   = parse_mac_address(device_address);
+    constexpr auto address_type = BluetoothAddressType::Random;
+
+    // read the device from random mac address
+    const auto device = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bt_address, address_type);
 
     if (device == nullptr) {
         WIN_LOG(L"UNABLE TO READ DEVICE FROM THE GIVEN DEVICE ID " << to_hstring(device_address));
         co_return - 1;
     }
 
-    const auto device_info = co_await DeviceInformation::CreateFromIdAsync(device.DeviceId());
+    const auto device_info = device.DeviceInformation();
     const auto pair_state  = device_info.Pairing();
 
     if (pair_state.IsPaired()) {
@@ -97,12 +101,17 @@ IAsyncOperation<int> bluetooth_caller::request_device_bond(const std::string& de
         WIN_LOG(L"DEVICE WITH ADDRESS" << to_hstring(device_address) << "CANNOT BE PAIRED");
         co_return - 1;
     }
-    const auto co_operation = pair_state.PairAsync(DevicePairingProtectionLevel::Encryption);
+
+    const auto co_operation = pair_state.PairAsync(DevicePairingProtectionLevel::None);
+
+    WIN_LOG(L"DEVICE WITH ADDRESS" << to_hstring(device_address)
+                                   << "CAN PAIR REQUESTING PAIR WITH PROTECTION LEVEL NONE");
 
     auto timeout = [timeout_in_millis, co_operation]() -> fire_and_forget {
         // wait for the operation to be completed otherwise cancel it
-        co_await resume_after((std::chrono::milliseconds(timeout_in_millis)));
-        if (co_operation.Status() == AsyncStatus::Completed) {
+        const auto timeout_millis = std::chrono::milliseconds(timeout_in_millis);
+        co_await resume_after(timeout_millis);
+        if (co_operation.Status() != AsyncStatus::Completed) {
             WIN_LOG(L"PAIRING TIMEOUT WAITED FOR " << timeout_in_millis << "MILLISECONDS");
             co_operation.Cancel();
         }

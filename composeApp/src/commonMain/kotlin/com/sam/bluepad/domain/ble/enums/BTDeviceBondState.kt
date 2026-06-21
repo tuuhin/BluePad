@@ -4,5 +4,4 @@ enum class BTDeviceBondState {
     BONDED,
     BONDING,
     NOT_BONDED,
-    UNKNOWN,
 }

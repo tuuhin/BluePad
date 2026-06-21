@@ -1,9 +1,9 @@
 package com.sam.bt_common.models
 
-enum class BTBondResult(val code: Int) {
-    PAIRED(0),
+enum class BTJVMBondResult(val code: Int) {
+    BONDED(0),
     NOT_READY_TO_PAIR(1),
-    NOT_PAIRED(2),
+    NOT_BONDED(2),
     ALREADY_PAIRED(3),
     CONNECTION_REJECTED(4),
     TOO_MANY_CONNECTION(5),
@@ -26,6 +26,6 @@ enum class BTBondResult(val code: Int) {
 
     companion object {
         fun fromInt(status: Int) =
-            BTBondResult.entries.find { it.code == status } ?: ERROR_UNKNOWN
+            BTJVMBondResult.entries.find { it.code == status } ?: ERROR_UNKNOWN
     }
 }

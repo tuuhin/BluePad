@@ -1,6 +1,6 @@
 package com.sam.bt_common.models
 
-enum class BTBondState(val code: Int) {
+enum class BTJVMBondState(val code: Int) {
     DEVICE_BONDED(1),
     DEVICE_NOT_BONDED(2),
     ERROR_INVALID_DEVICE(3),
@@ -8,7 +8,7 @@ enum class BTBondState(val code: Int) {
     ERROR_UNKNOWN(5);
 
     companion object {
-        fun fromStatus(status: Int): BTBondState =
-            BTBondState.entries.find { it.code == status } ?: ERROR_UNKNOWN
+        fun fromStatus(status: Int): BTJVMBondState =
+            BTJVMBondState.entries.find { it.code == status } ?: ERROR_UNKNOWN
     }
 }

@@ -2,7 +2,7 @@ package com.sam.bt_common
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
-import com.sam.bt_common.models.BTBondState
+import com.sam.bt_common.models.BTJVMBondState
 import com.sam.bt_common.platform.PlatformBondInfoProvider
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -15,7 +15,7 @@ class PlatformBTBondInfoTest {
         PlatformBondInfoProvider().use { provider ->
             if (!provider.canReadBondInfo) return@use
             val status = provider.readBondStateAsync(randomMacAddress)
-            assertThat(status).isEqualTo(BTBondState.ERROR_INVALID_DEVICE)
+            assertThat(status).isEqualTo(BTJVMBondState.ERROR_INVALID_DEVICE)
         }
     }
 
@@ -25,7 +25,7 @@ class PlatformBTBondInfoTest {
         PlatformBondInfoProvider().use { provider ->
             if (!provider.canReadBondInfo) return@use
             val status = provider.readBondStateAsync(randomMacAddress)
-            assertThat(status).isEqualTo(BTBondState.ERROR_UNKNOWN)
+            assertThat(status).isEqualTo(BTJVMBondState.ERROR_UNKNOWN)
         }
     }
 
