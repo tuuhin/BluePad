@@ -7,15 +7,14 @@
 extern "C" {
 #endif
 
-enum bluetooth_bond_state : int32_t {
-    DEVICE_BONDED            = 1,
-    DEVICE_NOT_BONDED        = 2,
-    ERROR_INVALID_DEVICE     = 3,
-    ERROR_DEVICE_CANNOT_PAIR = 4,
-    ERROR_UNKNOWN            = 5,
+enum bt_bond_state : int32_t {
+    DEVICE_BONDED        = 1,
+    DEVICE_NOT_BONDED    = 2,
+    ERROR_INVALID_DEVICE = 3,
+    ERROR_UNKNOWN        = 4,
 };
 
-enum bluetooth_bond_response : int32_t {
+enum bt_bond_response : int32_t {
     RESPONSE_PAIRED                      = 0,
     RESPONSE_NOT_READY_TO_PAIR           = 1,
     RESPONSE_NOT_PAIRED                  = 2,
@@ -39,6 +38,11 @@ enum bluetooth_bond_response : int32_t {
 
     RESPONSE_ERROR_UNKNOWN             = 100,
     RESPONSE_ERROR_OPERATION_CANCELLED = 101,
+};
+
+enum bt_bond_request_error_code : int32_t {
+    ERROR_DEVICE_ALREADY_BONDED   = 1,
+    ERROR_DEVICE_CANNOT_BE_BONDED = 2,
 };
 
 #ifdef __cplusplus

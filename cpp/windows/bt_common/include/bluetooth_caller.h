@@ -10,7 +10,6 @@
 using namespace winrt::Windows::Foundation;
 using namespace winrt::Windows::Devices::Radios;
 
-
 class bluetooth_caller {
     std::mutex m_mutex;
     Radio m_selected_bt_radio{nullptr};
@@ -25,9 +24,6 @@ public:
 
     IAsyncAction register_bt_listener(const std::function<void(bool)>& callback);
     void unregister_bt_listener();
-
-    static IAsyncOperation<int8_t> is_device_bonded(const std::string& device_address);
-    static IAsyncOperation<int32_t> request_device_bond(const std::string& device_address,uint32_t timeout_in_millis);
 };
 
 #endif
