@@ -13,8 +13,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.utils.PlatformDispatcherProvider
-import com.sam.bluepad.domain.ble.enums.BTDeviceBondState
 import com.sam.bluepad.domain.bluetooth.BTDeviceBondManager
+import com.sam.bluepad.domain.bluetooth.enums.BTDeviceBondState
+import com.sam.bluepad.domain.bluetooth.models.BTDeviceBondInfo
 import com.sam.bluepad.domain.exceptions.BluetoothInvalidAddressException
 import com.sam.bluepad.domain.exceptions.BluetoothInvalidBondRequest
 import com.sam.bluepad.domain.exceptions.BluetoothInvalidDeviceException
@@ -35,6 +36,7 @@ actual class BTDeviceBondManagerImpl(
     private val _btManager by lazy { context.getSystemService<BluetoothManager>() }
 
     override val isFeatureAvailable: Boolean = true
+    override val canShowConfirmPinDialog: Boolean = false
 
     override suspend fun checkBondState(address: String): Result<BTDeviceBondState> {
         return runCatching {
@@ -48,7 +50,7 @@ actual class BTDeviceBondManagerImpl(
         }
     }
 
-    override fun requestBond(address: String): Flow<BTDeviceBondState> {
+    override fun requestBond(address: String): Flow<BTDeviceBondInfo> {
         return channelFlow {
             // create and register a receiver and wait for values
             val receiver = object : BroadcastReceiver() {
@@ -67,7 +69,7 @@ actual class BTDeviceBondManagerImpl(
                     else intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
 
                     Logger.d(tag = TAG) { " DEVICE :${device?.address} BOND STATE CHANGED :$current" }
-                    trySend(current.toBondState())
+                    trySend(BTDeviceBondInfo.BondState(current.toBondState()))
 
                     // successfully bonded the device can close the flow now
                     if (prev == BluetoothDevice.BOND_BONDING && current == BluetoothDevice.BOND_BONDED) close()
@@ -94,7 +96,7 @@ actual class BTDeviceBondManagerImpl(
             when (device.bondState) {
                 BluetoothDevice.BOND_NONE -> {
                     // emit the first one for current state
-                    send(device.bondState.toBondState())
+                    send(BTDeviceBondInfo.BondState(device.bondState.toBondState()))
                     Logger.d(tag = TAG) { "REQUESTING CREATE BOND FOR DEVICE:${device.address}" }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN)
                         device.createBond(BluetoothDevice.TRANSPORT_LE)

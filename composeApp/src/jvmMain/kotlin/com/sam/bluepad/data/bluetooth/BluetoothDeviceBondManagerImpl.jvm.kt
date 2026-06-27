@@ -2,18 +2,20 @@ package com.sam.bluepad.data.bluetooth
 
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.utils.PlatformDispatcherProvider
-import com.sam.bluepad.domain.ble.enums.BTDeviceBondState
 import com.sam.bluepad.domain.bluetooth.BTDeviceBondManager
+import com.sam.bluepad.domain.bluetooth.enums.BTDeviceBondState
+import com.sam.bluepad.domain.bluetooth.models.BTDeviceBondInfo
 import com.sam.bluepad.domain.exceptions.BluetoothInvalidAddressException
 import com.sam.bluepad.domain.exceptions.BluetoothInvalidBondRequest
 import com.sam.bluepad.domain.exceptions.BluetoothInvalidDeviceException
-import com.sam.bt_common.createBondAsync
 import com.sam.bt_common.models.BTJVMBondResult
 import com.sam.bt_common.models.BTJVMBondState
+import com.sam.bt_common.models.BTJVMCreateBondError
 import com.sam.bt_common.platform.PlatformBondInfoProvider
 import com.sam.bt_common.readBondStateAsync
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 
 private const val TAG = "BLUETOOTH_DEVICE_BOND_MANAGER"
@@ -25,10 +27,14 @@ actual class BTDeviceBondManagerImpl(
     override val isFeatureAvailable: Boolean
         get() = PlatformBondInfoProvider().use { it.canReadBondInfo }
 
+    override val canShowConfirmPinDialog: Boolean
+        get() = PlatformBondInfoProvider().use { it.canShowConfirmPinDialog }
+
     override suspend fun checkBondState(address: String): Result<BTDeviceBondState> {
         return runCatching {
             val jvmResult = PlatformBondInfoProvider()
-                .use { it.readBondStateAsync(address) }
+                .use { provider -> provider.readBondStateAsync(address) }
+
             Logger.d(tag = TAG) { "BLUETOOTH BOND STATE FOR DEVICE (ADDRESS: $address) $jvmResult" }
             when (jvmResult) {
                 BTJVMBondState.DEVICE_BONDED -> BTDeviceBondState.BONDED
@@ -40,31 +46,53 @@ actual class BTDeviceBondManagerImpl(
         }
     }
 
-    override  fun requestBond(address: String): Flow<BTDeviceBondState> = flow {
-        // try to get the flow if any error throws the error cancelling the flow
-        val currentState = checkBondState(address)
-            .getOrThrow()
+    override fun requestBond(address: String): Flow<BTDeviceBondInfo> {
+        return callbackFlow {
 
-        Logger.d(tag = TAG) { "BLUETOOTH CURRENT BOND STATE STATE FOR DEVICE :$address $currentState" }
-        emit(currentState)
+            val bondManager = PlatformBondInfoProvider()
 
-        // only continue the flow if the device is not  bonded
-        if (currentState != BTDeviceBondState.NOT_BONDED) throw BluetoothInvalidBondRequest(address)
+            // try to get the flow if any error throws the error cancelling the flow
+            val currentState = checkBondState(address)
+                .getOrThrow()
 
-        Logger.d(tag = TAG) { "BLUETOOTH CURRENT BOND STATE STATE FOR DEVICE :$address $currentState" }
-        // this will suspend and bond result
-        val bondResult = PlatformBondInfoProvider()
-            .use { provider -> provider.createBondAsync(address) }
-        // should be non bonded
-        Logger.d(tag = TAG) { "BLUETOOTH BOND RESULT FOUND:$bondResult" }
+            Logger.d(tag = TAG) { "BLUETOOTH CURRENT BOND STATE STATE FOR DEVICE :$address $currentState" }
+            send(BTDeviceBondInfo.BondState(currentState))
 
-        when (bondResult) {
-            BTJVMBondResult.BONDED -> emit(BTDeviceBondState.BONDED)
-            BTJVMBondResult.ALREADY_PAIRED -> throw BluetoothInvalidBondRequest(address)
-            // custom exception based on the bond result
-            else -> throw BTBondException(bondResult.toGeneralErrorMessage ?: "")
-        }
-    }.flowOn(platformDispatcherProvider.io)
+            // only continue the flow if the device is not  bonded
+            if (currentState != BTDeviceBondState.NOT_BONDED) throw BluetoothInvalidBondRequest(address)
+
+            Logger.d(tag = TAG) { "BLUETOOTH BOND MANAGER REGISTERING" }
+            bondManager.registerForBondConfirmPin(
+                address = address,
+                onConfirmPin = { pin ->
+                    Logger.d(tag = TAG) { "RECEIVED CONFIRMATION PIN :$pin" }
+                    trySend(BTDeviceBondInfo.ConfirmPin(pin))
+                },
+                onResponse = { code ->
+                    val response = BTJVMBondResult.fromInt(code)
+                    Logger.d(tag = TAG) { "RECEIVED FINAL RESPONSE :$response" }
+                    when (response) {
+                        BTJVMBondResult.BONDED -> trySend(BTDeviceBondInfo.BondState(BTDeviceBondState.BONDED))
+                        BTJVMBondResult.ALREADY_PAIRED -> throw BluetoothInvalidBondRequest(address)
+                        // custom exception based on the bond result
+                        else -> throw BTBondException(response.toGeneralErrorMessage ?: "")
+                    }
+
+                },
+                onError = { code ->
+                    Logger.e(tag = TAG) { "UNABLE TO PERFORM BOND ERROR CODE:$code" }
+                    val code = BTJVMCreateBondError.fromInt(code)
+                    close(IllegalStateException(" UNABLE TO BOND TO THE DEVICE :$code"))
+                },
+            )
+
+            awaitClose {
+                Logger.d(tag = TAG) { "BLUETOOTH BOND MANAGER UNREGISTERED" }
+                bondManager.unregisterForBondConfirmPin()
+            }
+
+        }.flowOn(platformDispatcherProvider.io)
+    }
 
 
     private class BTBondException(override val message: String) : Exception(message)

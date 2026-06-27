@@ -1,4 +1,4 @@
-package com.sam.bluepad.domain.ble.enums
+package com.sam.bluepad.domain.bluetooth.enums
 
 enum class BTDeviceBondState {
     BONDED,
