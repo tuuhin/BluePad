@@ -7,7 +7,7 @@ interface KNativeBLEAdvertiser {
 
     fun getStatusInt(): Int
 
-    fun start(config: GATTAdvertiseConfig)
+    suspend fun start(config: GATTAdvertiseConfig)
 
     fun stop()
 

@@ -107,8 +107,8 @@ nucleus.application {
             layeredIconDir.set(appResourcesRootDir.dir("macos/icons/BluePad.icon"))
             iconFile.set(appResourcesRootDir.file("macos/icons/BluePad.icns"))
 
-//            entitlementsFile.set(appResourcesRootDir.file("macos/entitlements.plist"))
-//            runtimeEntitlementsFile.set(appResourcesRootDir.file("macos/runtime-entitlements.plist"))
+            entitlementsFile.set(appResourcesRootDir.file("macos/entitlements.plist"))
+            runtimeEntitlementsFile.set(appResourcesRootDir.file("macos/runtime-entitlements.plist"))
 
             infoPlist {
                 extraKeysRawXml = """
