@@ -4,7 +4,6 @@ import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Logger
 import co.touchlab.kermit.LoggerConfig
 import co.touchlab.kermit.NSLogWriter
-import co.touchlab.kermit.NoTagFormatter
 import co.touchlab.kermit.Severity
 import com.sam.ble_advertise.models.BLECharacteristicsModel
 import com.sam.ble_advertise.models.GATTAdvertiseConfig
@@ -13,7 +12,6 @@ import platform.CoreBluetooth.*
 import platform.darwin.NSObject
 import platform.darwin.dispatch_get_main_queue
 import platform.Foundation.NSError
-import platform.darwin.NSUInteger
 import kotlin.properties.Delegates
 
 
@@ -23,7 +21,7 @@ private object MacOsLogWriter : LoggerConfig {
         get() = Severity.Info
 
     override val logWriterList: List<LogWriter>
-        get() = listOf(NSLogWriter(NoTagFormatter))
+        get() = listOf(NSLogWriter())
 
 }
 
@@ -31,13 +29,13 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
 
     private val _logger = Logger(MacOsLogWriter, "NATIVE_MACOS_BLE_ADVERTISE")
 
-    // manages a list of service
-    private val services = mutableListOf<CBMutableService>()
+    private var _advertisementData: Map<Any?, Any?>? = null
 
-    private var currentService: CBMutableService? = null
+    // only allow a single service for now
+    private var _currentService: CBMutableService? = null
 
     // managers characteristics associated with a service
-    private val characteristicsMap = mutableMapOf<String, CBMutableCharacteristic>()
+    private val _serviceCharacteristics = mutableListOf<CBMutableCharacteristic>()
 
     // list of subscribed clients
     private val subscribedCentrals = mutableMapOf<String, Set<CBCentral>>()
@@ -47,7 +45,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
     }
 
     // callbacks
-    private var _callback: BLEMacosAdvertiserCallback? = null
+    private var _callback: BLEAdvertiserCallback = BLEAdvertiserCallbackDefaults.empty()
 
     private val delegate = object : NSObject(), CBPeripheralManagerDelegateProtocol {
 
@@ -56,53 +54,55 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
             when (peripheral.state) {
                 CBPeripheralManagerStatePoweredOff -> {
                     _advertisementStatus = 1
-                    _callback?.onServiceStatusChanged(_advertisementStatus)
+                    _callback.onServiceStatusChanged(_advertisementStatus)
                 }
 
                 CBPeripheralManagerStatePoweredOn -> {
-                    // add the services
-                    val lastService = services.removeLastOrNull() ?: return
-                    _logger.d { "ADDING SERVICE UUID: ${lastService.UUID}" }
-                    peripheral.addService(lastService)
+                    _advertisementStatus = 1
+
+                    val service = _currentService ?: return
+                    _logger.d { "ADDING SERVICE WITH ID :${service.UUID.UUIDString}" }
+                    peripheral.removeAllServices()
+                    peripheral.addService(service)
                 }
 
                 else -> {}
             }
         }
 
-        override fun peripheralManager(
-            peripheral: CBPeripheralManager,
-            didAddService: CBService,
-            error: NSError?
-        ) {
+        override fun peripheralManager(peripheral: CBPeripheralManager, didAddService: CBService, error: NSError?) {
+
             val serviceUuid = didAddService.UUID.UUIDString
+            val errorCode = error?.code?.toInt() ?: 0
+
             if (error != null) {
-                _logger.e { "ATTACH SERVICE FAILED MESSAGE:${error.description}" }
-                _callback?.onServiceAdded(serviceUuid, false, error.code.toInt())
+                _logger.e { "FAILED TO ADD SERVICE MESSAGE:${error.description}" }
+                _callback.onServiceAdded(serviceUuid, false, errorCode)
                 return
             }
 
-            val errorCode = error?.code?.toInt() ?: 0
+            // as we have a single service we don't need to loop around the others
             _logger.d { "SERVICE ADDED: UUID:$serviceUuid SUCCESSFULLY" }
-            _callback?.onServiceAdded(serviceUuid, true, errorCode)
+            _callback.onServiceAdded(serviceUuid, true, errorCode)
 
-            // Again loop over to add the next one
-            services.removeLastOrNull()?.let(peripheral::addService)
+            val advertisement = _advertisementData?: run {
+                _logger.w { "NO ADVERTISEMENT DATA PENDING" }
+                return
+            }
+
+            _logger.i { "STARTING ADVERTISEMENTS NOW" }
+            peripheral.startAdvertising(advertisement)
         }
 
-
-        override fun peripheralManagerDidStartAdvertising(
-            peripheral: CBPeripheralManager,
-            error: NSError?
-        ) {
+        override fun peripheralManagerDidStartAdvertising(peripheral: CBPeripheralManager, error: NSError?) {
             if (error == null) {
                 _logger.d { "ADVERTISEMENT STARTED" }
                 _advertisementStatus = 2
             } else {
-                _logger.e { "FAILED TO START ADVERTISEMENTS REASON: ${error.localizedDescription}" }
+                _logger.e { "FAILED TO START ADVERTISEMENTS REASON: ${error.localizedDescription} CODE:${error.code.toInt()}" }
                 _advertisementStatus = 3
             }
-            _callback?.onServiceStatusChanged(_advertisementStatus)
+            _callback.onServiceStatusChanged(_advertisementStatus)
         }
 
         override fun peripheralManager(peripheral: CBPeripheralManager, didReceiveReadRequest: CBATTRequest) {
@@ -112,8 +112,8 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
 
             _logger.d { "INCOMING READ REQUEST FOR CHARACTERISTICS: $charUuid SERVICE :$serviceUuid DEVICE:$deviceAddress" }
 
-            val response = _callback?.onReadCharacteristics(deviceAddress, serviceUuid, charUuid, 0)
-            if (response != null) {
+            val response = _callback.onReadCharacteristics(deviceAddress, serviceUuid, charUuid, 0)
+            if (response != "") {
                 val bytes = response.encodeToByteArray()
                 val data = bytes.toNSData()
                 didReceiveReadRequest.value = data
@@ -137,7 +137,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
 
                 _logger.d { "INCOMING WRITE REQUEST FOR CHARACTERISTICS: $charUuid SERVICE :$serviceUuid DEVICE:$deviceAddress" }
 
-                val status = _callback?.onWriteCharacteristics(deviceAddress, serviceUuid, charUuid, value, true) ?: 0
+                val status = _callback.onWriteCharacteristics(deviceAddress, serviceUuid, charUuid, value, true)
                 if (status == 0) {
                     _logger.d { "WRITE REQUEST FOR CHARACTERISTICS: $charUuid SERVICE :$serviceUuid RESPONDING SUCCESS" }
                     peripheral.respondToRequest(req, CBATTErrorSuccess)
@@ -179,31 +179,48 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
     actual override fun getStatusInt(): Int = _advertisementStatus
 
     actual override suspend fun start(config: GATTAdvertiseConfig) {
-        val adData: Map<Any?, Any?> = mutableMapOf<Any?, Any?>().apply {
-            // add service data uuid keys
-            put(CBAdvertisementDataServiceUUIDsKey, services.map { it.UUID })
-            if (config.serviceData.isNotEmpty()) {
-                // add config data
+        val service = _currentService ?: run {
+            _logger.e { "NO SERVICE HAS BEEN ADDED INCLUDE SERVICES TO CONTINUE" }
+            return
+        }
+
+        val advertisement = buildMap<Any?, Any?> {
+            _logger.d { "EXPOSING ADVERTISEMENT SERVICE UUIDS :${service.UUID}" }
+            put(CBAdvertisementDataServiceUUIDsKey, listOf(service.UUID))
+
+            if (config.serviceData.isNotBlank()) {
+                _logger.d { "EXPOSING ADVERTISEMENT SERVICE DATA :${config.serviceData}" }
                 put(CBAdvertisementDataLocalNameKey, config.serviceData)
             }
         }
-        _logger.i { "STARTING ADVERTISEMENTS" }
-        _manager.startAdvertising(adData)
+
+        _advertisementData = advertisement
+
+        if (_manager.state == CBPeripheralManagerStatePoweredOn) {
+            _logger.d { "PERIPHERAL IS ALREADY POWERED ON CAN INCLUDE SERVICE" }
+            _manager.removeAllServices()
+            _manager.addService(service)
+        } else {
+            _logger.d { "WAITING FOR CORRECT PERIPHERAL STATE CURRENT:${_manager.bluetoothStateAsString()}" }
+        }
     }
 
     actual override fun stop() {
         _logger.i { "STOPING ADVERTISEMENTS" }
         _manager.stopAdvertising()
         _manager.removeAllServices()
+
+        // clear advertisement info
+        _advertisementData =null
         _advertisementStatus = 1
-        _callback?.onServiceStatusChanged(_advertisementStatus)
+
+        _callback.onServiceStatusChanged(_advertisementStatus)
     }
 
     actual override fun addService(serviceUuid: String) {
         _logger.d { "ADDING SERVICE UUID:$serviceUuid" }
         val cbService = CBMutableService(type = CBUUID.UUIDWithString(serviceUuid), primary = true)
-        services.add(cbService)
-        currentService = cbService
+        _currentService = cbService
     }
 
     actual override fun addCharacteristic(characteristic: BLECharacteristicsModel) {
@@ -214,16 +231,16 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
             permissions = characteristic.toCBPermissions,
         )
 
-        characteristicsMap[characteristic.characteristicUuid] = cbCharacteristic
+        _serviceCharacteristics.add(cbCharacteristic)
 
-        val service = currentService ?: run {
+        val service = _currentService ?: run {
             _logger.w { "UNABLE TO SET CHARACTERISTICS NO SERVICES BEING SET" }
             return
         }
 
         _logger.d { "ADDING CHARACTERISTICS UUID:${characteristic.characteristicUuid}" }
         val existing = service.characteristics?.filterIsInstance<CBCharacteristic>() ?: emptyList()
-        service.setCharacteristics(existing + cbCharacteristic)
+        service.setCharacteristics((existing + cbCharacteristic).distinctBy { it.UUID })
 
         val updatedList = service.characteristics()?.filterIsInstance<CBCharacteristic>() ?: emptyList()
         _logger.d { "NEW SET OF CHARACTERISTICS :${updatedList.joinToString(",") { it.UUID.toString() }}" }
@@ -235,10 +252,11 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
             value = null,
         )
 
-        val characteristic = characteristicsMap.getOrElse(characteristicUuid) { null } ?: run {
-            _logger.w { "UNABLE TO SET DESCRIPTOR , MAKE SURE CREATE CHARACTERISTICS FIRST" }
-            return
-        }
+        val characteristic = _serviceCharacteristics.find { it.UUID.UUIDString == characteristicUuid }
+            ?: run {
+                _logger.w { "UNABLE TO SET DESCRIPTOR , MAKE SURE CREATE CHARACTERISTICS FIRST" }
+                return
+            }
         _logger.d { "ADDING DESCRIPTOR UUID :$descriptorUuid" }
         val existing = characteristic.descriptors?.filterIsInstance<CBDescriptor>() ?: emptyList()
         characteristic.setDescriptors(existing + cbDescriptor)
@@ -248,7 +266,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
     }
 
     actual override fun sendNotification(deviceAddress: String, characteristicUuid: String, value: ByteArray): Boolean {
-        val characteristic = characteristicsMap[characteristicUuid] ?: return false
+        val characteristic = _serviceCharacteristics.find { it.UUID.UUIDString == characteristicUuid } ?: return false
         val data = value.toNSData()
 
         val centrals = subscribedCentrals.getOrElse(characteristicUuid) { emptySet() }
@@ -272,69 +290,22 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
         onWriteDescriptor: (deviceAddress: String, serviceUuid: String, characteristicUuid: String, descriptorUuid: String, value: ByteArray, respond: Boolean) -> Int,
         onIndicationResult: (deviceAddress: String, characteristicUuid: String, success: Boolean, status: Int, errorCode: Int) -> Unit
     ) {
-        _callback = object : BLEMacosAdvertiserCallback {
-            override fun onServiceAdded(serviceUuid: String, success: Boolean, errorCode: Int) {
-                onServiceAdded(serviceUuid, success, errorCode)
-            }
-
-            override fun onServiceStatusChanged(status: Int) {
-                onServiceStatusChanged(status)
-            }
-
-            override fun onReadCharacteristics(
-                deviceAddress: String,
-                serviceUuid: String,
-                characteristicUuid: String,
-                status: Int
-            ): String = onReadCharacteristics(deviceAddress, serviceUuid, characteristicUuid, status)
-
-            override fun onWriteCharacteristics(
-                deviceAddress: String,
-                serviceUuid: String,
-                characteristicUuid: String,
-                value: ByteArray,
-                respond: Boolean
-            ): Int = onWriteCharacteristics(deviceAddress, serviceUuid, characteristicUuid, value, respond)
-
-            override fun onReadDescriptor(
-                deviceAddress: String,
-                serviceUuid: String,
-                characteristicUuid: String,
-                descriptorUuid: String,
-                status: Int
-            ): String {
-                TODO("Not yet implemented")
-            }
-
-            override fun onWriteDescriptor(
-                deviceAddress: String,
-                serviceUuid: String,
-                characteristicUuid: String,
-                descriptorUuid: String,
-                value: ByteArray,
-                respond: Boolean
-            ): Int {
-                TODO("Not yet implemented")
-            }
-
-            override fun onIndicationResult(
-                deviceAddress: String,
-                characteristicUuid: String,
-                success: Boolean,
-                status: Int,
-                errorCode: Int
-            ) {
-                TODO("Not yet implemented")
-            }
-
-        }
+        _callback = BLEAdvertiserCallbackDefaults.create(
+            onServiceAdded = onServiceAdded,
+            onServiceStatusChanged = onServiceStatusChanged,
+            onReadCharacteristics = onReadCharacteristics,
+            onWriteCharacteristics = onWriteCharacteristics,
+            onReadDescriptor = onReadDescriptor,
+            onWriteDescriptor = onWriteDescriptor,
+            onIndicationResult = onIndicationResult,
+        )
     }
 
     actual override fun onDestroy() {
         _logger.w { "CLEAN UP CODE CALLED" }
         stop()
-        services.clear()
-        characteristicsMap.clear()
+        _currentService = null
+        _serviceCharacteristics.clear()
         subscribedCentrals.clear()
     }
 }

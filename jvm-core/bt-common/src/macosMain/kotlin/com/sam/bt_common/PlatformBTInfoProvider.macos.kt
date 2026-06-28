@@ -59,13 +59,16 @@ actual class PlatformBTInfoProvider : BTInfoProvider {
         if (currentState != CBManagerStateUnknown && currentState != CBManagerStateResetting) {
             callback(currentState == CBManagerStatePoweredOn)
         }
+        // we dont need the handle instance
         return 0L
     }
 
     actual override fun unregisterCallback(caller: Long) = lock.use {
         _logger.d { "CLEARING CENTRAL MANAGER INSTANCE" }
-        _centralManager = null
-        _centralDelegate = null
+        lock.use {
+            _centralDelegate = null
+            _centralManager = null
+        }
     }
 
     actual override suspend fun isBluetoothActive(): Boolean {
@@ -81,6 +84,7 @@ actual class PlatformBTInfoProvider : BTInfoProvider {
                     if (cont.isActive) {
                         _logger.d { "CENTRAL MANAGER STATE FROM COROUTINE :${central.bluetoothStateAsString()}" }
                         cont.resume(central.state == CBManagerStatePoweredOn)
+                        // cleans the delegate and manager
                         manager = null
                         delegate = null
                     }

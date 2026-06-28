@@ -32,7 +32,7 @@ internal val BLECharacteristicsModel.toCBProperties: NSUInteger
 
 internal val BLECharacteristicsModel.toCBPermissions: NSUInteger
     get() {
-        var permissions: CBAttributePermissions = NSUInteger.MIN_VALUE
+        var permissions: CBAttributePermissions = 0u
         if (canRead) permissions = permissions or CBAttributePermissionsReadable
         if (canWrite) permissions = permissions or CBAttributePermissionsWriteable
         return permissions
