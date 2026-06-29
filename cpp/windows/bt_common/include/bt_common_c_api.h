@@ -38,7 +38,8 @@ BT_COMMON_API void destroy_bond_manager(bt_bond_manager_handle handle);
 BT_COMMON_API void bond_manager_request_pairing(bt_bond_manager_handle handle, const char* device_address,
                                                 bt_bond_pairing_callback callback);
 BT_COMMON_API void bond_manager_unregister_pairing(bt_bond_manager_handle handle);
-BT_COMMON_API void bond_manager_accept_connection(bt_bond_manager_handle handle, bt_bond_responder_handle responder);
+BT_COMMON_API void bond_manager_accept_connection(bt_bond_manager_handle handle, const char* pin,
+                                                  bt_bond_responder_handle responder);
 BT_COMMON_API void bond_manager_reject_connection(bt_bond_manager_handle handle, bt_bond_responder_handle responder);
 #ifdef __cplusplus
 }

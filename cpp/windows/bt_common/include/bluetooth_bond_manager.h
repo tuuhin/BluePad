@@ -18,16 +18,17 @@ using namespace winrt::Windows::Devices::Enumeration;
 
 struct bluetooth_bond_callback_responder {
     DevicePairingRequestedEventArgs event_args;
+    Deferral deferral;
 
-    explicit bluetooth_bond_callback_responder(DevicePairingRequestedEventArgs args) : event_args(std::move(args)) {}
+    bluetooth_bond_callback_responder(DevicePairingRequestedEventArgs args, Deferral def)
+        : event_args(std::move(args)), deferral(std::move(def)) {}
 };
-
 class bluetooth_bond_manager : public std::enable_shared_from_this<bluetooth_bond_manager> {
 
     std::mutex m_mutex;
     winrt::event_token m_pairing_token;
     DeviceInformationCustomPairing m_custom_pairing{nullptr};
-    std::set<bluetooth_bond_callback_responder*> m_responders;
+    std::set<std::shared_ptr<bluetooth_bond_callback_responder>> m_responders;
 
 public:
     static IAsyncOperation<int8_t> get_bond_state(const std::string& device_address);
@@ -37,7 +38,7 @@ public:
 
     void unregister_bond_callback();
 
-    void accept_connection(const bt_bond_responder_handle& callback_responder);
+    void accept_connection(const std::string& pin, const bt_bond_responder_handle& callback_responder);
     void cancel_connection(const bt_bond_responder_handle& callback_responder);
 };
 

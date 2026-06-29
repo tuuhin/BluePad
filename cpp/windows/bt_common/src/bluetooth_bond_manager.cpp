@@ -1,3 +1,4 @@
+#include <memory>
 #include <winrt/Windows.Devices.Bluetooth.h>
 #include <winrt/Windows.Devices.Enumeration.h>
 #include <winrt/Windows.Foundation.h>
@@ -81,10 +82,13 @@ IAsyncAction bluetooth_bond_manager::request_and_register_bond_callback(const st
 
     m_custom_pairing = custom_pairing;
     m_pairing_token  = custom_pairing.PairingRequested(
-        [weak_self = weak_from_this(), callback](DeviceInformationCustomPairing const&,
-                                                 DevicePairingRequestedEventArgs const& args) {
-            auto self = weak_self.lock();
-            if (!self) return;
+        [self_ref = weak_from_this(), callback](DeviceInformationCustomPairing const&,
+                                                DevicePairingRequestedEventArgs const& args) {
+            const auto self = self_ref.lock();
+            if (!self) {
+                WIN_LOG(L"UNABLE TO RESOLVE THE POINTER");
+                return;
+            }
 
             switch (args.PairingKind()) {
             case DevicePairingKinds::ConfirmOnly:
@@ -95,12 +99,17 @@ IAsyncAction bluetooth_bond_manager::request_and_register_bond_callback(const st
             case DevicePairingKinds::ConfirmPinMatch:
                 WIN_LOG(L"CONFIRM MATCH REQUESTED USER APPROVAL REQUIRED");
                 {
+                    auto deferral  = args.GetDeferral();
                     const auto pin = winrt::to_string(args.Pin());
                     std::lock_guard lock(self->m_mutex);
 
-                    auto* context = new bluetooth_bond_callback_responder(args);
+                    // Allocate via shared_ptr to prevent lifecycle crashes if PairAsync returns early
+                    const auto context = std::make_shared<bluetooth_bond_callback_responder>(args, deferral);
                     self->m_responders.insert(context);
-                    callback.on_confirm_pin(pin.c_str(), reinterpret_cast<bt_bond_responder_handle>(context));
+
+                    WIN_LOG(L"REQUESTING USER APPROVAL");
+
+                    callback.on_confirm_pin(pin.c_str(), reinterpret_cast<bt_bond_responder_handle>(context.get()));
                 }
                 break;
 
@@ -111,19 +120,16 @@ IAsyncAction bluetooth_bond_manager::request_and_register_bond_callback(const st
         });
 
     WIN_LOG(L"CALLBACK HAS BEEN SET WAITING FOR RESPONSE");
-
     constexpr auto kinds      = DevicePairingKinds::ConfirmPinMatch;
     const auto pairing_result = co_await custom_pairing.PairAsync(kinds);
+    WIN_LOG(L"PAIRING RESPONSE FOUND!!");
 
-    // we are done can cancel the callback now
     unregister_bond_callback();
 
     {
         std::lock_guard lock(m_mutex);
-
         const auto final_result = static_cast<uint8_t>(pairing_result.Status());
-
-        WIN_LOG(L"FINALLY BOND RESPONDED WITH CODE" << static_cast<uint8_t>(final_result));
+        WIN_LOG(L"PAIRING RESPONDED WITH CODE: " << final_result);
 
         const auto connection_enum = static_cast<bt_bond_response>(final_result);
         callback.on_results(connection_enum);
@@ -131,19 +137,15 @@ IAsyncAction bluetooth_bond_manager::request_and_register_bond_callback(const st
 }
 
 void bluetooth_bond_manager::unregister_bond_callback() {
+    if (m_custom_pairing == nullptr) return;
     try {
-        if (m_custom_pairing) {
-            std::lock_guard lock(m_mutex);
-            WIN_LOG(L"CLEARING THE REQUEST PAIRING TOKEN");
-            m_custom_pairing.PairingRequested(m_pairing_token);
-            m_pairing_token  = {};
-            m_custom_pairing = nullptr;
+        std::lock_guard lock(m_mutex);
+        m_custom_pairing.PairingRequested(m_pairing_token);
+        m_pairing_token  = {};
+        m_custom_pairing = nullptr;
 
-            for (auto* responder : m_responders) {
-                delete responder;
-            }
-            m_responders.clear();
-        }
+        m_responders.clear();
+        WIN_LOG(L"CLEARING THE REQUEST PAIRING TOKEN");
     } catch (const hresult_error& ex) {
         WIN_LOG(L"WINRT EXCEPTION HRESULT:" << ex.code().value << L"MESSAGE: " << ex.message().c_str());
     } catch (...) {
@@ -151,54 +153,79 @@ void bluetooth_bond_manager::unregister_bond_callback() {
     }
 }
 
-void bluetooth_bond_manager::accept_connection(const bt_bond_responder_handle& callback_responder) {
+void bluetooth_bond_manager::accept_connection(const std::string& pin,
+                                               const bt_bond_responder_handle& callback_responder) {
 
-    const auto* callback_response = static_cast<bluetooth_bond_callback_responder*>(callback_responder);
-    if (!callback_response) {
+    auto* const raw_response = static_cast<bluetooth_bond_callback_responder*>(callback_responder);
+    if (!raw_response) {
         WIN_LOG(L"UNABLE TO FORM THE RESPONDER HANDLE");
         return;
     }
 
+    std::shared_ptr<bluetooth_bond_callback_responder> holder;
     {
         std::lock_guard lock(m_mutex);
-        auto it = m_responders.find(const_cast<bluetooth_bond_callback_responder*>(callback_response));
+        const auto it = ranges::find_if(m_responders,
+                                        [raw_response](const std::shared_ptr<bluetooth_bond_callback_responder>& ptr) {
+                                            return ptr.get() == raw_response;
+                                        });
+
         if (it != m_responders.end()) {
+            WIN_LOG(L"REMOVING OBJECT REFERENCES");
+            holder = *it;
             m_responders.erase(it);
         }
     }
 
+    if (holder == nullptr) {
+        WIN_LOG(L"RESPONDER OBJECT ALREADY PROCESSED");
+        return;
+    }
+
     try {
-        WIN_LOG("ACCEPTING THE CONNECTION");
-        callback_response->event_args.Accept();
+        WIN_LOG("ACCEPTING THE CONNECTION WITH PIN");
+        holder->event_args.Accept(to_hstring(pin));
+
+        WIN_LOG("DEFERRAL REQUEST COMPLETED");
+        holder->deferral.Complete();
     } catch (const hresult_error& ex) {
-        // Catch specific WinRT/COM exceptions (provides HRESULT and Message)
         WIN_LOG(L"WINRT EXCEPTION WHILE ACCEPTING CONNECTION:" << ex.code().value << L"MESSAGE: "
                                                                << ex.message().c_str());
     } catch (const std::exception& ex) {
-        // Catch standard library exceptions
         WIN_LOG(L"CPP EXCEPTION " << ex.what());
     } catch (...) {
         utils::show_stacktrace();
     }
-
-    // always delete the response context
-    delete callback_response;
 }
+
 void bluetooth_bond_manager::cancel_connection(const bt_bond_responder_handle& callback_responder) {
-    const auto* callback_response = static_cast<bluetooth_bond_callback_responder*>(callback_responder);
-    if (!callback_response) {
+    auto* const raw_response = static_cast<bluetooth_bond_callback_responder*>(callback_responder);
+    if (!raw_response) {
         WIN_LOG(L"UNABLE TO FORM THE RESPONDER HANDLE");
         return;
     }
 
+    std::shared_ptr<bluetooth_bond_callback_responder> holder;
     {
         std::lock_guard lock(m_mutex);
-        auto it = m_responders.find(const_cast<bluetooth_bond_callback_responder*>(callback_response));
+        const auto it = ranges::find_if(m_responders,
+                                        [raw_response](const std::shared_ptr<bluetooth_bond_callback_responder>& ptr) {
+                                            return ptr.get() == raw_response;
+                                        });
+
         if (it != m_responders.end()) {
+            WIN_LOG(L"REMOVING OBJECT REFERENCES");
+            holder = *it;
             m_responders.erase(it);
         }
     }
 
-    // always delete the response context
-    delete callback_response;
+    if (holder == nullptr) return;
+    try {
+        WIN_LOG("DEFERRAL REQUEST MARKED COMPLETED");
+        // the deferral is closed the os now can terminate the session
+        holder->deferral.Complete();
+    } catch (...) {
+        utils::show_stacktrace();
+    }
 }

@@ -1,8 +1,6 @@
 #include "bt_common_c_api.h"
 #include "bluetooth_bond_manager.h"
 #include "bluetooth_caller.h"
-#include <memory>
-#include <string>
 
 extern "C" {
 bool ble_is_bluetooth_active() {
@@ -44,7 +42,7 @@ BluetoothCallerPtr bluetooth_caller_register_listener(BluetoothStatusCallback ca
     return bt_caller;
 }
 
-void bluetooth_caller_unregister_listener(BluetoothCallerPtr caller) {
+void bluetooth_caller_unregister_listener(const BluetoothCallerPtr caller) {
     auto* bt_caller = static_cast<bluetooth_caller*>(caller);
     if (!bt_caller) return;
     bt_caller->unregister_bt_listener();
@@ -61,11 +59,11 @@ BT_COMMON_API bt_bond_manager_handle create_bond_manager() {
     return new std::shared_ptr(std::make_shared<bluetooth_bond_manager>());
 }
 
-BT_COMMON_API void destroy_bond_manager(bt_bond_manager_handle handle) {
+BT_COMMON_API void destroy_bond_manager(const bt_bond_manager_handle handle) {
     delete static_cast<std::shared_ptr<bluetooth_bond_manager>*>(handle);
 }
 
-BT_COMMON_API void bond_manager_request_pairing(bt_bond_manager_handle handle, const char* device_address,
+BT_COMMON_API void bond_manager_request_pairing(const bt_bond_manager_handle handle, const char* device_address,
                                                 bt_bond_pairing_callback callback) {
     const auto* manager_ptr = static_cast<std::shared_ptr<bluetooth_bond_manager>*>(handle);
     if (!manager_ptr || !*manager_ptr) return;
@@ -80,14 +78,14 @@ BT_COMMON_API void bond_manager_unregister_pairing(const bt_bond_manager_handle 
     (*manager_ptr)->unregister_bond_callback();
 }
 
-BT_COMMON_API void bond_manager_accept_connection(const bt_bond_manager_handle handle,
+BT_COMMON_API void bond_manager_accept_connection(const bt_bond_manager_handle handle, const char* pin,
                                                   const bt_bond_responder_handle responder) {
     const auto* manager_ptr = static_cast<std::shared_ptr<bluetooth_bond_manager>*>(handle);
     if (!manager_ptr || !*manager_ptr) return;
-    (*manager_ptr)->accept_connection(responder);
+    (*manager_ptr)->accept_connection(pin, responder);
 }
 }
-void bond_manager_reject_connection(bt_bond_manager_handle handle, bt_bond_responder_handle responder) {
+void bond_manager_reject_connection(const bt_bond_manager_handle handle, const bt_bond_responder_handle responder) {
     const auto* manager_ptr = static_cast<std::shared_ptr<bluetooth_bond_manager>*>(handle);
     if (!manager_ptr || !*manager_ptr) return;
     (*manager_ptr)->cancel_connection(responder);
