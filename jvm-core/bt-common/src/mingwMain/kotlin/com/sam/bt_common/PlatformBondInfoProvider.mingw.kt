@@ -69,18 +69,23 @@ actual class PlatformBondInfoProvider : BTBondInfoProvider {
             }
 
             val handle = _btManagerHandle.load()
-            bond_manager_request_pairing(handle.toCPointer(), address, callback.readValue())
+            bond_manager_request_pairing(
+                handle = handle.toCPointer(),
+                device_address = address,
+                callback = callback.readValue(),
+            )
         }
     }
 
-    actual override fun acceptConfirmPin() {
+    actual override fun acceptConfirmPin(pin: String) {
         if (_btManagerHandle.load() <= 0L) throw IllegalStateException("Need to register an handle to accept confirmation")
         if (_btBondResponseHandle.load() <= 0L) throw IllegalStateException("No confirm pin response made to accept")
 
         // otherwise call accept connection with pointers
         bond_manager_accept_connection(
-            _btManagerHandle.load().toCPointer(),
-            _btBondResponseHandle.load().toCPointer(),
+            handle = _btManagerHandle.load().toCPointer(),
+            pin = pin,
+            responder = _btBondResponseHandle.load().toCPointer(),
         )
         // if everything goes will handle needs to be reset
         _btBondResponseHandle.store(0L)
@@ -97,14 +102,14 @@ actual class PlatformBondInfoProvider : BTBondInfoProvider {
         if (_btBondResponseHandle.load() > 0L) {
             // if the pointer is still open reject it
             bond_manager_reject_connection(
-                _btManagerHandle.load().toCPointer(),
-                _btBondResponseHandle.load().toCPointer(),
+                handle = _btManagerHandle.load().toCPointer(),
+                responder = _btBondResponseHandle.load().toCPointer(),
             )
             _btBondResponseHandle.store(0L)
         }
 
         // destroy the bond manager
-        destroy_bond_manager(ptr.toCPointer())
+        destroy_bond_manager(handle = ptr.toCPointer())
         _btManagerHandle.store(0L)
 
         // dispose the callback

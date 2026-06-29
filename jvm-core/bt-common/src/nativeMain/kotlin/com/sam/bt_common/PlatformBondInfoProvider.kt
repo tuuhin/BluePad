@@ -14,7 +14,7 @@ expect class PlatformBondInfoProvider : BTBondInfoProvider {
         onError: (Int) -> Unit
     )
 
-    override fun acceptConfirmPin()
+    override fun acceptConfirmPin(pin: String)
 
     override fun unregisterForBondConfirmPin()
 }

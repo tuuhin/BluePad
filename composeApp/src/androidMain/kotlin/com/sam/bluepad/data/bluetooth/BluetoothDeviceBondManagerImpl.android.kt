@@ -118,6 +118,9 @@ actual class BTDeviceBondManagerImpl(
         }.flowOn(platformDispatchers.io)
     }
 
+    override fun acceptBondConfirmationPin(pin: String): Result<Unit> =
+        Result.failure(IllegalStateException("Platform don't support custom pin dialogs"))
+
     private fun Int.toBondState(): BTDeviceBondState {
         return when (this) {
             BluetoothDevice.BOND_BONDING -> BTDeviceBondState.BONDING

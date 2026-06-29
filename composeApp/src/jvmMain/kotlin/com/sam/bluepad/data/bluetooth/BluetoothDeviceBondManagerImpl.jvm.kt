@@ -24,6 +24,8 @@ actual class BTDeviceBondManagerImpl(
     private val platformDispatcherProvider: PlatformDispatcherProvider
 ) : BTDeviceBondManager {
 
+    private var _bondProvider: PlatformBondInfoProvider? = null
+
     override val isFeatureAvailable: Boolean
         get() = PlatformBondInfoProvider().use { it.canReadBondInfo }
 
@@ -50,6 +52,7 @@ actual class BTDeviceBondManagerImpl(
         return callbackFlow {
 
             val bondManager = PlatformBondInfoProvider()
+            _bondProvider = bondManager
 
             // try to get the flow if any error throws the error cancelling the flow
             val currentState = checkBondState(address)
@@ -59,7 +62,8 @@ actual class BTDeviceBondManagerImpl(
             send(BTDeviceBondInfo.BondState(currentState))
 
             // only continue the flow if the device is not  bonded
-            if (currentState != BTDeviceBondState.NOT_BONDED) throw BluetoothInvalidBondRequest(address)
+            if (currentState != BTDeviceBondState.NOT_BONDED)
+                close(BluetoothInvalidBondRequest(address))
 
             Logger.d(tag = TAG) { "BLUETOOTH BOND MANAGER REGISTERING" }
             bondManager.registerForBondConfirmPin(
@@ -73,9 +77,9 @@ actual class BTDeviceBondManagerImpl(
                     Logger.d(tag = TAG) { "RECEIVED FINAL RESPONSE :$response" }
                     when (response) {
                         BTJVMBondResult.BONDED -> trySend(BTDeviceBondInfo.BondState(BTDeviceBondState.BONDED))
-                        BTJVMBondResult.ALREADY_PAIRED -> throw BluetoothInvalidBondRequest(address)
+                        BTJVMBondResult.ALREADY_PAIRED -> close(BluetoothInvalidBondRequest(address))
                         // custom exception based on the bond result
-                        else -> throw BTBondException(response.toGeneralErrorMessage ?: "")
+                        else -> close(BTBondException(response.toGeneralErrorMessage ?: ""))
                     }
 
                 },
@@ -89,9 +93,18 @@ actual class BTDeviceBondManagerImpl(
             awaitClose {
                 Logger.d(tag = TAG) { "BLUETOOTH BOND MANAGER UNREGISTERED" }
                 bondManager.unregisterForBondConfirmPin()
+                _bondProvider = null
             }
 
         }.flowOn(platformDispatcherProvider.io)
+    }
+
+    override fun acceptBondConfirmationPin(pin: String): Result<Unit> {
+        return runCatching {
+            val provider = _bondProvider
+                ?: throw IllegalStateException("Cannot accept pin until a request bond is being made")
+            provider.acceptConfirmPin(pin)
+        }
     }
 
 
