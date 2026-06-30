@@ -7,7 +7,11 @@ plugins {
 }
 
 val currentOs: OperatingSystem = OperatingSystem.current()
-val nativeExportType = "debug"
+val cmakeBuildTypeDebug = providers.gradleProperty("cmake.buildTypeDebug")
+    .map { it.toBoolean() }
+    .get()
+val nativeExportType = if (cmakeBuildTypeDebug) "debug" else "release"
+val generatedPackageName = "com.sam.bt_common.platform"
 
 kotlin {
     jvmToolchain(22)
@@ -17,7 +21,7 @@ kotlin {
         currentOs.isWindows -> mingwX64 {
             compilations.getByName("main").cinterops.create(cInterOpName) {
                 definitionFile.set(project.file("src/nativeInterop/cinterop/windows_bt_common.def"))
-                packageName = "com.sam.bt_common.platform.mingw"
+                packageName = "$generatedPackageName.mingw"
                 includeDirs(rootProject.file("cpp/windows/bt_common/include"))
                 compilerOpts("-Wno-c99-designator")
             }
@@ -48,14 +52,14 @@ kotlin {
         currentOs.isMacOsX -> macosArm64 {
             compilations.getByName("main").cinterops.create(cInterOpName) {
                 definitionFile.set(project.file("src/nativeInterop/cinterop/macos_bt_common.def"))
-                packageName = "com.sam.bt_common.platform.osx"
+                packageName = "$generatedPackageName.osx"
             }
         }
 
         currentOs.isLinux -> linuxX64 {
             compilations.getByName("main").cinterops.create(cInterOpName) {
                 definitionFile.set(project.file("src/nativeInterop/cinterop/linux_bt_common.def"))
-                packageName = "com.sam.bt_common.platform.linux"
+                packageName = "$generatedPackageName.linux"
                 compilerOpts(pkgConfigFlags("--cflags", "libbluetooth-dev"))
             }
             binaries.all {
@@ -72,6 +76,7 @@ kotlin {
         }
         jvmTest.dependencies {
             implementation(libs.assertk)
+            implementation(libs.turbine)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -95,6 +100,8 @@ if (currentOs.isWindows) {
     val cmakeBuildDir = layout.buildDirectory.dir("cmake").get().asFile
     val cmakeProjectDir = rootProject.file("cpp/windows/bt_common")
     val cmakeBuildType = nativeExportType.replaceFirstChar(Char::uppercase)
+
+    logger.log(LogLevel.INFO, "CMAKE BUILD TYPE :$cmakeBuildType")
 
     tasks.register<Exec>("cmakeConfigure") {
         group = "build"

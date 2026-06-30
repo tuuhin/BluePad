@@ -10,7 +10,6 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
     alias(libs.plugins.kdroidfilter.nucleus)
-    alias(libs.plugins.build.konfig)
 }
 
 val operatingSystem: OperatingSystem = OperatingSystem.current()

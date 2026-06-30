@@ -9,7 +9,10 @@ plugins {
 group = "com.sam.ble_advertise"
 
 val currentOs: OperatingSystem = OperatingSystem.current()
-val nativeExportType = "debug"
+val cmakeBuildTypeDebug = providers.gradleProperty("cmake.buildTypeDebug")
+    .map { it.toBoolean() }
+    .get()
+val nativeExportType = if (cmakeBuildTypeDebug) "debug" else "release"
 val generatedClassPackageName = "com.sam.ble_advertise.platform"
 
 kotlin {
