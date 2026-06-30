@@ -69,7 +69,7 @@ actual class BLEConnectionManagerImpl(
         val peripheral = try {
             createAndConnect(address).also { _peripheral = it }
         } catch (e: Exception) {
-            Logger.w(TAG, e) { "CANNOT CREATE THE PERIPHERAL DEVICES" }
+            Logger.w(tag = TAG, throwable = e) { "CANNOT CREATE THE PERIPHERAL DEVICES" }
             trySend(Resource.Error(e))
             close()
             return@callbackFlow
@@ -84,17 +84,17 @@ actual class BLEConnectionManagerImpl(
                         try {
                             protoBuf.decodeFromByteArray<BLEPeerData>(bytes)
                         } catch (e: Exception) {
-                            Logger.e(TAG, e) { "UNABLE TO DECODE BYTES" }
+                            Logger.e(tag = TAG, throwable = e) { "UNABLE TO DECODE BYTES" }
                             null
                         }
                     } ?: return@onReadDiscoveryCharacteristics
 
-                Logger.d(TAG) { "PEER DATA READ :$peerData" }
+                Logger.d(tag = TAG) { "PEER DATA READ :$peerData" }
                 trySend(Resource.Success(peerData))
 
                 if (informReceiver) peri.sendCurrentDeviceInfo(nonce = peerData.nonce)
                 if (disconnectOnDone) {
-                    Logger.d(TAG) { "DISCONNECTING CONNECTION" }
+                    Logger.d(tag = TAG) { "DISCONNECTING CONNECTION" }
                     peri.disconnect()
                 }
             },
@@ -102,9 +102,9 @@ actual class BLEConnectionManagerImpl(
         // clean the peripheral when done
         awaitClose { cleanUp() }
     }.catch { err ->
-        if (err is CancellationException) Logger.d(TAG) { "CANCELLATION EXCEPTION OCCURRED" }
+        if (err is CancellationException) Logger.d(tag = TAG) { "CANCELLATION EXCEPTION OCCURRED" }
         if (err is Exception) {
-            Logger.e(TAG, err) { "SOME EXCEPTION OCCURRED" }
+            Logger.e(tag = TAG, throwable = err) { "SOME EXCEPTION OCCURRED" }
             emit(Resource.Error(err))
         }
     }
@@ -118,7 +118,7 @@ actual class BLEConnectionManagerImpl(
                 is State.Disconnected -> _deviceConnectionState.update { BLEConnectionState.DISCONNECTED }
                 else -> {}
             }
-            Logger.d(TAG) { "PERIPHERAL CONNECTION STATE :$state" }
+            Logger.d(tag = TAG) { "PERIPHERAL CONNECTION STATE :$state" }
         }.launchIn(scope)
     }
 
@@ -133,12 +133,12 @@ actual class BLEConnectionManagerImpl(
                 ?.find { it.serviceUuid == BLEConstants.DEVICE_INFO_SERVICE_ID }
 
             if (services == null) {
-                Logger.w(TAG) { "REQUIRED SERVICE NOT FOUND" }
+                Logger.w(tag = TAG) { "REQUIRED SERVICE NOT FOUND" }
                 onServiceNotFound()
                 return@onEach
             }
 
-            Logger.d(TAG) { "SERVICE FOUND CHARACTERISTICS :${services.characteristics.map { it.characteristicUuid }}" }
+            Logger.d(tag = TAG) { "SERVICE FOUND CHARACTERISTICS :${services.characteristics.map { it.characteristicUuid }}" }
 
             coroutineScope {
                 val deferredResults = services.characteristics.map { characteristic ->
@@ -166,23 +166,23 @@ actual class BLEConnectionManagerImpl(
             deviceId = info.deviceId,
             deviceName = info.name,
             deviceOs = platformInfoProvider.platformOS,
-            nonce = nonce
+            nonce = nonce,
         )
 
         val bytes = try {
             protoBuf.encodeToByteArray<BLEPeerData>(peerData)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Logger.e(TAG, e) { "UNABLE TO SERIALIZE DEVICE INFO" }
+            Logger.e(e, TAG) { "UNABLE TO SERIALIZE DEVICE INFO" }
             return
         }
 
         write(
             characteristic = characteristic,
             data = bytes,
-            writeType = WriteType.WithoutResponse
+            writeType = WriteType.WithoutResponse,
         )
-        Logger.d(TAG) { "SEND WRITE INFO TO ${characteristic.characteristicUuid} LENGTH :${bytes.size}" }
+        Logger.d(tag = TAG) { "SEND WRITE INFO TO ${characteristic.characteristicUuid} LENGTH :${bytes.size}" }
     }
 
     suspend fun createAndConnect(address: String): Peripheral {
@@ -197,20 +197,21 @@ actual class BLEConnectionManagerImpl(
             }
             // exception handler
             observationExceptionHandler { exp ->
-                Logger.e(TAG, exp) { "EXCEPTION HAPPENED" }
+                Logger.e(tag = TAG, throwable = exp) { "EXCEPTION HAPPENED" }
             }
             onServicesDiscovered {
-                Logger.d(TAG) { "SERVICE DISCOVERED SERVICE" }
+                Logger.d(tag = TAG) { "SERVICE DISCOVERED SERVICE" }
             }
         }
         // reading the state of the peripheral
         peripheral.observePeripheralState()
-        Logger.d(TAG) { "PERIPHERAL CONFIGURED" }
+        Logger.d(tag = TAG) { "PERIPHERAL CONFIGURED" }
         try {
             peripheral.connect()
-            Logger.d(TAG) { "PERIPHERAL ESTABLISHED" }
+            Logger.d(tag = TAG) { "PERIPHERAL ESTABLISHED" }
             return peripheral
-        } catch (_: IllegalStateException) {
+        } catch (e: IllegalStateException) {
+            Logger.d(tag = TAG, throwable = e) { "FAILED TO CONNECT TO THE DEVICE" }
             throw BluetoothNotEnabledException()
         } catch (e: NotConnectedException) {
             throw BLEConnectionFailedException(e.message ?: "Connection Failed")
@@ -220,11 +221,11 @@ actual class BLEConnectionManagerImpl(
     override suspend fun disconnect() {
         try {
             _peripheral?.disconnect()
-            Logger.d(TAG) { "PERIPHERAL DISCONNECTED" }
+            Logger.d(tag = TAG) { "PERIPHERAL DISCONNECTED" }
             _deviceConnectionState.update { BLEConnectionState.DISCONNECTED }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Logger.e(TAG, e) { "FAILED TO CLOSE THE CONNECTION" }
+            Logger.e(tag = TAG, throwable = e) { "FAILED TO CLOSE THE CONNECTION" }
         }
     }
 
@@ -233,10 +234,10 @@ actual class BLEConnectionManagerImpl(
             if (_peripheral != null) {
                 _peripheral?.close()
                 _peripheral = null
-                Logger.d(TAG) { "PERIPHERAL CONNECTION CLOSED" }
+                Logger.d(tag = TAG) { "PERIPHERAL CONNECTION CLOSED" }
             }
         } catch (e: Exception) {
-            Logger.e(TAG, e) { "FAILED TO CLOSE THE CONNECTION" }
+            Logger.e(tag = TAG, throwable = e) { "FAILED TO CLOSE THE CONNECTION" }
         }
     }
 }

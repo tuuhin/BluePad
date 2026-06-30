@@ -17,8 +17,9 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 
-private const val TAG = "BLUETOOTH_DEVICE_BOND_MANAGER"
+private const val TAG = "BluetoothBondManager"
 
 actual class BTDeviceBondManagerImpl(
     private val platformDispatcherProvider: PlatformDispatcherProvider
@@ -59,7 +60,6 @@ actual class BTDeviceBondManagerImpl(
                 .getOrThrow()
 
             Logger.d(tag = TAG) { "BLUETOOTH CURRENT BOND STATE STATE FOR DEVICE :$address $currentState" }
-            send(BTDeviceBondInfo.BondState(currentState))
 
             // only continue the flow if the device is not  bonded
             if (currentState != BTDeviceBondState.NOT_BONDED)
@@ -99,11 +99,13 @@ actual class BTDeviceBondManagerImpl(
         }.flowOn(platformDispatcherProvider.io)
     }
 
-    override fun acceptBondConfirmationPin(pin: String): Result<Unit> {
+    override suspend fun acceptBondConfirmationPin(pin: String): Result<Unit> {
         return runCatching {
-            val provider = _bondProvider
-                ?: throw IllegalStateException("Cannot accept pin until a request bond is being made")
-            provider.acceptConfirmPin(pin)
+            withContext(platformDispatcherProvider.io) {
+                val provider = _bondProvider
+                    ?: throw IllegalStateException("Cannot accept pin until a request bond is being made")
+                provider.acceptConfirmPin(pin)
+            }
         }
     }
 

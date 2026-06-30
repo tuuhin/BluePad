@@ -6,10 +6,12 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattConnectionSettings
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.ble.callbacks.DeviceConnectionCallback
@@ -30,6 +32,7 @@ import com.sam.bluepad.domain.utils.Resource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -139,7 +142,7 @@ actual class BLEConnectionManagerImpl(
         awaitClose {
             if (result.isSuccess) {
                 val gatt = result.getOrThrow()
-                gatt.close()
+                gatt?.close()
             }
             callback.cleanUp()
             cleanUp()
@@ -183,7 +186,7 @@ actual class BLEConnectionManagerImpl(
     }
 
     private fun connectAndWaitForExchange(address: String, gattCallback: BluetoothGattCallback)
-        : Result<BluetoothGatt> {
+        : Result<BluetoothGatt?> {
         if (_bluetoothManager?.adapter?.isEnabled != true)
             return Result.failure(BluetoothNotEnabledException())
         if (!context.hasBLEScanPermission)
@@ -196,8 +199,15 @@ actual class BLEConnectionManagerImpl(
             val device = _btAdapter?.getRemoteDevice(address)
                 ?: return Result.failure(BluetoothInvalidDeviceException())
             // connect to the gatt server
-            val gatt = device
-                .connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+            val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
+                val ioDispatcher = Dispatchers.IO
+                    .limitedParallelism(2, "bluetooth_connection_executor")
+                    .asExecutor()
+                device.connectGatt(connectSettings, ioDispatcher, gattCallback)
+            } else {
+                @Suppress("DEPRECATION")
+                device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+            }
             Logger.d(tag = TAG) { "CLIENT GATT CONNECTION STARTED" }
             // return success if there is no error
             Result.success(gatt)
@@ -228,4 +238,12 @@ actual class BLEConnectionManagerImpl(
             Logger.e(tag = TAG, throwable = e) { "GATT CONNECTED FAILED TO CLOSE" }
         }
     }
+
+    private val connectSettings: BluetoothGattConnectionSettings
+        @RequiresApi(Build.VERSION_CODES.CINNAMON_BUN)
+        get() = BluetoothGattConnectionSettings.Builder()
+            .setTransport(BluetoothDevice.TRANSPORT_LE)
+            .setAutoConnectEnabled(false)
+            .setOpportunisticEnabled(false)
+            .build()
 }

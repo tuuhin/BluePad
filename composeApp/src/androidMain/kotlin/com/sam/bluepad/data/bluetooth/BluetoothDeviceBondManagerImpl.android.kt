@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 
-private const val TAG = "BT_DeviceBondManager"
+private const val TAG = "BluetoothBondManager"
 
 @SuppressLint("MissingPermission")
 actual class BTDeviceBondManagerImpl(
@@ -93,23 +93,16 @@ actual class BTDeviceBondManagerImpl(
                 return@channelFlow
             }
 
-            when (device.bondState) {
-                BluetoothDevice.BOND_NONE -> {
-                    // emit the first one for current state
-                    send(BTDeviceBondInfo.BondState(device.bondState.toBondState()))
-                    Logger.d(tag = TAG) { "REQUESTING CREATE BOND FOR DEVICE:${device.address}" }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN)
-                        device.createBond(BluetoothDevice.TRANSPORT_LE)
-                    else device.createBond()
-                    Logger.d(tag = TAG) { "REQUESTED CREATE BOND FOR DEVICE:${device.address}" }
-                }
+            val bondState = device.bondState.toBondState()
+            if (bondState != BTDeviceBondState.NOT_BONDED)
+                close(BluetoothInvalidBondRequest(address))
 
-                BluetoothDevice.BOND_BONDED -> {
-                    Logger.d(tag = TAG) { "DEVICE IS ALREADY BONDED" }
-                    close(BluetoothInvalidBondRequest(device.address))
-                }
-                // not considering for bonding case
-            }
+            // only create bond if the device is not bonded
+            Logger.d(tag = TAG) { "REQUESTING CREATE BOND FOR DEVICE:${device.address}" }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN)
+                device.createBond(BluetoothDevice.TRANSPORT_LE)
+            else device.createBond()
+            Logger.d(tag = TAG) { "REQUESTED CREATE BOND FOR DEVICE:${device.address}" }
 
             awaitClose {
                 Logger.d(tag = TAG) { "UNREGISTERING RECEIVER FOR BOND STATE " }
@@ -118,7 +111,7 @@ actual class BTDeviceBondManagerImpl(
         }.flowOn(platformDispatchers.io)
     }
 
-    override fun acceptBondConfirmationPin(pin: String): Result<Unit> =
+    override suspend fun acceptBondConfirmationPin(pin: String): Result<Unit> =
         Result.failure(IllegalStateException("Platform don't support custom pin dialogs"))
 
     private fun Int.toBondState(): BTDeviceBondState {

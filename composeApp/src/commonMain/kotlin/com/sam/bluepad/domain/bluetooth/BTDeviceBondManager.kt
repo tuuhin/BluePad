@@ -48,5 +48,5 @@ interface BTDeviceBondManager {
      * accepted by the local Bluetooth subsystem.
      * * *Info:* A successful result does not guarantee a successful bond use the [checkBondState] for outcome
      */
-    fun acceptBondConfirmationPin(pin: String): Result<Unit>
+    suspend fun acceptBondConfirmationPin(pin: String): Result<Unit>
 }
