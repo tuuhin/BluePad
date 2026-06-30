@@ -33,4 +33,10 @@ sealed interface RootNavGraph : NavKey {
 
     @Serializable
     data object BlackListedDevicesRoute : RootNavGraph
+
+    @Serializable
+    data class CreateDeviceBondRoute(
+        val identifier: String,
+        val localName: String? = null
+    ) : RootNavGraph
 }
