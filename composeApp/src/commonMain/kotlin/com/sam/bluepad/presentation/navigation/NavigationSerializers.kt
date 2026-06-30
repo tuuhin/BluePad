@@ -8,57 +8,61 @@ import kotlinx.serialization.modules.polymorphic
 
 object NavigationSerializers {
 
-	fun rootNavGraphSerializer() = SerializersModule {
-		polymorphic(NavKey::class) {
-			subclass(
-				RootNavGraph.AddOrUpdateRoute::class,
-				RootNavGraph.AddOrUpdateRoute.serializer()
-			)
-			subclass(
-				RootNavGraph.AssociatedNavGraphRoute::class,
-				RootNavGraph.AssociatedNavGraphRoute.serializer()
-			)
-			subclass(
-				RootNavGraph.AdvertiseDeviceRoute::class,
-				RootNavGraph.AdvertiseDeviceRoute.serializer()
-			)
-			subclass(
-				RootNavGraph.ConnectDeviceRoute::class,
-				RootNavGraph.ConnectDeviceRoute.serializer()
-			)
-			subclass(
-				RootNavGraph.SearchDeviceRoute::class,
-				RootNavGraph.SearchDeviceRoute.serializer()
-			)
-			subclass(
-				RootNavGraph.SyncConnectorRoute::class,
-				RootNavGraph.SyncConnectorRoute.serializer()
-			)
-			subclass(
-				RootNavGraph.ReceiveSyncDeviceRoute::class,
-				RootNavGraph.ReceiveSyncDeviceRoute.serializer()
-			)
-			subclass(
-				RootNavGraph.BlackListedDevicesRoute::class,
-				RootNavGraph.BlackListedDevicesRoute.serializer()
-			)
-		}
-	}
+    fun rootNavGraphSerializer() = SerializersModule {
+        polymorphic(NavKey::class) {
+            subclass(
+                RootNavGraph.AddOrUpdateRoute::class,
+                RootNavGraph.AddOrUpdateRoute.serializer(),
+            )
+            subclass(
+                RootNavGraph.AssociatedNavGraphRoute::class,
+                RootNavGraph.AssociatedNavGraphRoute.serializer(),
+            )
+            subclass(
+                RootNavGraph.AdvertiseDeviceRoute::class,
+                RootNavGraph.AdvertiseDeviceRoute.serializer(),
+            )
+            subclass(
+                RootNavGraph.ConnectDeviceRoute::class,
+                RootNavGraph.ConnectDeviceRoute.serializer(),
+            )
+            subclass(
+                RootNavGraph.SearchDeviceRoute::class,
+                RootNavGraph.SearchDeviceRoute.serializer(),
+            )
+            subclass(
+                RootNavGraph.SyncConnectorRoute::class,
+                RootNavGraph.SyncConnectorRoute.serializer(),
+            )
+            subclass(
+                RootNavGraph.ReceiveSyncDeviceRoute::class,
+                RootNavGraph.ReceiveSyncDeviceRoute.serializer(),
+            )
+            subclass(
+                RootNavGraph.BlackListedDevicesRoute::class,
+                RootNavGraph.BlackListedDevicesRoute.serializer(),
+            )
+            subclass(
+                RootNavGraph.CreateDeviceBondRoute::class,
+                RootNavGraph.CreateDeviceBondRoute.serializer(),
+            )
+        }
+    }
 
-	fun associatedNavGraphSerializer() = SerializersModule {
-		polymorphic(NavKey::class) {
-			subclass(
-				AssociatedNavGraph.ListRoute::class,
-				AssociatedNavGraph.ListRoute.serializer()
-			)
-			subclass(
-				AssociatedNavGraph.SettingsRoute::class,
-				AssociatedNavGraph.SettingsRoute.serializer()
-			)
-			subclass(
-				AssociatedNavGraph.DeviceRoute::class,
-				AssociatedNavGraph.DeviceRoute.serializer()
-			)
-		}
-	}
+    fun associatedNavGraphSerializer() = SerializersModule {
+        polymorphic(NavKey::class) {
+            subclass(
+                AssociatedNavGraph.ListRoute::class,
+                AssociatedNavGraph.ListRoute.serializer(),
+            )
+            subclass(
+                AssociatedNavGraph.SettingsRoute::class,
+                AssociatedNavGraph.SettingsRoute.serializer(),
+            )
+            subclass(
+                AssociatedNavGraph.DeviceRoute::class,
+                AssociatedNavGraph.DeviceRoute.serializer(),
+            )
+        }
+    }
 }

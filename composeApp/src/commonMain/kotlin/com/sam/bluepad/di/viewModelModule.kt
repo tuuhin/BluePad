@@ -3,6 +3,7 @@ package com.sam.bluepad.di
 import com.sam.bluepad.AppCommonViewModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.SketchesRepository
+import com.sam.bluepad.presentation.feature_bond.CreateDeviceBondViewmodel
 import com.sam.bluepad.presentation.feature_devices.viewmodel.BLEAdvertisementViewmodel
 import com.sam.bluepad.presentation.feature_devices.viewmodel.BLEConnectDeviceViewmodel
 import com.sam.bluepad.presentation.feature_devices.viewmodel.BLEScanDevicesViewModel
@@ -20,24 +21,27 @@ import org.koin.dsl.module
 import kotlin.uuid.Uuid
 
 val viewModelModule = module {
-	viewModelOf(::AppCommonViewModel)
-	viewModelOf(::ManageDeviceViewmodel)
-	viewModelOf(::BLEAdvertisementViewmodel)
-	viewModelOf(::BLEScanDevicesViewModel)
-	viewModelOf(::BLEConnectDeviceViewmodel)
-	viewModel { (sketchId: Uuid?) ->
-		AddSketchViewModel(
-			sketchId = sketchId,
-			repository = get<SketchesRepository>(),
-			localDeviceProvider = get<LocalDeviceInfoProvider>()
-		)
-	}
-	viewModelOf(::SketchesViewmodel)
-	viewModelOf(::SettingsViewmodel)
+    viewModelOf(::AppCommonViewModel)
+    viewModelOf(::ManageDeviceViewmodel)
+    viewModelOf(::BLEAdvertisementViewmodel)
+    viewModelOf(::BLEScanDevicesViewModel)
+    viewModelOf(::BLEConnectDeviceViewmodel)
+    viewModel { (sketchId: Uuid?) ->
+        AddSketchViewModel(
+            sketchId = sketchId,
+            repository = get<SketchesRepository>(),
+            localDeviceProvider = get<LocalDeviceInfoProvider>(),
+        )
+    }
+    viewModelOf(::SketchesViewmodel)
+    viewModelOf(::SettingsViewmodel)
 
-	// sync
-	viewModelOf(::SyncConnectorViewModel)
-	viewModelOf(::SyncReceiverViewmodel)
-	viewModelOf(::BlackListedDevicesViewmodel)
+    // sync
+    viewModelOf(::SyncConnectorViewModel)
+    viewModelOf(::SyncReceiverViewmodel)
+    viewModelOf(::BlackListedDevicesViewmodel)
     viewModelOf(::ReviewSyncChangesViewModel)
+
+    // bond
+    viewModelOf(::CreateDeviceBondViewmodel)
 }

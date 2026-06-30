@@ -1,0 +1,31 @@
+package com.sam.bt_common.models
+
+enum class BTJVMBondResult(val code: Int) {
+    BONDED(0),
+    NOT_READY_TO_PAIR(1),
+    NOT_BONDED(2),
+    ALREADY_PAIRED(3),
+    CONNECTION_REJECTED(4),
+    TOO_MANY_CONNECTION(5),
+    HARDWARE_FAILURE(6),
+    AUTHENTICATION_TIMEOUT(7),
+    AUTHENTICATION_NOT_ALLOWED(8),
+    AUTHENTICATION_FAILURE(9),
+    NO_SUPPORTED_PROFILES(10),
+    PROTECTION_LEVEL_ISSUES(11),
+    ACCESS_DENIED(12),
+    INVALID_DATA(13),
+    PARING_OPERATION_CANCELLED(14),
+    OPERATION_IN_PROGRESS(15),
+    HANDLER_NOT_REGISTERED(16),
+    REJECTED_BY_HANDLER(17),
+    REMOVE_DEVICE_IS_ASSOCIATED(18),
+    FAILED(19),
+    ERROR_UNKNOWN(100),
+    ERROR_OPERATION_CANCELLED(101);
+
+    companion object {
+        fun fromInt(status: Int) =
+            BTJVMBondResult.entries.find { it.code == status } ?: ERROR_UNKNOWN
+    }
+}

@@ -3,6 +3,7 @@ package com.sam.bluepad.data.ble
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGattConnectionSettings
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanFilter
@@ -12,6 +13,7 @@ import android.location.LocationManager
 import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.ble.callbacks.SyncDeviceConnectionCallback
@@ -32,6 +34,7 @@ import com.sam.bluepad.domain.utils.Resource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -146,16 +149,21 @@ actual class BLESyncConnectionManagerImpl(
         }
 
         Logger.d(tag = TAG) { "OPENING GATT CONNECTION" }
-        val btGatt = device.connectGatt(
-            context,
-            false,
-            connectionCallback,
-            BluetoothDevice.TRANSPORT_LE,
-        )
+        val btGatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
+            val ioDispatcher = Dispatchers.IO
+                .limitedParallelism(2, "bluetooth_connection_executor")
+                .asExecutor()
+            device.connectGatt(connectSettings, ioDispatcher, connectionCallback)
+        } else {
+            @Suppress("DEPRECATION")
+            device.connectGatt(context, false, connectionCallback, BluetoothDevice.TRANSPORT_LE)
+        }
+
+        if (btGatt == null) close(IllegalStateException("Bluetooth GATT found to be null"))
 
         awaitClose {
             Logger.d(tag = TAG) { "CLOSING GATT CONNECTION" }
-            btGatt.close()
+            btGatt?.close()
             connectionCallback.onClearCallbacks()
         }
     }
@@ -174,4 +182,12 @@ actual class BLESyncConnectionManagerImpl(
             else -> null
         }
     }
+
+    private val connectSettings: BluetoothGattConnectionSettings
+        @RequiresApi(Build.VERSION_CODES.CINNAMON_BUN)
+        get() = BluetoothGattConnectionSettings.Builder()
+            .setTransport(BluetoothDevice.TRANSPORT_LE)
+            .setAutoConnectEnabled(false)
+            .setOpportunisticEnabled(false)
+            .build()
 }
