@@ -71,7 +71,12 @@ nucleus.application {
         }
 
         // application targets
-        targetFormats(TargetFormat.Msi, TargetFormat.Portable, TargetFormat.Nsis)
+        targetFormats(
+            // windows formats
+            TargetFormat.Msi, TargetFormat.Portable, TargetFormat.Nsis,
+            // macOS formats
+            TargetFormat.Dmg,
+        )
 
         // target base config
         appName = commonProperties.getProperty("APP_NAME")
@@ -132,6 +137,50 @@ nucleus.application {
                 square44x44Logo.set(packagingRoot.file("windows/appx/Square44x44Logo.png"))
                 square150x150Logo.set(packagingRoot.file("windows/appx/Square150x150Logo.png"))
                 wide310x150Logo.set(packagingRoot.file("windows/appx/Wide310x150Logo.png"))
+            }
+        }
+
+        macOS {
+            bundleID = commonProperties.getProperty("APP_PACKAGE_NAME")
+            dockName = commonProperties.getProperty("APP_NAME")
+            appCategory = "public.app-category.productivity"
+
+            minimumSystemVersion = "12.0"
+            macOsSdkVersion = "26.0"
+
+            installationPath = "/Applications"
+
+            layeredIconDir.set(packagingRoot.dir("macos/icons/BluePad.icon"))
+            iconFile.set(packagingRoot.file("macos/icons/BluePad.icns"))
+
+            entitlementsFile.set(packagingRoot.file("macos/entitlements.plist"))
+            runtimeEntitlementsFile.set(packagingRoot.file("macos/runtime-entitlements.plist"))
+
+            infoPlist {
+                extraKeysRawXml = """
+                <key>CFBundleDisplayName</key>
+                <string>BluePad</string>
+                <key>NSBluetoothAlwaysUsageDescription</key>
+                <string>BluePad uses Bluetooth to discover and sync notes between your devices.</string>
+                <key>NSBluetoothPeripheralUsageDescription</key>
+                <string>BluePad uses Bluetooth to communicate with nearby devices.</string>
+            """.trimIndent()
+            }
+
+            dmg {
+                title = "$packageName $version"
+                badgeIcon.set(packagingRoot.file("macos/icons/BluePad.icns"))
+                backgroundColor = commonProperties.getProperty("APP_INSTALLER_BACKGROUND")
+
+                iconSize = 128
+                iconTextSize = 12
+
+                window {
+                    x = 400
+                    y = 100
+                    width = 640
+                    height = 420
+                }
             }
         }
     }

@@ -52,7 +52,7 @@ kotlin {
 
         currentOs.isMacOsX -> macosArm64 {
             compilations.getByName("main").cinterops.create(cInterOpName) {
-                definitionFile.set(project.file("src/nativeInterop/cinterop/macos_bt_common.def"))
+                definitionFile.set(project.file("src/nativeInterop/cinterop/macosx_bt_common.def"))
                 packageName = "$generatedPackageName.osx"
             }
         }
