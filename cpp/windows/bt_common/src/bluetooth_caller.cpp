@@ -1,80 +1,45 @@
-#include "bluetooth_caller.h"
-#include <iostream>
+
 #include <mutex>
 #include <winrt/Windows.Devices.Bluetooth.Advertisement.h>
 #include <winrt/Windows.Devices.Bluetooth.GenericAttributeProfile.h>
 #include <winrt/Windows.Devices.Enumeration.h>
 #include <winrt/Windows.Foundation.Collections.h>
 
-using namespace std;
-using namespace winrt;
-using namespace Windows::Devices::Bluetooth::Advertisement;
-using namespace Windows::Devices::Bluetooth::GenericAttributeProfile;
-using namespace Windows::Storage::Streams;
-using namespace Windows::Foundation::Collections;
-using namespace Windows::Devices::Bluetooth;
-using namespace Windows::Devices::Radios;
-using namespace Windows::Devices::Enumeration;
+#include "bluetooth_caller.h"
+#include "utils.h"
 
-#define WIN_LOG(msg) wclog << "[NATIVE-WINDOWS] " << msg << endl;
+using namespace winrt::Windows::Devices::Bluetooth::Advertisement;
+using namespace winrt::Windows::Devices::Bluetooth::GenericAttributeProfile;
+using namespace winrt::Windows::Storage::Streams;
+using namespace winrt::Windows::Foundation::Collections;
+using namespace winrt::Windows::Devices::Bluetooth;
+using namespace winrt::Windows::Devices::Radios;
+using namespace winrt::Windows::Devices::Enumeration;
 
 IAsyncOperation<bool> bluetooth_caller::is_ble_secure_connection_available() {
-    init_apartment();
-    const auto adapter = co_await BluetoothAdapter::GetDefaultAsync();
-    co_return adapter.AreLowEnergySecureConnectionsSupported();
+    winrt::init_apartment();
+    try {
+        const auto adapter = co_await BluetoothAdapter::GetDefaultAsync();
+        co_return adapter.AreLowEnergySecureConnectionsSupported();
+    } catch (...) {
+        utils::show_stacktrace();
+        co_return false;
+    }
 }
 
 IAsyncOperation<bool> bluetooth_caller::is_peripheral_role_supported() {
-    init_apartment();
-    const auto adapter = co_await BluetoothAdapter::GetDefaultAsync();
-    co_return adapter.IsPeripheralRoleSupported();
-}
-
-IAsyncOperation<bool> bluetooth_caller::is_device_paired(const std::string& device_address) {
-    const auto bt_address = static_cast<unsigned int>(std::stoul(device_address));
-    const auto device     = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bt_address);
-
-    if (device == nullptr) {
-        WIN_LOG(L"UNABLE TO READ DEVICE FROM THE GIVEN DEVICE ID " << to_hstring(device_address));
+    winrt::init_apartment();
+    try {
+        const auto adapter = co_await BluetoothAdapter::GetDefaultAsync();
+        co_return adapter.IsPeripheralRoleSupported();
+    } catch (...) {
+        utils::show_stacktrace();
         co_return false;
     }
-
-    const auto device_info = co_await DeviceInformation::CreateFromIdAsync(device.DeviceId());
-    const auto pairState   = device_info.Pairing();
-    co_return pairState.IsPaired();
-}
-
-IAsyncOperation<bool> bluetooth_caller::try_pairing_device(const std::string& device_address,
-                                                           const std::function<void(bool)>& callback) {
-
-    const auto bt_address = static_cast<unsigned int>(std::stoul(device_address));
-    const auto device     = co_await BluetoothLEDevice::FromBluetoothAddressAsync(bt_address);
-
-    if (device == nullptr) {
-        WIN_LOG(L"UNABLE TO READ DEVICE FROM THE GIVEN DEVICE ID " << to_hstring(device_address));
-        co_return false;
-    }
-
-    const auto device_info = co_await DeviceInformation::CreateFromIdAsync(device.DeviceId());
-    const auto pair_state  = device_info.Pairing();
-
-    if (pair_state.IsPaired()) {
-        WIN_LOG(L"DEVICE WITH ADDRESS" << to_hstring(device_address) << "IS ALREADY PAIRED");
-        co_return false;
-    }
-
-    if (!pair_state.CanPair()) {
-        WIN_LOG(L"DEVICE WITH ADDRESS" << to_hstring(device_address) << "CANNOT BE PAIRED");
-        co_return false;
-    }
-
-    const auto result = co_await pair_state.PairAsync();
-
-    co_return pair_state.IsPaired();
 }
 
 IAsyncOperation<bool> bluetooth_caller::is_bluetooth_active() {
-    init_apartment();
+    winrt::init_apartment();
 
     try {
         if (!m_selected_bt_radio) {
@@ -116,7 +81,7 @@ IAsyncOperation<bool> bluetooth_caller::is_bluetooth_active() {
         WIN_LOG(L"READING BLUETOOTH STATE IS_ACTIVE: " << static_cast<unsigned int>(state));
 
         co_return state == RadioState::On;
-    } catch (const hresult_error& ex) {
+    } catch (const winrt::hresult_error& ex) {
         // Catch specific WinRT/COM exceptions (provides HRESULT and Message)
         WIN_LOG(L"WinRT Exception caught in Bluetooth initialization. HRESULT:" << ex.code().value << L"MESSAGE: "
                                                                                 << ex.message().c_str());
@@ -126,6 +91,7 @@ IAsyncOperation<bool> bluetooth_caller::is_bluetooth_active() {
         WIN_LOG(L"Standard exception caught in Bluetooth initialization" << ex.what());
         co_return false;
     } catch (...) {
+        utils::show_stacktrace();
         // Catch-all safety net
         WIN_LOG(L"Unknown critical exception caught during Bluetooth initialization.");
         co_return false;
@@ -133,7 +99,7 @@ IAsyncOperation<bool> bluetooth_caller::is_bluetooth_active() {
 }
 
 IAsyncAction bluetooth_caller::register_bt_listener(const std::function<void(bool)>& callback) {
-    init_apartment();
+    winrt::init_apartment();
     {
         std::lock_guard lock(m_mutex);
 
@@ -150,7 +116,7 @@ IAsyncAction bluetooth_caller::register_bt_listener(const std::function<void(boo
                     m_eventToken = {0};
                 }
                 m_selected_bt_radio = nullptr;
-            } catch (const hresult_error& ex) {
+            } catch (const winrt::hresult_error& ex) {
                 WIN_LOG(L"WinRT Revoke Failed: " << ex.message().c_str());
             }
         }
@@ -184,8 +150,11 @@ IAsyncAction bluetooth_caller::register_bt_listener(const std::function<void(boo
                 }
             });
         }
-    } catch (const hresult_error& ex) {
+    } catch (const winrt::hresult_error& ex) {
         WIN_LOG(L"Register Failed: " << ex.message().c_str());
+    } catch (...) {
+        // Catch-all safety net
+        utils::show_stacktrace();
     }
 }
 
@@ -200,7 +169,7 @@ void bluetooth_caller::unregister_bt_listener() {
                 WIN_LOG("WINRT EVENT REVOKED");
             }
             m_selected_bt_radio = nullptr;
-        } catch (const hresult_error& ex) {
+        } catch (const winrt::hresult_error& ex) {
             WIN_LOG(L"WinRT Revoke Failed: " << ex.message().c_str());
         }
     }

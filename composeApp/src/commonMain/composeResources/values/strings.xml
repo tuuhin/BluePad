@@ -4,6 +4,9 @@
     <string name="navigation_settings">Settings</string>
     <string name="dialog_action_close">Close</string>
     <string name="dialog_action_cancel">Cancel</string>
+    <string name="dialog_action_deny">Deny</string>
+    <string name="dialog_action_request">Request</string>
+    <string name="dialog_action_create_bond">Create Bond</string>
     <string name="dialog_action_connect">Connect</string>
     <string name="dialog_action_disconnect">Disconnect</string>
     <string name="dialog_action_add_device">Add Device</string>
@@ -122,4 +125,7 @@
     <string name="device_device_id">Device id: %1$s</string>
     <string name="action_blacklist_devices_screen">BlackList Devices</string>
     <string name="action_blacklist_device">BlackList</string>
+
+    <string name="create_bond_dialog_title">Request paring :%s</string>
+    <string name="create_bond_dialog_text">Devices are not bonded to each other cannot perform action without being bonded</string>
 </resources>

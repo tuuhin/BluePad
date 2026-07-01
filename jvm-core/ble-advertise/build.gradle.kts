@@ -8,8 +8,11 @@ plugins {
 
 group = "com.sam.ble_advertise"
 
+// env will get precedence over gradle property
+val envNativeBuildType = providers.environmentVariable("NATIVE_BUILD_TYPE_RELEASE")
+val propertiesBuildType = providers.gradleProperty("cmake.buildTypeRelease")
+
 val currentOs: OperatingSystem = OperatingSystem.current()
-val nativeExportType = "debug"
 val generatedClassPackageName = "com.sam.ble_advertise.platform"
 
 kotlin {
@@ -41,6 +44,7 @@ kotlin {
                 val taskName = "copyBleAdvertiseDllTo${name.replaceFirstChar(Char::uppercase)}"
                 val copyDllToLinkDir = tasks.register<Copy>(taskName) {
                     group = "kne"
+                    description = "Copies secondary dll files to shared bin directory"
                     from(dllDebugPath)
                     from(dllReleasePath)
                     include("*.dll")
@@ -96,16 +100,23 @@ kotlin {
 kotlinNativeExport {
     nativeLibName = "blePlatformAdvertise"
     nativePackage = generatedClassPackageName
-    buildType = nativeExportType
+
+    val envTypeIsRelease = envNativeBuildType.getOrElse("false")
+        .toBoolean()
+
+    val isPropertyTypeRelease = propertiesBuildType.getOrElse("false")
+        .toBoolean()
+
+    buildType = if (envTypeIsRelease || isPropertyTypeRelease) "debug" else "release"
 }
 
 if (currentOs.isWindows) {
     val cmakeBuildDir = layout.buildDirectory.dir("cmake").get().asFile
     val cmakeProjectDir = rootProject.file("cpp/windows/advertise")
-    val cmakeBuildType = nativeExportType.replaceFirstChar(Char::uppercase)
 
     tasks.register<Exec>("cmakeConfigure") {
         group = "build"
+        description = "Configure the cmake to run with project dir and build dir"
         doFirst { cmakeBuildDir.mkdirs() }
         workingDir(cmakeBuildDir)
         commandLine(
@@ -126,14 +137,24 @@ if (currentOs.isWindows) {
 
     tasks.register<Exec>("cmakeBuild") {
         group = "build"
+        description = "Perform Cmake build on the configuration"
         dependsOn("cmakeConfigure")
         workingDir(cmakeBuildDir)
         onlyIf { cmakeBuildDir.exists() }
+
+        val envTypeIsRelease = envNativeBuildType.getOrElse("false")
+            .toBoolean()
+
+        val isPropertyTypeRelease = propertiesBuildType.getOrElse("false")
+            .toBoolean()
+
+        val cmakeBuildType = if (envTypeIsRelease || isPropertyTypeRelease) "Release" else "Debug"
         commandLine("cmd", "/c", "cmake.exe", "--build", cmakeBuildDir.absolutePath, "--config", cmakeBuildType)
     }
 
     tasks.register<Exec>("cmakeClean") {
         group = "clean"
+        description = "Cleans the cmake files"
         workingDir(cmakeBuildDir)
         onlyIf { cmakeBuildDir.exists() }
         commandLine("cmd", "/c", "cmake.exe", "--build", cmakeBuildDir.absolutePath, "--target", "clean")

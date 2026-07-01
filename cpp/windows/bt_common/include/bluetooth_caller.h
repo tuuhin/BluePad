@@ -24,10 +24,6 @@ public:
 
     IAsyncAction register_bt_listener(const std::function<void(bool)>& callback);
     void unregister_bt_listener();
-
-    static IAsyncOperation<bool> is_device_paired(const std::string& device_address);
-    static IAsyncOperation<bool> try_pairing_device(const std::string& device_address,
-                                                    const std::function<void(bool)>& callback);
 };
 
 #endif

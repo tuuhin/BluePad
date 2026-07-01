@@ -76,7 +76,7 @@ actual class BLEDiscoveryImpl(private val context: Context) : BLEDiscoveryManage
             if (!hasServiceId) return
 
             val serviceData = scanRecord.getServiceData(parcelUid)
-            Logger.d(tag = TAG) { "SCAN RESULT FOUND ${scanRecord.serviceUuids} $serviceData" }
+            Logger.d(tag = TAG) { "SCAN RESULT FOUND ${scanRecord.serviceUuids} ${serviceData?.toHexString()}" }
 
             // TODO: ONLY CHECKING THE SERVICE DATA FROM ANDROID S ,
             //  IDK ITS NOT WORKING ON LOWER API CHECK THIS LATER

@@ -7,34 +7,22 @@
   <img src="https://img.shields.io/badge/Cloud-Not%20Required-lightgrey" />
 </p>
 
-## 📌 About
+## 📌 About & 💡 Motivation
 
-BluePad is a cross-platform (currently targeting Android and Windows), offline-first sketch and idea
-synchronization app built with Kotlin Multiplatform. It allows users to securely sync text-based
-sketches between their own nearby devices without relying on the internet,
-cloud services, or user accounts.
+BluePad is a cross-platform, offline-first app for sketching and idea-syncing! Built with Kotlin
+Multiplatform, it’s all about keeping your notes secure and synced between your own devices without the fuss.
 
-The core idea is simple: ideas often start on one device and need to move quickly to another.
-BluePad makes this possible through explicit, user-triggered syncing between trusted devices,
-prioritizing predictability, and platform-friendly behavior.
+We know the drill—emailing yourself links, hopping onto messaging apps just to save a thought, or fighting with cloud
+sync permissions. Why not try a cleaner way? There are options like Quick Share and AirDrop which are also used for
+transferring text and blobs, but why not try BluePad? By leveraging Bluetooth Low Energy (BLE), BluePad lets you pass
+sketches between trusted devices locally. No cloud accounts, no internet required, and definitely no third-party
+snooping.
+
+Why not give it a whirl and reclaim your data? With BluePad, you stay in the driver's seat. Sync is strictly a
+user-triggered adventure, so your data stays exactly where you want it, when you want it, and how you want it.
 
 The project focuses on real-world peer-to-peer communication, clean architecture, and realistic
 constraints rather than background magic or always-on syncing.
-
-## 💡 Motivation
-
-Many note and sketch apps rely heavily on cloud accounts, background services, and always-on
-connectivity. While powerful, this approach is not always desirable—especially for quick idea
-transfer, privacy-sensitive data, or offline environments.
-
-BluePad was motivated by the question:
-
-> _How can two personal devices exchange data securely and predictably using only proximity and user
-> intent? No cloud and no internet_
-
-The project draws inspiration from systems like AirDrop and Nearby Share, but deliberately limits
-scope to text-based sketches and explicit sync actions to remain feasible within a short development
-cycle.
 
 ## 📷 Screenshots
 
@@ -52,18 +40,30 @@ cycle.
 <p align="center">
    <img src="./artwork/desktop/list_screen.png" width=32%" />
    <img src="./artwork/desktop/add_device_screen.png" width="32%"/>
-   <img src="./artwork/desktop/devices_screen.png" width="33%"/>  
+   <img src="./artwork/desktop/devices_screen.png" width="33%"/>
 </p>
 
 To check out the working of the app follow this [video](./artwork/video/project_working_video.mp4)
 
 ## 🚀 Getting Started
 
+To build `BluePad` from source follow these instructions
+
 ### Prerequisites
 
-- JDK 17+
-- Android Studio (for Android target)
-- A JVM-compatible desktop environment (Windows OS)
+***Windows (Supported)***
+
+- **JDK:** 22 or higher.
+- **Environment**: Windows 10/11 (BLE hardware support required for device syncing).
+- **C++ Build Tools**: Visual Studio 2022 (Community or higher) with the "Desktop development with C++" workload
+  installed. This is required to compile the underlying C++ Bluetooth modules.
+- **Windows SDK**: Usually bundled with the Visual Studio C++ workload. (Tested on Version 10.0.26100.0)
+- **CMake**: Installed and added to your System PATH (often handled by the IDE or Visual Studio)
+- IDE: IntelliJ IDEA or Android Studio with the Kotlin Multiplatform plugin.
+
+#### macOS and Linux (Not yet supported)
+
+Planning to work on at least one soon, once the core app is complete
 
 ### Clone the Repository
 
@@ -75,80 +75,84 @@ To check out the working of the app follow this [video](./artwork/video/project_
 ### Run on Android
 
 - Open the project in Android Studio
-- Select the Android run configuration
+- Select the `androidApp` configuration
 - Run on a physical device (Bluetooth required)
 
 > Sync features require real devices. Emulators are not suitable for BLE or Bluetooth testing.
 
 ### Run on Desktop (JVM)
 
-- Use the provided desktop run configuration
-- Currently, the device only targets windows
+- Use the provided `desktopRun` configuration
 
 ## 📦 External Libraries Used
 
-- [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html) Used to share business
-  logic, sync state machines, and data models across Android and Desktop targets.
-- [Kotlin Coroutines](https://github.com/Kotlin/kotlinx.coroutines) Used for asynchronous operations
-  such as device discovery, networking, database access, and sync workflows.
-- [Kotlin Serialization](https://github.com/Kotlin/kotlinx.serialization) Used to serialize sketch
-  data and protocol messages for transport across devices
-- [Kotlinx DateTime](https://github.com/Kotlin/kotlinx-datetime) Used for platform-independent
-  timestamps (creation time, last modified time, sync metadata).
-- [Kotlinx Immutable Collections](https://github.com/Kotlin/kotlinx.collections.immutable) Used to
-  model UI and sync state safely and predictably without accidental mutation.
-- [Compose Multiplatform](https://www.jetbrains.com/compose-multiplatform) Used to build a shared
-  declarative UI for Android and Desktop
-- [Compose Adaptive & Navigation 3](https://developer.android.com/jetpack/compose/adaptive)Used to
-  adapt layouts across different window sizes and manage navigation in a multiplatform-friendly way
-- [Material 3 (Compose)](https://m3.material.io) Provides modern Material Design components and
-  theming
-- [Compose Toast](https://github.com/The-Best-Is-Best/ComposeToast) Used for lightweight user
-  feedback during sync events and error states.
-- [Koin](https://insert-koin.io) Used for dependency injection across shared and platform-specific
-  modules, keeping architecture modular and testable.
-- [BuildKonfig](https://github.com/yshrsmz/BuildKonfig) Used to define compile-time configuration
-  values shared across platforms.
-- [Room](https://developer.android.com/training/data-storage/room) Used for local storage of
-  sketches, device metadata, and sync state on Android
+- [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html) Used to share business logic, sync state
+  machines, and data models across Android and Desktop targets.
+- [Kotlin Coroutines](https://github.com/Kotlin/kotlinx.coroutines) Used for asynchronous operations such as device
+  discovery, networking, database access, and sync workflows.
+- [Kotlin Serialization](https://github.com/Kotlin/kotlinx.serialization) Used to serialize sketch data and protocol
+  messages for transport across devices.
+- [Kotlinx DateTime](https://github.com/Kotlin/kotlinx-datetime) Used for platform-independent timestamps (creation
+  time, last modified time, sync metadata).
+- [Kotlinx Immutable Collections](https://github.com/Kotlin/kotlinx.collections.immutable) Used to model UI and sync
+  state safely and predictably without accidental mutation.
+- [Kotlinx IO](https://github.com/Kotlin/kotlinx-io) Used for multiplatform I/O operations and stream handling.
+- [Compose Multiplatform](https://www.jetbrains.com/compose-multiplatform) Used to build a shared declarative UI for
+  Android and Desktop.
+- [Compose Adaptive & Navigation 3](https://developer.android.com/jetpack/compose/adaptive) Used to adapt layouts across
+  different window sizes and manage navigation in a multiplatform-friendly way.
+- [Material 3 (Compose)](https://m3.material.io) Provides modern Material Design components and theming.
+- [Compose Toast](https://github.com/The-Best-Is-Best/ComposeToast) Used for lightweight user feedback during sync
+  events and error states.
+- [Koin](https://insert-koin.io) Used for dependency injection across shared and platform-specific modules.
+- [BuildKonfig](https://github.com/yshrsmz/BuildKonfig) Used to define compile-time configuration values shared across
+  platforms.
+- [Room](https://developer.android.com/training/data-storage/room) Used for local storage of sketches, device metadata,
+  and sync state.
 - [AndroidX DataStore](https://developer.android.com/topic/libraries/architecture/datastore) Used
   for lightweight key-value storage such as user preferences and pairing state.
 - [Kable (BLE)](https://github.com/JuulLabs/kable) Used for Bluetooth Low Energy discovery and
-  proximity-based device detection on jvm
+  proximity-based device detection.
 - [Kotlin Crypto (SHA-2 & Secure Random)](https://github.com/KotlinCrypto) Used for hashing, nonce
-  generation, and session-level cryptographic primitives during sync handshakes
+  generation, and session-level cryptographic primitives.
+- [Cryptography Core](https://github.com/whyoleg/cryptography-kotlin) A multiplatform cryptography library used for
+  secure communication.
 - [Moko Permissions](https://github.com/icerockdev/moko-permissions) Used to manage runtime
-  permissions in a multiplatform-safe way, especially for Bluetooth access
-- [Kermit](https://github.com/touchlab/Kermit) Used for structured, multiplatform logging across
-  shared and platform-specific code
-
-### Platform Utility
-
-We dont have any libraries to check bluetooth advertisement and to read bluetooth state on windows,
-thus a small `jvm-utils` module created which contains some java jni code which is inspired
-from [simpleble](https://github.com/simpleble/simpleble) java examples
+  permissions in a multiplatform-safe way.
+- [Kermit](https://github.com/touchlab/Kermit) Used for structured, multiplatform logging.
+- [Nucleus (KDroidFilter)](https://github.com/kdroidFilter/Nucleus) Used for native access, JNI management, and
+  decorated window support on Desktop.
 
 ## 📚 What I Learned
 
 - Practical limitations of **BLE discovery** across devices and operating systems
-- How the BLE 5.0 stack is differ from the BLE 4.2, (more things on how ble works)
-- How selection of **UDP vs Bluetooth Classic** helps in better syncing (idea)
+- How the BLE 5.0 stack differs from BLE 4.2 (more insights on how BLE works)
+- How selection of Bluetooth Low Energy helps in better syncing (idea)
 - Structuring Kotlin Multiplatform projects with clear platform boundaries
+- Working with native C modules and building APIs out of them
+- Working with `winRT` and how Bluetooth APIs are handled in Windows
+- A mention to [NativeAccess Library](https://github.com/kdroidFilter/NucleusNativeAccess) which helps to
+  create JVM library based on the native code implementation
 
-## 🚧 What Could Not Be Finished
+## 🚧 What's Next?
 
-Due to time constraints and scope limitations, the full end-to-end sync pipeline could not be
-completed. While discovery, architecture, and platform groundwork are in place, reliable
-bidirectional data transfer and conflict resolution remain incomplete.
+The journey doesn't end here! Here’s what’s planned for next:
 
-This was a conscious decision to prioritize architectural clarity and platform experimentation over
-partial or fragile implementations.
+- [ ] **Secure Sync:** Implementing full end-to-end encryption for every sketch transfer.
+- [ ] **Smoothening Experience:** Refining the device registration and pairing flow for a "just works" experience.
+- [ ] **Rethink the User experience:** A major UI/UX polish pass with Material 3 motion and better accessibility.
+- [ ] **Making the sketches more fun:** Adding more sketch (idea) models.
+- [ ] **Modularization:** Finalizing the modularization of the codebase for even better KMP scalability.
 
-## 🏁 Conclusion
+## 🏁 The Conclusion (For Now)
 
-BluePad served as an in-depth exploration of Kotlin Multiplatform architecture and peer-to-peer
-Bluetooth-based communication under real-world constraints. The project emphasizes explicit user
-intent, offline-first design, and realistic system boundaries rather than background automation.
+And that’s the story of BluePad! 🎬
 
-It is submitted as a contest entry and is also intended to be extended into a fully functional
-device-syncing application in the future
+Building this was a wild ride through the world of Bluetooth stacks, JNI bridges, and the "it works on my machine" magic
+of Kotlin Multiplatform. If there’s one thing this project proved, it’s that you don’t need a massive cloud server to
+keep your ideas in sync—just a little bit of BLE and a lot of Kotlin.
+
+Turns out, Bluetooth isn't just for your wireless headphones; it’s a pretty capable (if sometimes grumpy) companion for
+secure, local data syncing. We hope exploring BluePad gives you some inspiration for your own offline-first adventures.
+
+**Your data, your devices, your rules.** 🟦✌

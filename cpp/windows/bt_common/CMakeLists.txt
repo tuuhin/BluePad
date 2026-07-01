@@ -13,8 +13,22 @@ if (MSVC)
     add_compile_options(/EHsc /bigobj /Zc:__cplusplus)
 endif ()
 
+# stack trace to show what
+include(FetchContent)
+FetchContent_Declare(
+        cpptrace
+        GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+        GIT_TAG v1.0.4
+)
+FetchContent_MakeAvailable(cpptrace)
+
 # ---------- DLL instead of STATIC ----------
-add_library(bt_common SHARED src/bluetooth_caller.cpp src/bt_common_c_api.cpp)
+add_library(bt_common SHARED
+        src/bluetooth_caller.cpp
+        src/bt_common_c_api.cpp
+        src/bluetooth_bond_manager.cpp
+        src/utils.cpp
+)
 
 # Triggers __declspec(dllexport) in your header when building the DLL
 target_compile_definitions(bt_common PRIVATE BT_COMMON_EXPORTS)
@@ -24,6 +38,7 @@ target_include_directories(bt_common PUBLIC include)
 target_link_libraries(bt_common
         PUBLIC windowsapp.lib
         PRIVATE runtimeobject.lib
+        PRIVATE $<$<CONFIG:Debug>:cpptrace::cpptrace>
 )
 
 # Control where .dll and .lib are output
