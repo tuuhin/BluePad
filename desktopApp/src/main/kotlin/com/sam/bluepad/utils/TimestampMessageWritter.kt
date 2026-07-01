@@ -1,4 +1,4 @@
-package com.sam.bluepad
+package com.sam.bluepad.utils
 
 import co.touchlab.kermit.Message
 import co.touchlab.kermit.MessageStringFormatter
