@@ -47,6 +47,7 @@ nucleus.application {
         "--enable-native-access=ALL-UNNAMED",
         "--add-opens=java.base/java.nio=ALL-UNNAMED",
         "-Dsun.misc.unsafe.allow=true",
+        $$"-Djava.library.path=$APPDIR/resources/libs",
     )
 
     buildTypes {
@@ -94,7 +95,7 @@ nucleus.application {
         val packagingRoot = project.layout.projectDirectory.dir("packaging")
 
         windows {
-            iconFile.set(appResourcesRootDir.file("windows/icons.ico"))
+            iconFile.set(packagingRoot.file("windows/icons.ico"))
             upgradeUuid = commonProperties.getProperty("WINDOWS_UPGRADE_UUID", null)?.ifEmpty { null }
             console = false
             perUserInstall = true
@@ -109,7 +110,7 @@ nucleus.application {
                 createStartMenuShortcut = true
                 runAfterFinish = true
                 deleteAppDataOnUninstall = false
-                installerIcon.set(appResourcesRootDir.file("windows/icons.ico"))
+                installerIcon.set(packagingRoot.file("windows/icons.ico"))
                 includeScript.set(packagingRoot.file("windows/nsis/packaging_install.nsh"))
             }
 
@@ -150,9 +151,79 @@ compose.resources {
     )
 }
 
+/**
+ * Copies native resources from jvm-core module to desktopAppResources which are later packaged into
+ * the distributable
+ */
+val copyNativeLibraryForPackaging = tasks.register<Copy>("copyNativeLibraryForPackaging") {
+    description = "Copies the native libraries to desktop resources "
 
-tasks.withType<Test>().configureEach { setupNativePathForMingw() }
-tasks.withType<JavaExec>().configureEach { setupNativePathForMingw() }
+    val os = OperatingSystem.current()
+
+    val nativeTargetName = when {
+        os.isWindows -> "mingwX64"
+        os.isMacOsX -> {
+            val arch = System.getProperty("os.arch")
+            if (arch == "aarch64" || arch == "arm64") "macosArm64" else "macosX64"
+        }
+
+        os.isLinux -> "linuxX64"
+        else -> throw GradleException("Invalid target")
+    }
+
+    val binDirs = mutableListOf<String>()
+
+    for (subproject in rootProject.subprojects) {
+        if (!subproject.path.startsWith(":jvm-core")) continue
+        val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>()
+        val target = kotlinExp?.targets?.findByName(nativeTargetName) as? KotlinNativeTarget
+            ?: continue
+
+        target.binaries.forEach { binary ->
+            binDirs.add(binary.outputFile.parentFile.absolutePath)
+        }
+    }
+
+    val ext = when {
+        os.isWindows -> "*.dll"
+        os.isMacOsX -> "*.dylib"
+        os.isLinux -> "*.so"
+        else -> throw GradleException("Invalid target")
+    }
+
+    val path = when {
+        os.isWindows -> "windows"
+        os.isMacOsX -> "macos"
+        os.isLinux -> "linux"
+        else -> throw GradleException("Invalid target")
+    }
+
+    from(binDirs) {
+        include(ext)
+    }
+
+    val targetDir = layout.projectDirectory.dir("desktopResources/$path/libs")
+    into(targetDir)
+}
+
+/**
+ * To keep the project clean we also include a delete functionality to delete the unwanted files when
+ * not neede anymore
+ */
+val deleteNativeLibraryForPackaging = tasks.register<Delete>("deleteNativeLibraryForPackaging") {
+    description = "delete the associated lib copy in desktop resources"
+
+    val os = OperatingSystem.current()
+    val path = when {
+        os.isWindows -> "windows"
+        os.isMacOsX -> "macos"
+        os.isLinux -> "linux"
+        else -> throw GradleException("Invalid target")
+    }
+
+    val targetDir = layout.projectDirectory.dir("desktopResources/$path/libs")
+    delete(targetDir)
+}
 
 /**
  * We need to set the paths for the native library as our library has a transitive dependency on another `.dll`
@@ -183,3 +254,20 @@ private fun Task.setupNativePathForMingw() {
     // update the enviroment path
     if (this is ProcessForkOptions) environment("PATH", newPath)
 }
+
+tasks.matching {
+    it.name == "prepareAppResources" ||
+        it.name.startsWith("package") ||
+        it.name.startsWith("createDistributable")
+}.configureEach {
+    dependsOn(copyNativeLibraryForPackaging)
+}
+
+tasks.named("clean") {
+    mustRunAfter(deleteNativeLibraryForPackaging)
+}
+
+// setup for test and desktop run
+tasks.withType<Test>().configureEach { setupNativePathForMingw() }
+tasks.withType<JavaExec>().configureEach { setupNativePathForMingw() }
+

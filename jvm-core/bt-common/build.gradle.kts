@@ -6,11 +6,11 @@ plugins {
     alias(libs.plugins.nucleus.nna)
 }
 
+// env will get precedence over gradle property
+val envNativeBuildType = providers.environmentVariable("NATIVE_BUILD_TYPE_RELEASE")
+val propertiesBuildType = providers.gradleProperty("cmake.buildTypeRelease")
+
 val currentOs: OperatingSystem = OperatingSystem.current()
-val cmakeBuildTypeDebug = providers.gradleProperty("cmake.buildTypeDebug")
-    .map { it.toBoolean() }
-    .get()
-val nativeExportType = if (cmakeBuildTypeDebug) "debug" else "release"
 val generatedPackageName = "com.sam.bt_common.platform"
 
 kotlin {
@@ -39,6 +39,7 @@ kotlin {
                 val taskName = "copyBtCommonDllTo${name.replaceFirstChar(Char::uppercase)}"
                 val copyDllToLinkDir = tasks.register<Copy>(taskName) {
                     group = "kne"
+                    description = "Copies secondary dll files to shared bin directory"
                     from(dllDebugPath)
                     from(dllReleasePath)
                     include("*.dll")
@@ -93,18 +94,24 @@ kotlin {
 kotlinNativeExport {
     nativeLibName = "btCommonNative"
     nativePackage = "com.sam.bt_common.platform"
-    buildType = nativeExportType
+
+    val envTypeIsRelease = envNativeBuildType.getOrElse("false")
+        .toBoolean()
+
+    val isPropertyTypeRelease = propertiesBuildType.getOrElse("false")
+        .toBoolean()
+
+    buildType = if (envTypeIsRelease || isPropertyTypeRelease) "debug" else "release"
 }
 
 if (currentOs.isWindows) {
     val cmakeBuildDir = layout.buildDirectory.dir("cmake").get().asFile
     val cmakeProjectDir = rootProject.file("cpp/windows/bt_common")
-    val cmakeBuildType = nativeExportType.replaceFirstChar(Char::uppercase)
 
-    logger.log(LogLevel.INFO, "CMAKE BUILD TYPE :$cmakeBuildType")
 
     tasks.register<Exec>("cmakeConfigure") {
         group = "build"
+        description = "Configure the cmake to run with project dir and build dir"
         doFirst { cmakeBuildDir.mkdirs() }
         workingDir(cmakeBuildDir)
         commandLine(
@@ -125,19 +132,30 @@ if (currentOs.isWindows) {
 
     tasks.register<Exec>("cmakeBuild") {
         group = "build"
+        description = "Perform Cmake build on the configuration"
         dependsOn("cmakeConfigure")
         workingDir(cmakeBuildDir)
         onlyIf { cmakeBuildDir.exists() }
+
+        val envTypeIsRelease = envNativeBuildType.getOrElse("false")
+            .toBoolean()
+
+        val isPropertyTypeRelease = propertiesBuildType.getOrElse("false")
+            .toBoolean()
+
+        val cmakeBuildType = if (envTypeIsRelease || isPropertyTypeRelease) "Release" else "Debug"
         commandLine("cmd", "/c", "cmake.exe", "--build", cmakeBuildDir.absolutePath, "--config", cmakeBuildType)
     }
 
     tasks.register<Exec>("cmakeClean") {
         group = "clean"
+        description = "Cleans the cmake files"
         workingDir(cmakeBuildDir)
         onlyIf { cmakeBuildDir.exists() }
         commandLine("cmd", "/c", "cmake.exe", "--build", cmakeBuildDir.absolutePath, "--target", "clean")
     }
 
+    tasks.named("cinteropBtCommonMingwX64") { dependsOn("cmakeBuild") }
     tasks.named("clean") { dependsOn("cmakeClean") }
 
     val copyBtCommonDllToKne = tasks.register<Copy>("copyBtCommonDllToKne") {
