@@ -29,7 +29,7 @@
         {
           "blend-mode" : "normal",
           "glass" : true,
-          "image-name" : "Background.jpeg",
+          "image-name" : "background.jpeg",
           "name" : "Background",
           "opacity" : 0.9,
           "position" : {

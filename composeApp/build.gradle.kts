@@ -115,16 +115,11 @@ kotlin {
 
             // kable ble scanning
             implementation(libs.kable.core)
-            implementation(libs.kable.exceptions)
 
             // local modules
             implementation(projects.jvmCore.btCommon)
             implementation(projects.jvmCore.bleAdvertise)
             implementation(projects.jvmCore.cryptoBridge)
-
-            // kdroid
-            implementation(libs.kdroidfilter.decorated.window)
-            implementation(libs.kdroidfilter.decorated.window.material3)
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
