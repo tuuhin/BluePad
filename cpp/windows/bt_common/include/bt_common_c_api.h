@@ -21,6 +21,7 @@ extern "C" {
 #endif
 
 // Global utility functions
+BT_COMMON_API void init_logger();
 BT_COMMON_API bool ble_is_bluetooth_active();
 BT_COMMON_API bool ble_is_secure_connection_available();
 BT_COMMON_API bool ble_is_peripheral_role_supported();

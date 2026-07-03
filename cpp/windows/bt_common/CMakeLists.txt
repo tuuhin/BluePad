@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 4.0.2)
 project(bt_common LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -20,7 +20,17 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
         GIT_TAG v1.0.4
 )
+
+FetchContent_Declare(
+        plog
+        GIT_REPOSITORY https://github.com/SergiusTheBest/plog
+        GIT_TAG 1.1.10
+        GIT_SHALLOW true
+        SOURCE_SUBDIR cmake_bypass_empty_dir
+)
+
 FetchContent_MakeAvailable(cpptrace)
+FetchContent_MakeAvailable(plog)
 
 # ---------- DLL instead of STATIC ----------
 add_library(bt_common SHARED
@@ -33,7 +43,10 @@ add_library(bt_common SHARED
 # Triggers __declspec(dllexport) in your header when building the DLL
 target_compile_definitions(bt_common PRIVATE BT_COMMON_EXPORTS)
 
-target_include_directories(bt_common PUBLIC include)
+target_include_directories(bt_common
+        PUBLIC include
+        PRIVATE ${plog_SOURCE_DIR}/include
+)
 
 target_link_libraries(bt_common
         PUBLIC windowsapp.lib
