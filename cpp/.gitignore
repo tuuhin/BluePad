@@ -41,7 +41,7 @@
 # *.ipr
 
 # CMake
-cmake-build-*/
+windows/cmake-build-debug-visual-studio/
 
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
