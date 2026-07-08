@@ -53,7 +53,7 @@ private:
 } // namespace plog
 
 void utils::init_logger() {
-    static plog::ConsoleAppender<plog::bt_common_formatter> appender((plog::streamStdOut));
+    static plog::ConsoleAppender<plog::bt_common_formatter> appender(plog::streamStdErr);
     plog::init(plog::debug, &appender);
 }
 
