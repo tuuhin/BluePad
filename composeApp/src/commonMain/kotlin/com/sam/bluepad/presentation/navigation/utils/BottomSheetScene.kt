@@ -1,6 +1,6 @@
 package com.sam.bluepad.presentation.navigation.utils
 
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -35,7 +35,8 @@ internal class BottomSheetScene<T : Any>(
     override val content: @Composable (() -> Unit) = {
 
         val scope = rememberCoroutineScope()
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = isSkipPartiallyExpanded)
+        val sheetState =
+            rememberModalBottomSheetState(skipPartiallyExpanded = isSkipPartiallyExpanded)
 
         ModalBottomSheet(
             onDismissRequest = {
@@ -45,9 +46,8 @@ internal class BottomSheetScene<T : Any>(
             sheetState = sheetState,
             properties = modalBottomSheetProperties,
         ) {
-            Column(modifier = Modifier.padding(Dimensions.MODAL_BOTTOM_SHEET_CONTENT_PADDING)) {
+            Box(modifier = Modifier.padding(Dimensions.MODAL_BOTTOM_SHEET_CONTENT_PADDING)) {
                 entry.Content()
-
             }
         }
     }
@@ -66,7 +66,8 @@ class BottomSheetSceneStrategy<T : Any> : SceneStrategy<T> {
         val lastEntry = entries.lastOrNull()
         val bottomSheetProperties =
             lastEntry?.metadata?.get(BOTTOM_SHEET_PROPERTIES_KEY) as? ModalBottomSheetProperties
-        val isSkipPartiallyExpanded = lastEntry?.metadata?.get(BOTTOM_SHEET_EXPANDED_KEY) as? Boolean ?: false
+        val isSkipPartiallyExpanded =
+            lastEntry?.metadata?.get(BOTTOM_SHEET_EXPANDED_KEY) as? Boolean ?: false
 
         return bottomSheetProperties?.let { properties ->
             @Suppress("UNCHECKED_CAST")

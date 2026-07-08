@@ -1,6 +1,7 @@
 package com.sam.bluepad.presentation.feature_devices.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -9,8 +10,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,12 +41,10 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sam.bluepad.presentation.composables.ListContentLoadingWrapper
 import com.sam.bluepad.presentation.feature_devices.composables.BLEScanStartStopButton
-import com.sam.bluepad.presentation.feature_devices.composables.MultipleDeviceWarning
 import com.sam.bluepad.presentation.feature_devices.composables.ScanDevicesList
 import com.sam.bluepad.presentation.feature_devices.events.AddDeviceScreenEvent
 import com.sam.bluepad.presentation.feature_devices.state.AddDeviceScreenState
@@ -98,6 +97,7 @@ fun AddDevicesScreen(
                         onClick = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
                         enabled = isRefreshButtonEnabled,
                         contentPadding = ButtonDefaults.SmallContentPadding,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.secondary),
                     ) {
                         Icon(
                             painter = painterResource(Res.drawable.ic_refresh),
@@ -132,43 +132,35 @@ fun AddDevicesScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            Box(
+            ListContentLoadingWrapper(
+                content = state.peers,
                 modifier = Modifier.weight(1f)
                     .fillMaxSize()
-                    .padding(
-                        horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
-                        vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING,
-                    ),
-            ) {
-                MultipleDeviceWarning(
-                    showWarning = state.isScanning,
-                    modifier = Modifier.fillMaxWidth(.75f)
-                        .align(Alignment.BottomCenter)
-                        .zIndex(1f),
-                )
-                ListContentLoadingWrapper(
-                    content = state.peers,
-                    onItems = { peers ->
-                        ScanDevicesList(
-                            searchedPeers = peers,
-                            isListRefreshing = state.isListRefreshing,
-                            onListRefresh = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
-                            onConnect = { device ->
-                                // stop running scan before connect performing this for all cases
-                                if (state.isScanning) onEvent(AddDeviceScreenEvent.OnStopDeviceScan)
-                                onEvent(AddDeviceScreenEvent.CheckBondStateForDevice(device))
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    },
-                    onEmpty = {
-                        NoDevicesFoundContainer(
-                            showContainer = !state.isScanning,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    },
-                )
-            }
+                    .animateContentSize(),
+                contentPadding = PaddingValues(
+                    horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
+                    vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING,
+                ),
+                onItems = { peers ->
+                    ScanDevicesList(
+                        searchedPeers = peers,
+                        isListRefreshing = state.isListRefreshing,
+                        onListRefresh = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
+                        onConnect = { device ->
+                            // stop running scan before connect performing this for all cases
+                            if (state.isScanning) onEvent(AddDeviceScreenEvent.OnStopDeviceScan)
+                            onEvent(AddDeviceScreenEvent.CheckBondStateForDevice(device))
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                },
+                onEmpty = {
+                    NoDevicesFoundContainer(
+                        showContainer = !state.isScanning,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                },
+            )
         }
     }
 }
