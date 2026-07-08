@@ -138,6 +138,7 @@ if (currentOs.isWindows) {
         commandLine("cmd", "/c", "cmake.exe", "--build", cmakeBuildDir.absolutePath, "--target", "clean")
     }
 
+    tasks.named("cinteropBtCommonMingwX64") { dependsOn("cmakeBuild") }
     tasks.named("clean") { dependsOn("cmakeClean") }
 
     val copyBtCommonDllToKne = tasks.register<Copy>("copyBtCommonDllToKne") {
