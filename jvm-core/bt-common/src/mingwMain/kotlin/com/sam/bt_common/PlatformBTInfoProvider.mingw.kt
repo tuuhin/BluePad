@@ -6,6 +6,7 @@ import com.sam.bt_common.platform.mingw.ble_is_peripheral_role_supported
 import com.sam.bt_common.platform.mingw.ble_is_secure_connection_available
 import com.sam.bt_common.platform.mingw.bluetooth_caller_register_listener
 import com.sam.bt_common.platform.mingw.bluetooth_caller_unregister_listener
+import com.sam.bt_common.platform.mingw.init_logger
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.staticCFunction
 import kotlinx.cinterop.toCPointer
@@ -13,6 +14,11 @@ import kotlinx.cinterop.toLong
 
 @OptIn(ExperimentalForeignApi::class)
 actual class PlatformBTInfoProvider : BTInfoProvider {
+
+    init {
+        // initialize the cpp logger
+        init_logger()
+    }
 
     actual override fun registerCallback(callback: (Boolean) -> Unit): Long {
         globalCallback = callback
