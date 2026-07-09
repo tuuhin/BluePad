@@ -62,7 +62,7 @@ uint64_t utils::parse_mac_address(const std::string& mac_str) {
     if (mac_str.length() != 17) throw std::invalid_argument("Invalid MAC address length");
 
     uint64_t result = 0;
-    std::string_view sv(mac_str);
+    const std::string_view sv(mac_str);
 
     for (size_t i = 0; i < 6; ++i) {
         std::string_view byte_sv = sv.substr(i * 3, 2);

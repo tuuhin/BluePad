@@ -23,3 +23,20 @@ TEST(BT_CALLBACK_TEST, REGISTER_CALLBACK) {
     bluetooth_caller_register_listener([](const bool is_on) { EXPECT_TRUE(is_on == true || is_on == false); });
     bluetooth_caller_unregister_listener();
 }
+
+TEST(BT_CALLBACK_TEST, REGISTER_MULTIPLE_TIMES) {
+    bluetooth_caller_register_listener([](const bool is_on) { EXPECT_TRUE(is_on == true || is_on == false); });
+    bluetooth_caller_register_listener([](const bool is_on) { EXPECT_TRUE(is_on == true || is_on == false); });
+    bluetooth_caller_unregister_listener();
+}
+
+TEST(BT_CALLBACK_TEST, UNREGISTER_WITHOUT_REGISTER) {
+    bluetooth_caller_unregister_listener();
+}
+
+TEST(BT_CALLBACK_TEST, REGISTER_UNREGISTER_REGISTER) {
+    bluetooth_caller_register_listener([](const bool is_on) { EXPECT_TRUE(is_on == true || is_on == false); });
+    bluetooth_caller_unregister_listener();
+    bluetooth_caller_register_listener([](const bool is_on) { EXPECT_TRUE(is_on == true || is_on == false); });
+    bluetooth_caller_unregister_listener();
+}
