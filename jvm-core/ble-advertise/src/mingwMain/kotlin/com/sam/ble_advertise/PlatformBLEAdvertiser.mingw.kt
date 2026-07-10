@@ -241,6 +241,15 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
         characteristicUuid: String,
         value: ByteArray
     ): Boolean {
+        if (value.isEmpty()) {
+            return ble_advertiser_send_notification(
+                advertiser = handle,
+                device_address = deviceAddress,
+                characteristic_uuid = characteristicUuid,
+                value = null,
+                value_len = 0u,
+            )
+        }
         return value.usePinned { pinned ->
             val bytePtr: CPointer<ByteVar> = pinned.addressOf(0)
             val uBytePtr = bytePtr.reinterpret<UByteVar>()
@@ -257,6 +266,9 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
 
     actual override fun start(config: GATTAdvertiseConfig) = memScoped {
         val cConfig = alloc<MingwBLEAdvertiserConfig>()
+        cConfig.connectable = config.connectable
+        cConfig.discoverable = config.discoverable
+
         if (config.serviceData.isNotEmpty()) {
             val dataAsBytes = config.serviceData.encodeToByteArray()
             dataAsBytes.usePinned { pinned ->
@@ -264,12 +276,13 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
                 val uBytePtr = bytePtr.reinterpret<UByteVar>()
                 cConfig.service_data = uBytePtr
                 cConfig.service_data_len = dataAsBytes.size.toULong()
+                ble_advertiser_start(advertiser = handle, config = cConfig.readValue())
             }
+        } else {
+            cConfig.service_data = null
+            cConfig.service_data_len = 0u
+            ble_advertiser_start(advertiser = handle, config = cConfig.readValue())
         }
-        cConfig.connectable = config.connectable
-        cConfig.discoverable = config.discoverable
-
-        ble_advertiser_start(advertiser = handle, config = cConfig.readValue())
     }
 
     actual override fun stop() {

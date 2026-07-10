@@ -1,0 +1,99 @@
+package com.sam.bluepad.plugins.ext
+
+import com.sam.bluepad.plugins.extensions.KTNativeJNAExtension
+import org.gradle.api.GradleException
+import org.gradle.api.Project
+import org.gradle.api.file.DuplicatesStrategy
+import org.gradle.api.tasks.Copy
+import org.gradle.api.tasks.Exec
+import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.testing.Test
+import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
+
+internal fun Project.configureWindowsTasks(
+    extension: KTNativeJNAExtension,
+    buildDirPath: String = "cmake"
+) {
+    val cmakeBuildDir = layout.buildDirectory.dir(buildDirPath).get().asFile
+
+    afterEvaluate {
+        val cInterOpName = extension.cInteropName.get().replaceFirstChar(Char::uppercase)
+        val configure = tasks.register<Exec>("cmakeConfigure") {
+            group = "build"
+            description = "Configure the CMake to run with the given project"
+
+            doFirst { cmakeBuildDir.mkdirs() }
+            workingDir(cmakeBuildDir)
+
+            // Read path lazily at execution time via provider map/get
+            commandLine(
+                "cmd", "/c", "cmake.exe",
+                "-G", "Visual Studio 17 2022",
+                "-A", "x64",
+                "-DCMAKE_CXX_COMPILER=cl.exe",
+                "-S", extension.cmakeFilePath.get().asFile.absolutePath,
+                "-B", cmakeBuildDir.absolutePath,
+            )
+        }
+
+        val cmakeBuild = tasks.register<Exec>("cmakeBuild") {
+            group = "build"
+            description = "Perform CMake build on the configuration"
+            dependsOn(configure)
+            workingDir(cmakeBuildDir)
+            onlyIf { cmakeBuildDir.exists() }
+
+            // Defer deciding configuration until task runtime execution
+            doFirst {
+                val isRelease = extension.releaseBuildEnabled.getOrElse(false)
+                commandLine(
+                    "cmd", "/c", "cmake.exe", "--build", cmakeBuildDir.absolutePath,
+                    "--config", if (isRelease) "Release" else "Debug",
+                )
+            }
+        }
+
+        // Clean execution config remaining mostly standard...
+        val cmakeClean = tasks.register<Exec>("cmakeClean") {
+            group = "clean"
+            workingDir(cmakeBuildDir)
+            onlyIf { cmakeBuildDir.exists() }
+            commandLine("cmd", "/c", "cmake.exe", "--build", cmakeBuildDir.absolutePath, "--target", "clean")
+        }
+
+        tasks.named("cinterop${cInterOpName}MingwX64") { dependsOn(cmakeBuild) }
+        tasks.named("clean") { dependsOn(cmakeClean) }
+
+        val copyBleAdvertiseDllToKne = tasks.register<Copy>("copy${cInterOpName}DllToKne") {
+            group = "kne"
+            duplicatesStrategy = DuplicatesStrategy.INCLUDE
+            dependsOn(cmakeBuild)
+            mustRunAfter("copyKneNativeLib")
+
+            // Use lazy evaluation configurations inside setup blocks
+            val isRelease = extension.releaseBuildEnabled.getOrElse(false)
+            if (isRelease) from(layout.buildDirectory.dir("cmake/bin/Release"))
+            else from(layout.buildDirectory.dir("cmake/bin/Debug"))
+
+            include("*.dll")
+            into(layout.buildDirectory.dir("generated/kne/nativeLib/kne/native/win32-x64"))
+        }
+
+        val jvmInstance = extensions.getByType<KotlinMultiplatformExtension>()
+            .targets.filterIsInstance<KotlinJvmTarget>()
+            .firstOrNull()
+
+        if (jvmInstance == null)
+            throw GradleException("Missing JVM target")
+
+        tasks.named("jvmProcessResources") { dependsOn(copyBleAdvertiseDllToKne) }
+
+        tasks.withType<Test>().configureEach { setupNativePath(this@configureWindowsTasks) }
+        tasks.withType<JavaExec>().configureEach { setupNativePath(this@configureWindowsTasks) }
+    }
+}
+
