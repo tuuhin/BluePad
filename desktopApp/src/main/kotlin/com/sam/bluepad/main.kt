@@ -16,6 +16,7 @@ import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.theme.BluePadTheme
 import com.sam.bluepad.utils.TimestampMessageWriter
 import com.sam.bluepad.utils.setupNativeLibraries
+import io.github.kdroidfilter.nucleus.core.runtime.NucleusApp
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
 import org.koin.dsl.koinConfiguration
@@ -23,7 +24,7 @@ import org.koin.dsl.koinConfiguration
 fun main() = application {
 
     // some internal setup to set libraries
-    setupNativeLibraries()
+    if (NucleusApp.isConfigured) setupNativeLibraries()
 
     // logging configuration
     Logger.setMinSeverity(if (BuildKonfig.IS_DEBUG) Severity.Debug else Severity.Info)
