@@ -42,6 +42,8 @@ turbine = "1.2.1"
 nucleusnativeaccess = "0.6.0"
 nucleus = "1.15.7"
 cryptographyCore = "0.6.0"
+lighthouse = "2.3.1"
+catelog-update = "1.1.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -142,3 +144,8 @@ build-konfig = { id = "com.codingfeline.buildkonfig", version.ref = "build-konfi
 kdroidfilter-nucleus = { id = "io.github.kdroidfilter.nucleus", version.ref = "nucleus" }
 nucleus-nna = { id = "dev.nucleusframework.nna", version.ref = "nucleusnativeaccess" }
 jetbrains-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+lighthouse = { id = "io.github.dev-vikas-soni.lighthouse", version.ref = "lighthouse" }
+catelog-update = { id = "nl.littlerobots.version-catalog-update", version.ref = "catelog-update" }
+#custom plugins
+nucleus-nna-cmake-ext = { id = "com.sam.bluepad.nucleus.nna.cmakeExt", version = "unspecified" }
+nucleus-build-ext = { id = "com.sam.bluepad.nucleus.buildExt", version = "unspecified" }

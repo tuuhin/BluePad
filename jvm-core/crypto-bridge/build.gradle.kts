@@ -11,6 +11,10 @@ val hostTarget = when {
     else -> error("Unsupported host OS: $hostOs")
 }
 
+// env will get precedence over gradle property
+val envNativeBuildType = providers.environmentVariable("NATIVE_BUILD_TYPE_RELEASE")
+val propertiesBuildType = providers.gradleProperty("cmake.buildTypeRelease")
+
 kotlin {
 
     jvmToolchain(22)
@@ -18,7 +22,7 @@ kotlin {
     when (hostTarget) {
         "mingwX64" -> mingwX64 {
             compilations.getByName("main") {
-                val dpApi by cinterops.creating {
+                cinterops.create("dpApi") {
                     definitionFile = project.file("src/nativeInterop/cinterop/windows_dpapi.def")
                     packageName = "com.sam.bluepad.windows.dpapi"
                 }
@@ -27,7 +31,7 @@ kotlin {
 
         "macosArm64" -> macosArm64 {
             compilations.getByName("main") {
-                val keychain by cinterops.creating {
+                cinterops.create("keychain") {
                     definitionFile = project.file("src/nativeInterop/cinterop/macos_keychain.def")
                     packageName = "com.sam.bluepad.osx.keychain"
                 }
@@ -36,9 +40,9 @@ kotlin {
 
         "linuxX64" -> linuxX64 {
             compilations.getByName("main") {
-                val libSecret by cinterops.creating {
+                cinterops.create("libSecret") {
                     definitionFile.set(project.file("src/nativeInterop/cinterop/linux_libsecret.def"))
-                    packageName ="com.sam.bluepad.libsecret"
+                    packageName = "com.sam.bluepad.libsecret"
                     compilerOpts(pkgConfigFlags("--cflags", "libsecret-1"))
                     linkerOpts(pkgConfigFlags("--libs", "libsecret-1"))
                 }
@@ -63,7 +67,14 @@ kotlin {
 kotlinNativeExport {
     nativeLibName = "bluepadCrypto"
     nativePackage = "com.sam.bluepad.platform.native"
-    buildType = "release"
+    // env will get precedence over gradle property
+    val envTypeIsRelease = envNativeBuildType.getOrElse("false")
+        .toBoolean()
+
+    val isPropertyTypeRelease = propertiesBuildType.getOrElse("false")
+        .toBoolean()
+
+    buildType = if (envTypeIsRelease || isPropertyTypeRelease) "debug" else "release"
 }
 
 
