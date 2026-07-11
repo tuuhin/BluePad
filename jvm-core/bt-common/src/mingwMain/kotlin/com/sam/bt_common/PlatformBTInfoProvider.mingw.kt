@@ -7,6 +7,7 @@ import com.sam.bt_common.platform.mingw.ble_is_secure_connection_available
 import com.sam.bt_common.platform.mingw.bluetooth_caller_register_listener
 import com.sam.bt_common.platform.mingw.bluetooth_caller_unregister_listener
 import com.sam.bt_common.platform.mingw.init_logger
+import com.sam.bt_common.platform.mingw.request_bluetooth_enable
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.staticCFunction
 import kotlinx.cinterop.toCPointer
@@ -29,6 +30,10 @@ actual class PlatformBTInfoProvider : BTInfoProvider {
     actual override fun unregisterCallback(caller: Long) {
         bluetooth_caller_unregister_listener(caller.toCPointer())
         globalCallback = null
+    }
+
+    actual override fun requestBTEnable(): Int {
+        return request_bluetooth_enable()
     }
 
     actual override fun isBluetoothActive(): Boolean = ble_is_bluetooth_active()

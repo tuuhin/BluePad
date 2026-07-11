@@ -4,7 +4,6 @@
 #include "utils.h"
 
 extern "C" {
-
 void init_logger() { utils::init_logger(); }
 
 bool ble_is_bluetooth_active() {
@@ -57,6 +56,11 @@ void bluetooth_caller_unregister_listener(const BluetoothCallerPtr caller) {
 BT_COMMON_API bt_bond_state is_device_bonded(const char* device_address) {
     const auto state = bluetooth_bond_manager::get_bond_state(device_address).get();
     return static_cast<bt_bond_state>(state);
+}
+
+BT_COMMON_API enum bt_request_enable_status request_bluetooth_enable() {
+    const auto status = bluetooth_caller::request_bluetooth_enable();
+    return static_cast<bt_request_enable_status>(status.get());
 }
 
 BT_COMMON_API bt_bond_manager_handle create_bond_manager() {

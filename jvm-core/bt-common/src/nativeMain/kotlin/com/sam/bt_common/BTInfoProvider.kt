@@ -8,6 +8,8 @@ interface BTInfoProvider {
     fun registerCallback(callback: (Boolean) -> Unit): Long
     fun unregisterCallback(caller: Long)
 
+    fun requestBTEnable(): Int
+
     fun isBluetoothActive(): Boolean
     fun isLEConnectionAllowed(): Boolean
     fun isPeripheralRoleSupported(): Boolean

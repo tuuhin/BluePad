@@ -1,4 +1,3 @@
-
 #include <mutex>
 #include <winrt/Windows.Devices.Bluetooth.Advertisement.h>
 #include <winrt/Windows.Devices.Bluetooth.GenericAttributeProfile.h>
@@ -6,6 +5,7 @@
 #include <winrt/Windows.Foundation.Collections.h>
 
 #include "bluetooth_caller.h"
+#include "bluetooth_enums.h"
 #include "utils.h"
 
 using namespace winrt::Windows::Devices::Bluetooth::Advertisement;
@@ -176,4 +176,58 @@ void bluetooth_caller::unregister_bt_listener() {
 
     m_onStatusChange = nullptr;
     WIN_LOG("CALLBACK REMOVED");
+}
+
+IAsyncOperation<int32_t> bluetooth_caller::request_bluetooth_enable() {
+
+    if (const auto status = co_await Radio::RequestAccessAsync(); status != RadioAccessStatus::Allowed) {
+        WIN_LOG(L"ACCESS DENIED CANNOT ENABLE BLUETOOTH FROM HERE");
+        co_return REQUEST_DENIED_PRIVACY_ISSUES;
+    }
+
+    Radio selectedRadio = nullptr;
+    for (const auto radios = co_await Radio::GetRadiosAsync(); auto&& r : radios) {
+        if (r.Kind() == RadioKind::Bluetooth) {
+            selectedRadio = r;
+            break;
+        }
+    }
+
+    if (selectedRadio == nullptr) {
+        WIN_LOG(L"UNABLE TO FIND THE ADAPTER");
+        co_return REQUEST_DENIED_CANNOT_FIND_ADAPTER;
+    }
+
+    if (selectedRadio.State() == RadioState::On) {
+        WIN_LOG(L"BLUETOOTH ALREADY ENABLED NO NEED TO ENABLE IT AGAIN");
+        co_return REQUEST_NOT_NEEDED;
+    }
+
+    try {
+        switch (co_await selectedRadio.SetStateAsync(RadioState::On)) {
+        case RadioAccessStatus::DeniedBySystem: {
+            WIN_LOG("ACCESS DENIED BY SYSTEM");
+            co_return REQUEST_DENIED_BY_SYSTEM;
+        }
+        case RadioAccessStatus::DeniedByUser: {
+            WIN_LOG("ACCESS DENIED BY USER");
+            co_return REQUEST_DENIED_BY_USER;
+        }
+        case RadioAccessStatus::Unspecified: {
+            WIN_LOG("ACCESS STATE UNKNOWN");
+            co_return REQUEST_DENIED_UNKNOWN;
+        }
+        case RadioAccessStatus::Allowed:
+            break;
+        }
+        WIN_LOG("REQUEST ACCEPTED BY THE USER");
+        co_return REQUEST_ACCEPTED;
+
+    } catch (const winrt::hresult_error& ex) {
+        WIN_LOG(L"CANNOT SET RADIO STATE EXCEPTION: " << ex.message().c_str());
+    } catch (...) {
+        utils::show_stacktrace();
+    }
+
+    co_return REQUEST_DENIED_PRIVACY_ISSUES;
 }
