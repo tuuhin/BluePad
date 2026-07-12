@@ -16,6 +16,7 @@ import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.theme.BluePadTheme
 import com.sam.bluepad.utils.TimestampMessageWriter
 import com.sam.bluepad.utils.setupNativeLibraries
+import io.github.kdroidfilter.nucleus.core.runtime.ExecutableRuntime
 import io.github.kdroidfilter.nucleus.core.runtime.NucleusApp
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
@@ -23,17 +24,18 @@ import org.koin.dsl.koinConfiguration
 
 fun main() = application {
 
-    // some internal setup to set libraries
+    val isDev = ExecutableRuntime.isDev()
+
+    // some internal setup to set libraries need to be done for distributes
     if (NucleusApp.isConfigured) setupNativeLibraries()
 
     // logging configuration
-    Logger.setMinSeverity(if (BuildKonfig.IS_DEBUG) Severity.Debug else Severity.Info)
+    Logger.setMinSeverity(if (isDev) Severity.Debug else Severity.Info)
     Logger.setLogWriters(CommonWriter(messageStringFormatter = TimestampMessageWriter))
     Logger.setTag("BLUE_PAD")
 
     // compose stack trace
-    if (BuildKonfig.IS_DEBUG)
-        Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.SourceInformation)
+    if (isDev) Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.SourceInformation)
 
     // finally we create the window
     KoinApplication(
