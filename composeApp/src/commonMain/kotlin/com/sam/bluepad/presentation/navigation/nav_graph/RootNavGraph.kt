@@ -11,7 +11,7 @@ sealed interface RootNavGraph : NavKey {
     data class AddOrUpdateRoute(val sketchId: Uuid? = null) : RootNavGraph
 
     @Serializable
-    data object AssociatedNavGraphRoute : RootNavGraph
+    data object TabLayoutRoute : RootNavGraph
 
     @Serializable
     data object AdvertiseDeviceRoute : RootNavGraph

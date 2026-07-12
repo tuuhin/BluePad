@@ -7,14 +7,14 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import com.sam.bluepad.presentation.feature_sketches.screens.SketchesListScreen
 import com.sam.bluepad.presentation.feature_sketches.viewmodel.SketchesViewmodel
-import com.sam.bluepad.presentation.navigation.nav_graph.AssociatedNavGraph
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
+import com.sam.bluepad.presentation.navigation.nav_graph.RootTabLayoutNavGraph
 import com.sam.bluepad.presentation.utils.UiEventsHandler
 import org.koin.compose.viewmodel.koinViewModel
 
 fun EntryProviderScope<NavKey>.sketchesListRouteEntry(
 	backStack: NavBackStack<NavKey>
-) = entry<AssociatedNavGraph.ListRoute> {
+) = entry<RootTabLayoutNavGraph.ListRoute> {
 
 	val viewModel = koinViewModel<SketchesViewmodel>()
 	val sketches by viewModel.sketches.collectAsStateWithLifecycle()

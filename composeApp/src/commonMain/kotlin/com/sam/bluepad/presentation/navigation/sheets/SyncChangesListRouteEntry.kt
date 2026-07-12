@@ -43,7 +43,7 @@ fun EntryProviderScope<NavKey>.syncChangesListRouteEntry(
                 when (event) {
                     SyncWorkflowEvent.ReviewedAndSaved -> {
                         // Check this once
-                        val idx = backStack.indexOf(RootNavGraph.AssociatedNavGraphRoute)
+                        val idx = backStack.indexOf(RootNavGraph.TabLayoutRoute)
                         if (idx == -1) return@collectLatest
 
                         val oldStack = backStack.take(idx + 1)

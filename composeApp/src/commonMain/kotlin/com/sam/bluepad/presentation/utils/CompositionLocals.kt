@@ -13,5 +13,3 @@ val LocalSharedTransitionScope = compositionLocalOf<SharedTransitionScope?> { nu
 
 val LocalWindowSizeInfo = compositionLocalOf { WindowSizeClass(400, 400) }
 val LocalPostureInfo = compositionLocalOf { Posture() }
-
-val LocalBluetoothState = compositionLocalOf { false }

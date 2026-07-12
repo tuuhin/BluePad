@@ -10,6 +10,7 @@ import com.sam.bluepad.data.ble.callbacks.ServerConnectionCallback
 import com.sam.bluepad.data.ble.callbacks.SyncDeviceConnectionCallback
 import com.sam.bluepad.data.ble.callbacks.SyncDeviceDiscoveryCallback
 import com.sam.bluepad.data.bluetooth.BTDeviceBondManagerImpl
+import com.sam.bluepad.data.bluetooth.BTEnableRequestProviderImpl
 import com.sam.bluepad.data.bluetooth.BluetoothStateProviderImpl
 import com.sam.bluepad.data.crypto.encryption.KeyEncryptionManagerImpl
 import com.sam.bluepad.data.crypto.files.CryptoFilePathProviderImpl
@@ -24,6 +25,7 @@ import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
 import com.sam.bluepad.domain.ble.BLESyncConnectionManager
 import com.sam.bluepad.domain.bluetooth.BTDeviceBondManager
+import com.sam.bluepad.domain.bluetooth.BTEnableRequestProvider
 import com.sam.bluepad.domain.bluetooth.BluetoothStateProvider
 import com.sam.bluepad.domain.crypto.KeyEncryptionManager
 import com.sam.bluepad.domain.crypto.files.CryptoFilePathProvider
@@ -68,6 +70,7 @@ actual fun createPlatformModule(): Module = module {
     // bluetooth state provider
     singleOf(::BluetoothStateProviderImpl) bind BluetoothStateProvider::class
     factoryOf(::BTDeviceBondManagerImpl) bind BTDeviceBondManager::class
+    factoryOf(::BTEnableRequestProviderImpl) bind BTEnableRequestProvider::class
 
     singleOf(::PlatformInfoProvider)
 

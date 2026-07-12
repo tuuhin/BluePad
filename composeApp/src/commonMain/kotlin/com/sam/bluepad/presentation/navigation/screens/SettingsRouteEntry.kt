@@ -7,13 +7,13 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import com.sam.bluepad.presentation.feature_settings.SettingsScreen
 import com.sam.bluepad.presentation.feature_settings.SettingsViewmodel
-import com.sam.bluepad.presentation.navigation.nav_graph.AssociatedNavGraph
+import com.sam.bluepad.presentation.navigation.nav_graph.RootTabLayoutNavGraph
 import com.sam.bluepad.presentation.utils.UiEventsHandler
 import org.koin.compose.viewmodel.koinViewModel
 
 fun EntryProviderScope<NavKey>.settingsRouteEntry(
     backStack: NavBackStack<NavKey>
-) = entry<AssociatedNavGraph.SettingsRoute> {
+) = entry<RootTabLayoutNavGraph.SettingsRoute> {
 
     val viewmodel = koinViewModel<SettingsViewmodel>()
     val currentDevice by viewmodel.localDeviceData.collectAsStateWithLifecycle()

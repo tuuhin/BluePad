@@ -6,14 +6,14 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @Stable
-sealed interface AssociatedNavGraph : NavKey {
+sealed interface RootTabLayoutNavGraph : NavKey {
 
 	@Serializable
-	data object ListRoute : AssociatedNavGraph
+    data object ListRoute : RootTabLayoutNavGraph
 
 	@Serializable
-	data object DeviceRoute : AssociatedNavGraph
+    data object DeviceRoute : RootTabLayoutNavGraph
 
 	@Serializable
-	data object SettingsRoute : AssociatedNavGraph
+    data object SettingsRoute : RootTabLayoutNavGraph
 }

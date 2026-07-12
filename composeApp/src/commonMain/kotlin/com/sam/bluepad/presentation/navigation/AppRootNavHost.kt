@@ -1,5 +1,10 @@
 package com.sam.bluepad.presentation.navigation
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -13,16 +18,17 @@ import androidx.savedstate.serialization.SavedStateConfiguration
 import com.sam.bluepad.presentation.navigation.dialogs.advertiseDeviceEntry
 import com.sam.bluepad.presentation.navigation.dialogs.connectDeviceEntry
 import com.sam.bluepad.presentation.navigation.dialogs.createBondRouteEntry
-import com.sam.bluepad.presentation.navigation.nav_graph.AssociatedNavGraph
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
-import com.sam.bluepad.presentation.navigation.screens.associatedNavGraphEntry
+import com.sam.bluepad.presentation.navigation.nav_graph.RootTabLayoutNavGraph
 import com.sam.bluepad.presentation.navigation.screens.blackListedDevicesRoute
 import com.sam.bluepad.presentation.navigation.screens.createOrUpdateSketchesEntry
 import com.sam.bluepad.presentation.navigation.screens.receiveSyncDataRouteEntry
+import com.sam.bluepad.presentation.navigation.screens.rootTabLayoutEntry
 import com.sam.bluepad.presentation.navigation.screens.searchDevicesEntry
 import com.sam.bluepad.presentation.navigation.screens.syncDeviceRouteEntry
 import com.sam.bluepad.presentation.navigation.sheets.syncChangesListRouteEntry
 import com.sam.bluepad.presentation.navigation.utils.BottomSheetSceneStrategy
+import com.sam.bluepad.presentation.utils.LocalSharedTransitionScope
 
 @Composable
 fun AppRootNavHost(modifier: Modifier = Modifier) {
@@ -31,19 +37,32 @@ fun AppRootNavHost(modifier: Modifier = Modifier) {
         configuration = SavedStateConfiguration {
             serializersModule = NavigationSerializers.rootNavGraphSerializer()
         },
-        RootNavGraph.AssociatedNavGraphRoute,
+        RootNavGraph.TabLayoutRoute,
     )
 
     NavDisplay(
         backStack = backStack,
         modifier = modifier,
+        sharedTransitionScope = LocalSharedTransitionScope.current,
         sceneStrategies = listOf(DialogSceneStrategy(), BottomSheetSceneStrategy(), SinglePaneSceneStrategy()),
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator(),
             rememberViewModelStoreNavEntryDecorator(),
         ),
+        transitionSpec = {
+            slideInHorizontally(initialOffsetX = { it }) + fadeIn() togetherWith
+                slideOutHorizontally(targetOffsetX = { -it }) + fadeOut()
+        },
+        popTransitionSpec = {
+            slideInHorizontally(initialOffsetX = { -it }) + fadeIn() togetherWith
+                slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
+        },
+        predictivePopTransitionSpec = {
+            slideInHorizontally(initialOffsetX = { -it }) + fadeIn() togetherWith
+                slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
+        },
         entryProvider = entryProvider {
-            associatedNavGraphEntry(backStack, startDestination = AssociatedNavGraph.ListRoute)
+            rootTabLayoutEntry(backStack, startDestination = RootTabLayoutNavGraph.ListRoute)
             createOrUpdateSketchesEntry(backStack)
 
             // devices route
