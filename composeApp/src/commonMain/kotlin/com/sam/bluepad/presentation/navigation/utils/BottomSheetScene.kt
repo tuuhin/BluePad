@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavEntry
@@ -35,8 +37,20 @@ internal class BottomSheetScene<T : Any>(
     override val content: @Composable (() -> Unit) = {
 
         val scope = rememberCoroutineScope()
-        val sheetState =
-            rememberModalBottomSheetState(skipPartiallyExpanded = isSkipPartiallyExpanded)
+
+        val sheetState = rememberBottomSheetState(
+            initialValue = SheetValue.Hidden,
+            enabledValues = buildSet {
+                add(SheetValue.Hidden)
+                add(SheetValue.Expanded)
+                if (!isSkipPartiallyExpanded) add(SheetValue.PartiallyExpanded)
+            },
+        )
+
+        LaunchedEffect(Unit) {
+            if (isSkipPartiallyExpanded) sheetState.show()
+            else sheetState.partialExpand()
+        }
 
         ModalBottomSheet(
             onDismissRequest = {
@@ -95,10 +109,10 @@ class BottomSheetSceneStrategy<T : Any> : SceneStrategy<T> {
         fun bottomSheet(
             isSkipPartiallyExpanded: Boolean = false,
             properties: ModalBottomSheetProperties = ModalBottomSheetProperties()
-        ): Map<String, Any> = mapOf(
-            BOTTOM_SHEET_PROPERTIES_KEY to properties,
-            BOTTOM_SHEET_EXPANDED_KEY to isSkipPartiallyExpanded,
-        )
+        ): Map<String, Any> = buildMap {
+            put(BOTTOM_SHEET_PROPERTIES_KEY, properties)
+            put(BOTTOM_SHEET_EXPANDED_KEY, isSkipPartiallyExpanded)
+        }
 
         internal const val BOTTOM_SHEET_PROPERTIES_KEY = "bottomsheet_key"
         internal const val BOTTOM_SHEET_EXPANDED_KEY = "bottomsheet_expanded"
