@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 4.0.2)
 project(ble_advertise LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -13,14 +13,42 @@ if (MSVC)
     add_compile_options(/EHsc /bigobj /Zc:__cplusplus)
 endif ()
 
-add_library(ble_advertise SHARED src/ble_advertise_c_api.cpp src/ble_advertiser.cpp)
+
+include(FetchContent)
+FetchContent_Declare(
+        cpptrace
+        GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+        GIT_TAG v1.0.4
+)
+
+FetchContent_Declare(
+        plog
+        GIT_REPOSITORY https://github.com/SergiusTheBest/plog
+        GIT_TAG 1.1.10
+        GIT_SHALLOW true
+        SOURCE_SUBDIR cmake_bypass_empty_dir
+)
+
+FetchContent_MakeAvailable(cpptrace)
+FetchContent_MakeAvailable(plog)
+
+add_library(ble_advertise SHARED
+        src/ble_advertise_c_api.cpp
+        src/ble_advertiser.cpp
+        src/utils.cpp
+)
+
 target_compile_definitions(ble_advertise PRIVATE BT_ADVERTISE_EXPORTS)
-target_include_directories(ble_advertise PUBLIC include)
+target_include_directories(ble_advertise
+        PUBLIC include
+        PRIVATE ${plog_SOURCE_DIR}/include
+)
 
 
 target_link_libraries(ble_advertise
         PUBLIC windowsapp.lib
         PRIVATE runtimeobject.lib
+        PRIVATE $<$<CONFIG:Debug>:cpptrace::cpptrace>
 )
 
 # Control where .dll and .lib are output

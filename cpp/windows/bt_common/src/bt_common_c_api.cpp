@@ -1,8 +1,12 @@
 #include "bt_common_c_api.h"
 #include "bluetooth_bond_manager.h"
 #include "bluetooth_caller.h"
+#include "utils.h"
 
 extern "C" {
+
+void init_logger() { utils::init_logger(); }
+
 bool ble_is_bluetooth_active() {
     try {
         bluetooth_caller caller;

@@ -22,6 +22,10 @@ using namespace Windows::Foundation::Collections;
 using namespace Windows::Devices::Bluetooth;
 using namespace Windows::Foundation;
 
+template <class... T> struct overloaded : T... {
+    using T::operator()...;
+};
+
 struct BLERequestContext {
     struct Read {
         GattReadRequestedEventArgs args;
@@ -36,18 +40,32 @@ struct BLERequestContext {
     };
 
     std::variant<Read, Write> data;
+    bool completed = false;
+
+    void complete() {
+        if (completed) return;
+        std::visit(overloaded{[](const Read& read) { read.deferral.Complete(); },
+                              [](const Write& write) { write.deferral.Complete(); }},
+                   data);
+        completed = true;
+    }
 
     BLERequestContext(GattReadRequestedEventArgs const& a, GattReadRequest const& r, Deferral const& d)
         : data(Read{a, r, d}) {}
 
     BLERequestContext(GattWriteRequestedEventArgs const& a, GattWriteRequest const& r, Deferral const& d)
         : data(Write{a, r, d}) {}
+
+    ~BLERequestContext() { complete(); }
 };
 
-class ble_advertiser {
+class ble_advertiser : public std::enable_shared_from_this<ble_advertiser> {
 public:
     ble_advertiser();
     ~ble_advertiser();
+
+    ble_advertiser(const ble_advertiser&)            = delete;
+    ble_advertiser& operator=(const ble_advertiser&) = delete;
 
     void register_callbacks(const BLEAdvertiserCallbacks& callbacks);
     [[nodiscard]] int32_t get_status() const;
@@ -59,10 +77,11 @@ public:
     void add_descriptor(const char* characteristic_uuid, const char* descriptor_uuid);
 
     bool send_notification(const char* device_address, const char* characteristic_uuid, const uint8_t* value,
-                                size_t value_len);
+                           size_t value_len);
 
-    static void respond_read(BLERequestHandle request, const uint8_t* data, size_t len, int32_t status);
-    static void respond_write(BLERequestHandle request, int32_t status);
+    static void respond_read(std::unique_ptr<BLERequestContext> request, const uint8_t* data, size_t len,
+                             int32_t status);
+    static void respond_write(std::unique_ptr<BLERequestContext> request, int32_t status);
 
 private:
     GattServiceProvider m_service_provider = nullptr;

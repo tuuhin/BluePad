@@ -1,8 +1,5 @@
-import io.github.kdroidfilter.nucleus.desktop.application.dsl.CompressionLevel
-import io.github.kdroidfilter.nucleus.desktop.application.dsl.TargetFormat
-import org.gradle.internal.os.OperatingSystem
-import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import dev.nucleusframework.desktop.application.dsl.CompressionLevel
+import dev.nucleusframework.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.konan.properties.Properties
 
 plugins {
@@ -10,7 +7,8 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
-    alias(libs.plugins.kdroidfilter.nucleus)
+    alias(libs.plugins.nucleus.framework)
+    alias(libs.plugins.nucleus.build.ext)
 }
 
 kotlin {
@@ -33,9 +31,9 @@ dependencies {
     // kotlinx datetime
     implementation(libs.kotlinx.datetime)
     // kdroid filter
-    implementation(libs.kdroidfilter.core.runtime)
-    implementation(libs.kdroidfilter.decorated.window)
-    implementation(libs.kdroidfilter.decorated.window.material3)
+    implementation(libs.nucleus.core.application)
+    implementation(libs.nucleus.decorated.window.tao)
+    implementation(libs.nucleus.decorated.window.material3)
     // compose app
     implementation(projects.composeApp)
 }
@@ -199,124 +197,4 @@ compose.resources {
         },
     )
 }
-
-/**
- * Copies native resources from jvm-core module to desktopAppResources which are later packaged into
- * the distributable
- */
-val copyNativeLibraryForPackaging = tasks.register<Copy>("copyNativeLibraryForPackaging") {
-    description = "Copies the native libraries to desktop resources "
-
-    val os = OperatingSystem.current()
-
-    val nativeTargetName = when {
-        os.isWindows -> "mingwX64"
-        os.isMacOsX -> {
-            val arch = System.getProperty("os.arch")
-            if (arch == "aarch64" || arch == "arm64") "macosArm64" else "macosX64"
-        }
-
-        os.isLinux -> "linuxX64"
-        else -> throw GradleException("Invalid target")
-    }
-
-    val binDirs = mutableListOf<String>()
-
-    for (subproject in rootProject.subprojects) {
-        if (!subproject.path.startsWith(":jvm-core")) continue
-        val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>()
-        val target = kotlinExp?.targets?.findByName(nativeTargetName) as? KotlinNativeTarget
-            ?: continue
-
-        target.binaries.forEach { binary ->
-            binDirs.add(binary.outputFile.parentFile.absolutePath)
-        }
-    }
-
-    val ext = when {
-        os.isWindows -> "*.dll"
-        os.isMacOsX -> "*.dylib"
-        os.isLinux -> "*.so"
-        else -> throw GradleException("Invalid target")
-    }
-
-    val path = when {
-        os.isWindows -> "windows"
-        os.isMacOsX -> "macos"
-        os.isLinux -> "linux"
-        else -> throw GradleException("Invalid target")
-    }
-
-    from(binDirs) {
-        include(ext)
-    }
-
-    val targetDir = layout.projectDirectory.dir("desktopResources/$path/libs")
-    into(targetDir)
-}
-
-/**
- * To keep the project clean we also include a delete functionality to delete the unwanted files when
- * not neede anymore
- */
-val deleteNativeLibraryForPackaging = tasks.register<Delete>("deleteNativeLibraryForPackaging") {
-    description = "delete the associated lib copy in desktop resources"
-
-    val os = OperatingSystem.current()
-    val path = when {
-        os.isWindows -> "windows"
-        os.isMacOsX -> "macos"
-        os.isLinux -> "linux"
-        else -> throw GradleException("Invalid target")
-    }
-
-    val targetDir = layout.projectDirectory.dir("desktopResources/$path/libs")
-    delete(targetDir)
-}
-
-/**
- * We need to set the paths for the native library as our library has a transitive dependency on another `.dll`
- * As windows is unable to resolve the path we need to provide the path
- */
-private fun Task.setupNativePathForMingw() {
-    val operatingSystem: OperatingSystem = OperatingSystem.current()
-    if (!operatingSystem.isWindows) return
-
-    val binDirs = mutableListOf<String>()
-
-    for (subproject in rootProject.subprojects) {
-        if (!subproject.path.startsWith(":jvm-core")) continue
-        val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>()
-        val targets = kotlinExp?.targets ?: continue
-        val mingwTarget = targets.findByName("mingwX64") as? KotlinNativeTarget
-
-        mingwTarget?.binaries?.forEach { binary ->
-            binDirs.add(binary.outputFile.parentFile.absolutePath)
-        }
-    }
-
-    val existingPath = System.getenv("PATH") ?: ""
-    val pathDelimiter = ";"
-    val newPath = (existingPath.split(pathDelimiter) + binDirs.distinct())
-        .distinct().joinToString(pathDelimiter)
-
-    // update the enviroment path
-    if (this is ProcessForkOptions) environment("PATH", newPath)
-}
-
-tasks.matching {
-    it.name == "prepareAppResources" ||
-        it.name.startsWith("package") ||
-        it.name.startsWith("createDistributable")
-}.configureEach {
-    dependsOn(copyNativeLibraryForPackaging)
-}
-
-tasks.named("clean") {
-    mustRunAfter(deleteNativeLibraryForPackaging)
-}
-
-// setup for test and desktop run
-tasks.withType<Test>().configureEach { setupNativePathForMingw() }
-tasks.withType<JavaExec>().configureEach { setupNativePathForMingw() }
 

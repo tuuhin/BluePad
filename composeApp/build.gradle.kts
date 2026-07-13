@@ -120,6 +120,7 @@ kotlin {
             implementation(projects.jvmCore.btCommon)
             implementation(projects.jvmCore.bleAdvertise)
             implementation(projects.jvmCore.cryptoBridge)
+
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
