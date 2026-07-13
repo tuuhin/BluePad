@@ -31,12 +31,9 @@ dependencies {
     // kotlinx datetime
     implementation(libs.kotlinx.datetime)
     // kdroid filter
-    implementation(libs.nucleus.core.runtime)
-    implementation(libs.nucleus.decorated.window)
-    implementation(libs.nucleus.decorated.window.material3)
     implementation(libs.nucleus.core.application)
-    implementation(libs.nucleus.backend.tao)
-    implementation(libs.nucleus.backend.awt)
+    implementation(libs.nucleus.decorated.window.tao)
+    implementation(libs.nucleus.decorated.window.material3)
     // compose app
     implementation(projects.composeApp)
 }

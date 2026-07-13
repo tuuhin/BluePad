@@ -15,14 +15,17 @@ import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.theme.BluePadTheme
 import com.sam.bluepad.utils.TimestampMessageWriter
 import com.sam.bluepad.utils.setupNativeLibraries
-import dev.nucleusframework.application.NucleusBackend
 import dev.nucleusframework.application.nucleusApplication
 import dev.nucleusframework.core.runtime.NucleusApp
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
 import org.koin.dsl.koinConfiguration
+import java.util.Locale
 
-fun main() = nucleusApplication(backend = NucleusBackend.Awt) {
+fun main(args: Array<String>) = nucleusApplication(
+    args = args,
+    defaultLocale = Locale.ENGLISH,
+) {
 
     // some internal setup to set libraries
     if (NucleusApp.isConfigured) setupNativeLibraries()

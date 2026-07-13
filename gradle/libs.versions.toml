@@ -40,7 +40,7 @@ kableExceptions = "0.34.0"
 compose_toast = "3.1.0"
 turbine = "1.2.1"
 nucleusnativeaccess = "0.6.0"
-nucleus = "2.0.0-alpha-202607130649"
+nucleus = "2.0.2"
 cryptographyCore = "0.6.0"
 lighthouse = "2.3.1"
 catelog-update = "1.1.0"
@@ -127,13 +127,9 @@ assertk = { module = "com.willowtreeapps.assertk:assertk", version.ref = "assert
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 #kdroid
 nucleus-core-application = { module = "dev.nucleusframework:nucleus.nucleus-application", version.ref = "nucleus" }
-nucleus-backend-tao = { module = "dev.nucleusframework:nucleus.decorated-window-tao", version.ref = "nucleus" }
-nucleus-backend-awt = { module = "dev.nucleusframework:nucleus.decorated-window-awt", version.ref = "nucleus" }
-nucleus-core-runtime = { module = "dev.nucleusframework:nucleus.core-runtime", version.ref = "nucleus" }
-nucleus-decorated-window = { module = "dev.nucleusframework:nucleus.decorated-window-jni", version.ref = "nucleus" }
+nucleus-decorated-window-tao = { module = "dev.nucleusframework:nucleus.decorated-window-tao", version.ref = "nucleus" }
 nucleus-decorated-window-material3 = { module = "dev.nucleusframework:nucleus.decorated-window-material3", version.ref = "nucleus" }
-
-#gradle plugins
+#Gradle plugins
 kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 nucleus-nna-gradlePlugin = { module = "dev.nucleusframework.nna:dev.nucleusframework.nna.gradle.plugin", version.ref = "nucleusnativeaccess" }
 
