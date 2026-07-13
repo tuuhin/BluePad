@@ -3,7 +3,6 @@ package com.sam.bluepad
 import androidx.compose.runtime.Composer
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.tooling.ComposeStackTraceMode
-import androidx.compose.ui.window.application
 import co.touchlab.kermit.CommonWriter
 import co.touchlab.kermit.Logger
 import co.touchlab.kermit.Severity
@@ -16,12 +15,17 @@ import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.theme.BluePadTheme
 import com.sam.bluepad.utils.TimestampMessageWriter
 import com.sam.bluepad.utils.setupNativeLibraries
-import io.github.kdroidfilter.nucleus.core.runtime.NucleusApp
+import dev.nucleusframework.application.nucleusApplication
+import dev.nucleusframework.core.runtime.NucleusApp
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
 import org.koin.dsl.koinConfiguration
+import java.util.Locale
 
-fun main() = application {
+fun main(args: Array<String>) = nucleusApplication(
+    args = args,
+    defaultLocale = Locale.ENGLISH,
+) {
 
     // some internal setup to set libraries
     if (NucleusApp.isConfigured) setupNativeLibraries()

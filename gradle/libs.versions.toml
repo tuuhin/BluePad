@@ -1,7 +1,7 @@
 [versions]
 agp = "9.2.1"
 assertk = "0.28.1"
-kotlinxImmutable = "0.5.0"
+kotlinxImmutable = "0.5.1"
 kotlinxDatetime = "0.8.0"
 kotlinxSerialization = "1.11.0"
 splashApiVersion = "1.2.0"
@@ -18,29 +18,29 @@ composeHotReload = "1.1.1"
 junit = "4.13.2"
 kotlin = "2.4.0"
 kotlinx-coroutines = "1.11.0"
-kotlinxIoCore = "0.9.0"
+kotlinxIoCore = "0.9.1"
 room = "2.8.4"
-sqlite = "2.6.2"
-ksp = "2.3.8"
-koin = "4.2.1"
+sqlite = "2.7.0"
+ksp = "2.3.10"
+koin = "4.2.2"
 kotlincrypto = "0.8.0"
 kotlincryptorandom = "0.6.0"
 multiplatform-nav3-ui = "1.1.1"
 composeMultiplatform = "1.11.1"
 composeMultiplatform-material3 = "1.11.0-alpha07"
-androidx-tooling-version = "1.11.2"
-compose-multiplatform-adaptive = "1.3.0-beta01"
+androidx-tooling-version = "1.11.4"
+compose-multiplatform-adaptive = "1.3.0-beta02"
 compose-multiplatform-lifecycle = "2.10.0"
 datastore = "1.2.1"
 kermit = "2.1.0"
 mokoPermissionsCompose = "0.18.1-desktop-5"
-build-konfig = "0.21.2"
-kableCore = "0.43.1"
+build-konfig = "0.22.0"
+kableCore = "0.44.0"
 kableExceptions = "0.34.0"
 compose_toast = "3.1.0"
 turbine = "1.2.1"
 nucleusnativeaccess = "0.6.0"
-nucleus = "1.15.7"
+nucleus = "2.0.2"
 cryptographyCore = "0.6.0"
 lighthouse = "2.3.1"
 catelog-update = "1.1.0"
@@ -126,11 +126,10 @@ kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.re
 assertk = { module = "com.willowtreeapps.assertk:assertk", version.ref = "assertk" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 #kdroid
-kdroidfilter-core-runtime = { module = "io.github.kdroidfilter:nucleus.core-runtime", version.ref = "nucleus" }
-kdroidfilter-decorated-window = { module = "io.github.kdroidfilter:nucleus.decorated-window-jni", version.ref = "nucleus" }
-kdroidfilter-decorated-window-material3 = { module = "io.github.kdroidfilter:nucleus.decorated-window-material3", version.ref = "nucleus" }
-
-#gradle plugins
+nucleus-core-application = { module = "dev.nucleusframework:nucleus.nucleus-application", version.ref = "nucleus" }
+nucleus-decorated-window-tao = { module = "dev.nucleusframework:nucleus.decorated-window-tao", version.ref = "nucleus" }
+nucleus-decorated-window-material3 = { module = "dev.nucleusframework:nucleus.decorated-window-material3", version.ref = "nucleus" }
+#Gradle plugins
 kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 nucleus-nna-gradlePlugin = { module = "dev.nucleusframework.nna:dev.nucleusframework.nna.gradle.plugin", version.ref = "nucleusnativeaccess" }
 
@@ -140,14 +139,16 @@ composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "com
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+jetbrains-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 androidx-room = { id = "androidx.room", version.ref = "room" }
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 build-konfig = { id = "com.codingfeline.buildkonfig", version.ref = "build-konfig" }
-kdroidfilter-nucleus = { id = "io.github.kdroidfilter.nucleus", version.ref = "nucleus" }
+# nucleus
+nucleus-framework = { id = "dev.nucleusframework", version.ref = "nucleus" }
 nucleus-nna = { id = "dev.nucleusframework.nna", version.ref = "nucleusnativeaccess" }
-jetbrains-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+# quality of life
 lighthouse = { id = "io.github.dev-vikas-soni.lighthouse", version.ref = "lighthouse" }
 catelog-update = { id = "nl.littlerobots.version-catalog-update", version.ref = "catelog-update" }
 #custom plugins

@@ -122,9 +122,6 @@ kotlin {
             implementation(projects.jvmCore.bleAdvertise)
             implementation(projects.jvmCore.cryptoBridge)
 
-            // kdroid
-            implementation(libs.kdroidfilter.decorated.window)
-            implementation(libs.kdroidfilter.decorated.window.material3)
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
