@@ -3,7 +3,6 @@ package com.sam.bluepad
 import androidx.compose.runtime.Composer
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.tooling.ComposeStackTraceMode
-import androidx.compose.ui.window.application
 import co.touchlab.kermit.CommonWriter
 import co.touchlab.kermit.Logger
 import co.touchlab.kermit.Severity
@@ -16,26 +15,29 @@ import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.theme.BluePadTheme
 import com.sam.bluepad.utils.TimestampMessageWriter
 import com.sam.bluepad.utils.setupNativeLibraries
-import io.github.kdroidfilter.nucleus.core.runtime.ExecutableRuntime
-import io.github.kdroidfilter.nucleus.core.runtime.NucleusApp
+import dev.nucleusframework.application.nucleusApplication
+import dev.nucleusframework.core.runtime.NucleusApp
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
 import org.koin.dsl.koinConfiguration
+import java.util.Locale
 
-fun main() = application {
+fun main(args: Array<String>) = nucleusApplication(
+    args = args,
+    defaultLocale = Locale.ENGLISH,
+) {
 
-    val isDev = ExecutableRuntime.isDev()
-
-    // some internal setup to set libraries need to be done for distributes
+    // some internal setup to set libraries
     if (NucleusApp.isConfigured) setupNativeLibraries()
 
     // logging configuration
-    Logger.setMinSeverity(if (isDev) Severity.Debug else Severity.Info)
+    Logger.setMinSeverity(if (BuildKonfig.IS_DEBUG) Severity.Debug else Severity.Info)
     Logger.setLogWriters(CommonWriter(messageStringFormatter = TimestampMessageWriter))
     Logger.setTag("BLUE_PAD")
 
     // compose stack trace
-    if (isDev) Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.SourceInformation)
+    if (BuildKonfig.IS_DEBUG)
+        Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.SourceInformation)
 
     // finally we create the window
     KoinApplication(
