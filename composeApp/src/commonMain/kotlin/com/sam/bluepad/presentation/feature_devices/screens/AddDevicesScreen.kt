@@ -18,14 +18,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumFlexibleTopAppBar
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
@@ -44,16 +39,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sam.bluepad.presentation.composables.ListContentLoadingWrapper
-import com.sam.bluepad.presentation.feature_devices.composables.BLEScanStartStopButton
+import com.sam.bluepad.presentation.feature_devices.composables.AddDeviceScreenTopBar
 import com.sam.bluepad.presentation.feature_devices.composables.ScanDevicesList
 import com.sam.bluepad.presentation.feature_devices.events.AddDeviceScreenEvent
 import com.sam.bluepad.presentation.feature_devices.state.AddDeviceScreenState
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.resources.Res
-import com.sam.bluepad.resources.add_devices_screen_subtitle
-import com.sam.bluepad.resources.add_devices_screen_title
 import com.sam.bluepad.resources.ic_no_devices
-import com.sam.bluepad.resources.ic_refresh
 import com.sam.bluepad.resources.scan_results_no_device_desc
 import com.sam.bluepad.resources.scan_results_no_device_title
 import com.sam.bluepad.theme.Dimensions
@@ -87,31 +79,14 @@ fun AddDevicesScreen(
 
     Scaffold(
         topBar = {
-            MediumFlexibleTopAppBar(
-                title = { Text(text = stringResource(Res.string.add_devices_screen_title)) },
-                subtitle = { Text(text = stringResource(Res.string.add_devices_screen_subtitle)) },
-                navigationIcon = onBackNavigation,
-                scrollBehavior = topBarScrollBehaviour,
-                actions = {
-                    OutlinedButton(
-                        onClick = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
-                        enabled = isRefreshButtonEnabled,
-                        contentPadding = ButtonDefaults.SmallContentPadding,
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.secondary),
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_refresh),
-                            contentDescription = null,
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    BLEScanStartStopButton(
-                        isScanning = state.isScanning,
-                        onStopScan = { onEvent(AddDeviceScreenEvent.OnStopDeviceScan) },
-                        onStartScan = { onEvent(AddDeviceScreenEvent.OnStartDeviceScan) },
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                },
+            AddDeviceScreenTopBar(
+                isScanRunning = state.isScanning,
+                isRefreshButtonEnabled = isRefreshButtonEnabled,
+                navigation = onBackNavigation,
+                topBarScrollBehaviour = topBarScrollBehaviour,
+                onRefreshItems = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
+                onStartScan = { onEvent(AddDeviceScreenEvent.OnStartDeviceScan) },
+                onStopScan = { onEvent(AddDeviceScreenEvent.OnStopDeviceScan) },
             )
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },

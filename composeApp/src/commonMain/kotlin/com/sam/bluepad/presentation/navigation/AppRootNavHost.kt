@@ -2,8 +2,8 @@ package com.sam.bluepad.presentation.navigation
 
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -50,16 +50,16 @@ fun AppRootNavHost(modifier: Modifier = Modifier) {
             rememberViewModelStoreNavEntryDecorator(),
         ),
         transitionSpec = {
-            slideInHorizontally(initialOffsetX = { it }) + fadeIn() togetherWith
-                slideOutHorizontally(targetOffsetX = { -it }) + fadeOut()
+            slideInVertically(initialOffsetY = { it }) + fadeIn() togetherWith
+                slideOutVertically(targetOffsetY = { -it }) + fadeOut()
         },
         popTransitionSpec = {
-            slideInHorizontally(initialOffsetX = { -it }) + fadeIn() togetherWith
-                slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
+            slideInVertically(initialOffsetY = { -it }) + fadeIn() togetherWith
+                slideOutVertically(targetOffsetY = { it }) + fadeOut()
         },
         predictivePopTransitionSpec = {
-            slideInHorizontally(initialOffsetX = { -it }) + fadeIn() togetherWith
-                slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
+            slideInVertically(initialOffsetY = { -it }) + fadeIn() togetherWith
+                slideOutVertically(targetOffsetY = { it }) + fadeOut()
         },
         entryProvider = entryProvider {
             rootTabLayoutEntry(backStack, startDestination = RootTabLayoutNavGraph.ListRoute)

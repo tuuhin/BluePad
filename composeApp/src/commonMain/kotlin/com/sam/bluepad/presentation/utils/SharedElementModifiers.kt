@@ -1,3 +1,5 @@
+package com.sam.bluepad.presentation.utils
+
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -16,7 +18,6 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
-import com.sam.bluepad.presentation.utils.LocalSharedTransitionScope
 
 private val NormalSpring = spring(
 	stiffness = StiffnessMediumLow,

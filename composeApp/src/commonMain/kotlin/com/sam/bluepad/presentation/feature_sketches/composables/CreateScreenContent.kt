@@ -33,81 +33,81 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun CreateScreenContent(
-	state: CreateSketchState,
-	modifier: Modifier,
-	contentPadding: PaddingValues = PaddingValues.Zero
+    state: CreateSketchState,
+    modifier: Modifier,
+    contentPadding: PaddingValues = PaddingValues.Zero
 ) {
-	val lifecycleOwner = LocalLifecycleOwner.current
-	val focusRequester = LocalFocusManager.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val focusRequester = LocalFocusManager.current
 
-	val titleFocus = remember { FocusRequester() }
-	val contentFocus = remember { FocusRequester() }
+    val titleFocus = remember { FocusRequester() }
+    val contentFocus = remember { FocusRequester() }
 
 
-	LaunchedEffect(lifecycleOwner) {
-		if (state.isNewContent) titleFocus.requestFocus()
-	}
+    LaunchedEffect(lifecycleOwner) {
+        if (state.isNewContent) titleFocus.requestFocus()
+    }
 
-	Column(
-		modifier = modifier.padding(contentPadding),
-		verticalArrangement = Arrangement.spacedBy(4.dp),
-	) {
-		TextField(
-			state = state.contentTitleState,
-			textStyle = MaterialTheme.typography.headlineSmallEmphasized,
-			placeholder = {
-				Text(
-					text = stringResource(Res.string.add_content_screen_title_text),
-					style = MaterialTheme.typography.headlineSmall,
-					color = MaterialTheme.colorScheme.secondary
-				)
-			},
-			colors = TextFieldDefaults.noColor(),
-			keyboardOptions = KeyboardOptions(
-				capitalization = KeyboardCapitalization.Words,
-				imeAction = ImeAction.Next
-			),
-			onKeyboardAction = { contentFocus.requestFocus() },
-			modifier = Modifier
-				.fillMaxWidth()
-				.focusRequester(titleFocus)
-		)
+    Column(
+        modifier = modifier.padding(contentPadding),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        TextField(
+            state = state.contentTitleState,
+            textStyle = MaterialTheme.typography.headlineSmallEmphasized,
+            placeholder = {
+                Text(
+                    text = stringResource(Res.string.add_content_screen_title_text),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                )
+            },
+            colors = TextFieldDefaults.noColor(),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Next,
+            ),
+            onKeyboardAction = { contentFocus.requestFocus() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(titleFocus),
+        )
 
-		TextField(
-			state = state.contentTextState,
-			textStyle = MaterialTheme.typography.titleMedium,
-			placeholder = {
-				Text(
-					text = stringResource(Res.string.add_content_screen_note_text),
-					style = MaterialTheme.typography.titleMedium,
-					color = MaterialTheme.colorScheme.secondary
-				)
-			},
-			colors = TextFieldDefaults.noColor(),
-			lineLimits = TextFieldLineLimits.MultiLine(),
-			keyboardOptions = KeyboardOptions(
-				capitalization = KeyboardCapitalization.Sentences,
-				keyboardType = KeyboardType.Text,
-				imeAction = ImeAction.Done
-			),
-			onKeyboardAction = { focusRequester.clearFocus() },
-			modifier = Modifier
-				.fillMaxWidth()
-				.weight(1f)
-				.focusRequester(contentFocus)
-		)
-	}
+        TextField(
+            state = state.contentTextState,
+            textStyle = MaterialTheme.typography.titleMedium,
+            placeholder = {
+                Text(
+                    text = stringResource(Res.string.add_content_screen_note_text),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+                )
+            },
+            colors = TextFieldDefaults.noColor(),
+            lineLimits = TextFieldLineLimits.MultiLine(),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Sentences,
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Done,
+            ),
+            onKeyboardAction = { focusRequester.clearFocus() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .focusRequester(contentFocus),
+        )
+    }
 }
 
 
 @Composable
 fun TextFieldDefaults.noColor(): TextFieldColors = colors(
-	focusedContainerColor = Color.Transparent,
-	unfocusedContainerColor = Color.Transparent,
-	disabledContainerColor = Color.Transparent,
-	focusedIndicatorColor = Color.Transparent,
-	unfocusedIndicatorColor = Color.Transparent,
-	cursorColor = MaterialTheme.colorScheme.secondary,
-	errorCursorColor = MaterialTheme.colorScheme.error,
-	focusedTextColor = MaterialTheme.colorScheme.onSurface
+    focusedContainerColor = Color.Transparent,
+    unfocusedContainerColor = Color.Transparent,
+    disabledContainerColor = Color.Transparent,
+    focusedIndicatorColor = Color.Transparent,
+    unfocusedIndicatorColor = Color.Transparent,
+    cursorColor = MaterialTheme.colorScheme.secondary,
+    errorCursorColor = MaterialTheme.colorScheme.error,
+    focusedTextColor = MaterialTheme.colorScheme.onSurface,
 )
