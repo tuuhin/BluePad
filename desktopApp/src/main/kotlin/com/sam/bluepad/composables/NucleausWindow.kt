@@ -5,19 +5,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import com.sam.bluepad.desktop.resources.Res
 import com.sam.bluepad.desktop.resources.app_name
 import com.sam.bluepad.desktop.resources.ic_notepad
-import io.github.kdroidfilter.nucleus.window.material.MaterialDecoratedWindow
-import io.github.kdroidfilter.nucleus.window.material.MaterialTitleBar
+import dev.nucleusframework.application.NucleusApplicationScope
+import dev.nucleusframework.window.material.MaterialDecoratedWindow
+import dev.nucleusframework.window.material.MaterialTitleBar
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-internal fun ApplicationScope.NucleusWindowWrapper(
+internal fun NucleusApplicationScope.NucleusWindowWrapper(
     content: @Composable () -> Unit
 ) {
     val windowState = rememberWindowState(position = WindowPosition(Alignment.Center))

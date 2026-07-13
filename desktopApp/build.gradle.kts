@@ -1,5 +1,5 @@
-import io.github.kdroidfilter.nucleus.desktop.application.dsl.CompressionLevel
-import io.github.kdroidfilter.nucleus.desktop.application.dsl.TargetFormat
+import dev.nucleusframework.desktop.application.dsl.CompressionLevel
+import dev.nucleusframework.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.konan.properties.Properties
 
 plugins {
@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
-    alias(libs.plugins.kdroidfilter.nucleus)
+    alias(libs.plugins.nucleus.framework)
     alias(libs.plugins.nucleus.build.ext)
 }
 
@@ -31,9 +31,12 @@ dependencies {
     // kotlinx datetime
     implementation(libs.kotlinx.datetime)
     // kdroid filter
-    implementation(libs.kdroidfilter.core.runtime)
-    implementation(libs.kdroidfilter.decorated.window)
-    implementation(libs.kdroidfilter.decorated.window.material3)
+    implementation(libs.nucleus.core.runtime)
+    implementation(libs.nucleus.decorated.window)
+    implementation(libs.nucleus.decorated.window.material3)
+    implementation(libs.nucleus.core.application)
+    implementation(libs.nucleus.backend.tao)
+    implementation(libs.nucleus.backend.awt)
     // compose app
     implementation(projects.composeApp)
 }
