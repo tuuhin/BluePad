@@ -1,6 +1,7 @@
 package com.sam.bluepad.presentation.utils
 
 import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,12 +19,11 @@ import kotlinx.coroutines.flow.buffer
 @Composable
 fun UiEventsHandler(
     eventsFlow: () -> Flow<UIEvents>,
+    snackBarState: SnackbarHostState = LocalSnackBarState.current,
     onNavigateBack: () -> Unit = {},
 ) {
 
     val lifecyleOwner = LocalLifecycleOwner.current
-    val snackBarState = LocalSnackBarState.current
-
 
     val updatedOnNavigateBack by rememberUpdatedState(newValue = onNavigateBack)
 

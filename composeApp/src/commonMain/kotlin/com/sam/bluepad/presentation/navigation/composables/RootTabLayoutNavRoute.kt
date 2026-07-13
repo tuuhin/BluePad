@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,6 +31,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationItemIconPosition
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
@@ -57,7 +59,6 @@ import androidx.window.core.layout.WindowSizeClass
 import com.sam.bluepad.AppCommonViewModel
 import com.sam.bluepad.presentation.composables.RequestBTEnableDialog
 import com.sam.bluepad.presentation.navigation.nav_graph.RootTabLayoutNavGraph
-import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
 import com.sam.bluepad.presentation.utils.UiEventsHandler
 import com.sam.bluepad.resources.Res
@@ -81,14 +82,17 @@ fun NavigationNavGraphWrapper(
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     val windowSize = LocalWindowSizeInfo.current
-    val snackBarHostState = LocalSnackBarState.current
+    val snackBarHostState = remember { SnackbarHostState() }
 
     val storeOwner = rememberViewModelStoreOwner()
     val viewModel = koinViewModel<AppCommonViewModel>(viewModelStoreOwner = storeOwner)
 
     val bluetoothState by viewModel.bluetoothState.collectAsStateWithLifecycle()
 
-    UiEventsHandler(viewModel::uiEvent)
+    UiEventsHandler(
+        eventsFlow = viewModel::uiEvent,
+        snackBarState = snackBarHostState,
+    )
 
     var showDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -119,7 +123,7 @@ fun NavigationNavGraphWrapper(
         },
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackBarHostState) },
-        contentWindowInsets = WindowInsets(),
+        contentWindowInsets = WindowInsets.navigationBars,
     ) { scPadding ->
         Row(
             horizontalArrangement = Arrangement.spacedBy(2.dp),

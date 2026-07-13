@@ -40,6 +40,7 @@ fun EntryProviderScope<NavKey>.createOrUpdateSketchesEntry(
 		state = createState,
 		onEvent = viewModel::onEvent,
 		isLoading = isLoading,
+        sketchId = route.sketchId,
 		isContentLoadFailed = isContentLoadFailed,
 		navigation = {
 			if (backStack.isNotEmpty()) {

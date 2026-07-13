@@ -23,11 +23,12 @@ class AppCommonViewModel(
     val bluetoothState = provider.bluetoothStatusFlow.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = false,
+        // considering bluetooth is enabled as we capture mainly for not enabled case
+        initialValue = true,
     )
 
     fun onRequestEnableBT() = viewModelScope.launch {
-        // don't consider this if bluetooth is already enabled
+        // Skip this if bluetooth is already enabled
         if (bluetoothState.value) return@launch
 
         val result = btEnableUseCase.invoke()
