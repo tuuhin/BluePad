@@ -39,6 +39,7 @@ dependencies {
     // compose desktop test
     testImplementation(libs.cmp.ui.test.junit)
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlin.testJunit)
     testImplementation(libs.koin.test.junit)
     testImplementation(libs.koin.test)
 }
