@@ -71,7 +71,6 @@ kotlin {
 kotlinNativeExportCmakeExt {
     nativeLibName.set("blePlatformAdvertise")
     generatedPackageName.set(generatedClassPackageName)
-    cInteropName.set(cInterOpName)
     cmakeFilePath.set(rootProject.file("cpp/windows/advertise"))
 
     val isRelease = envNativeBuildType.getOrElse("false").toBoolean()
