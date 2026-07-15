@@ -94,7 +94,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
 
     override fun discoverAndConnect(timeout: Duration): Flow<ResourcesSyncDataEvents> =
         flow<ResourcesSyncDataEvents> {
-            if (!PlatformBTInfoProvider.isBTActive) {
+            if (!PlatformBTInfoProvider.isBTActive()) {
                 emit(Resource.Error(BluetoothNotEnabledException()))
                 return@flow
             }
