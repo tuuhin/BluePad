@@ -1,6 +1,5 @@
 #include <chrono>
 #include <gtest/gtest.h>
-#include <iostream>
 #include <thread>
 
 #include "ble_advertise_c_api.h"
@@ -14,8 +13,6 @@ struct TestContext {
 
 static void OnServiceAdded(const char* uuid, int32_t error_code, void* user_data) {
     auto* ctx = static_cast<TestContext*>(user_data);
-    std::cout << "[CHECKPOINT] Callback: OnServiceAdded fired for UUID: " << (uuid ? uuid : "NULL")
-              << " with code: " << error_code << std::endl;
     ctx->last_error = error_code;
     if (error_code == 0)
         ctx->service_added_successfully = true;
@@ -25,11 +22,10 @@ static void OnServiceAdded(const char* uuid, int32_t error_code, void* user_data
 
 static void OnServiceStatusChange(int32_t status, void* user_data) {
     auto* ctx = static_cast<TestContext*>(user_data);
-    std::cout << "[CHECKPOINT] Callback: OnServiceStatusChange fired with status: " << status << std::endl;
     if (status == 1) ctx->advertising_started = true;
 }
 
-TEST(BluetoothHardwareTest, AdvertiseForTenSeconds) {
+TEST(BLE_ADVERTISE_RUN_TEST, AdvertiseForTenSeconds) {
     TestContext context;
     const auto advertiser = ble_advertiser_create();
     ASSERT_NE(advertiser, nullptr) << "Failed to allocate the native BLE Advertiser object pointer.";
@@ -77,7 +73,32 @@ TEST(BluetoothHardwareTest, AdvertiseForTenSeconds) {
     config.service_data_len   = std::strlen(hello_payload);
 
     ble_advertiser_start(advertiser, config);
-    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     ble_advertiser_stop(advertiser);
     ble_advertiser_destroy(advertiser);
+}
+
+TEST(BLE_ADVERTISE_RUN_TEST, DestroyWithNull) {
+    const auto advertiser = static_cast<BLEAdvertiserPtr>(nullptr);
+    ble_advertiser_destroy(advertiser);
+}
+
+TEST(BLE_ADVERTISE_RUN_TEST, CreateDestroyLifecycleBasic) {
+    const auto advertiser = ble_advertiser_create();
+    ASSERT_NE(advertiser, nullptr);
+    ble_advertiser_destroy(advertiser);
+}
+
+TEST(BLE_ADVERTISE_RUN_TEST, NullPointerResilience) {
+    const auto advertiser = static_cast<BLEAdvertiserPtr>(nullptr);
+
+    // Call functions with null advertiser
+    ble_advertiser_register_callbacks(advertiser, {});
+    EXPECT_EQ(ble_advertiser_get_status(advertiser), -1);
+    ble_advertiser_start(advertiser, {});
+    ble_advertiser_stop(advertiser);
+    ble_advertiser_add_service(advertiser, nullptr);
+    ble_advertiser_add_characteristic(advertiser, {});
+    ble_advertiser_add_descriptor(advertiser, nullptr, nullptr);
+    EXPECT_FALSE(ble_advertiser_send_notification(advertiser, nullptr, nullptr, nullptr, 0));
 }

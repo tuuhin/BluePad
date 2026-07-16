@@ -9,11 +9,13 @@ suspend fun PlatformBTInfoProvider.Companion.isBTActive(): Boolean = withContext
     PlatformBTInfoProvider().use { provider -> provider.isBluetoothActive() }
 }
 
-val PlatformBTInfoProvider.Companion.isLEConnectionAvailable: Boolean
-    get() = PlatformBTInfoProvider().use { provider -> provider.isLEConnectionAllowed() }
+suspend fun PlatformBTInfoProvider.Companion.isLEConnectionAvailable(): Boolean = withContext(Dispatchers.IO) {
+    PlatformBTInfoProvider().use { provider -> provider.isLEConnectionAllowed() }
+}
 
-val PlatformBTInfoProvider.Companion.isPeripheralRoleSupported: Boolean
-    get() = PlatformBTInfoProvider().use { provider -> provider.isPeripheralRoleSupported() }
+suspend fun PlatformBTInfoProvider.Companion.isPeripheralRoleSupported(): Boolean = withContext(Dispatchers.IO) {
+    PlatformBTInfoProvider().use { provider -> provider.isPeripheralRoleSupported() }
+}
 
 suspend fun PlatformBTInfoProvider.Companion.requestBTEnableAsync() = withContext(Dispatchers.IO) {
     val resp = PlatformBTInfoProvider().use { it.requestBTEnable() }

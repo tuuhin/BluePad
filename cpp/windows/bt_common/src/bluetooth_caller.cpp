@@ -19,23 +19,31 @@ using namespace winrt::Windows::Devices::Enumeration;
 IAsyncOperation<bool> bluetooth_caller::is_ble_secure_connection_available() {
     winrt::init_apartment();
     try {
-        const auto adapter = co_await BluetoothAdapter::GetDefaultAsync();
-        co_return adapter.AreLowEnergySecureConnectionsSupported();
+        const auto adapter     = co_await BluetoothAdapter::GetDefaultAsync();
+        const auto isSupported = adapter.AreLowEnergySecureConnectionsSupported();
+        WIN_LOG(L"IS LE CONNECTION SUPPORTED " << isSupported);
+        co_return isSupported;
+    } catch (const winrt::hresult_error& ex) {
+        WIN_LOG(L"WinRT Exception CAUGHT RESULT:" << ex.code().value << L"MESSAGE: " << ex.message().c_str());
     } catch (...) {
         utils::show_stacktrace();
-        co_return false;
     }
+    co_return false;
 }
 
 IAsyncOperation<bool> bluetooth_caller::is_peripheral_role_supported() {
     winrt::init_apartment();
     try {
-        const auto adapter = co_await BluetoothAdapter::GetDefaultAsync();
-        co_return adapter.IsPeripheralRoleSupported();
+        const auto adapter     = co_await BluetoothAdapter::GetDefaultAsync();
+        const auto isSupported = adapter.IsPeripheralRoleSupported();
+        WIN_LOG(L"LE PERIPHERAL ROLE SUPPORTED" << isSupported);
+        co_return isSupported;
+    } catch (const winrt::hresult_error& ex) {
+        WIN_LOG(L"WinRT Exception CAUGHT RESULT:" << ex.code().value << L"MESSAGE: " << ex.message().c_str());
     } catch (...) {
         utils::show_stacktrace();
-        co_return false;
     }
+    co_return false;
 }
 
 IAsyncOperation<bool> bluetooth_caller::is_bluetooth_active() {

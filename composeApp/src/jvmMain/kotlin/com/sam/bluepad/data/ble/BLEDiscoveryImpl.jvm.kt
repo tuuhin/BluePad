@@ -68,7 +68,7 @@ actual class BLEDiscoveryImpl : BLEDiscoveryManager {
             if (!PlatformBTInfoProvider.isBTActive())
                 return@withContext Result.failure(BluetoothNotEnabledException())
 
-            if (!PlatformBTInfoProvider.isLEConnectionAvailable)
+            if (!PlatformBTInfoProvider.isLEConnectionAvailable())
                 return@withContext Result.failure(BLENotSupportedException())
 
             if (_isScanning.value) return@withContext Result.failure(BLEScanRunningException())

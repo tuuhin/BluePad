@@ -28,6 +28,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlin.uuid.Uuid
 
@@ -59,10 +60,10 @@ actual class BLEAdvertisementImpl(
         if (!PlatformBTInfoProvider.isBTActive())
             return Result.failure(BluetoothNotEnabledException())
 
-        if (!PlatformBTInfoProvider.isLEConnectionAvailable)
+        if (!PlatformBTInfoProvider.isLEConnectionAvailable())
             return Result.failure(BLENotSupportedException())
 
-        if (!PlatformBTInfoProvider.isPeripheralRoleSupported)
+        if (!PlatformBTInfoProvider.isPeripheralRoleSupported())
             return Result.failure(BLEAdvertiseUnsupportedException())
 
         return withContext(Dispatchers.IO) {
@@ -125,6 +126,11 @@ actual class BLEAdvertisementImpl(
         }
         callback.cleanUp()
         Logger.i(tag = TAG) { "STOPPING GATT SERVER AND CLEANING UP RESOURCES" }
+        val isActive = runBlocking {
+            PlatformBTInfoProvider.isBTActive()
+        }
+        if (!isActive) return
+        Logger.d(tag = TAG) { "DESTROYING ADVERTISER REF" }
         _advertiser.onDestroy()
         _advertiser.close()
     }

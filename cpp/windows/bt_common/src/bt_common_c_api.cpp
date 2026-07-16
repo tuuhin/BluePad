@@ -7,29 +7,13 @@ extern "C" {
 void init_logger() { utils::init_logger(); }
 
 bool ble_is_bluetooth_active() {
-    try {
-        bluetooth_caller caller;
-        return caller.is_bluetooth_active().get();
-    } catch (...) {
-        return false;
-    }
+    bluetooth_caller caller;
+    return caller.is_bluetooth_active().get();
 }
 
-bool ble_is_secure_connection_available() {
-    try {
-        return bluetooth_caller::is_ble_secure_connection_available().get();
-    } catch (...) {
-        return false;
-    }
-}
+bool ble_is_secure_connection_available() { return bluetooth_caller::is_ble_secure_connection_available().get(); }
 
-bool ble_is_peripheral_role_supported() {
-    try {
-        return bluetooth_caller::is_peripheral_role_supported().get();
-    } catch (...) {
-        return false;
-    }
-}
+bool ble_is_peripheral_role_supported() { return bluetooth_caller::is_peripheral_role_supported().get(); }
 
 BluetoothCallerPtr bluetooth_caller_register_listener(BluetoothStatusCallback callback) {
     const auto bt_caller = new bluetooth_caller();
