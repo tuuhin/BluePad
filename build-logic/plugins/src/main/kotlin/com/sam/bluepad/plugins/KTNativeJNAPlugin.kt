@@ -45,6 +45,7 @@ class KTNativeJNAPlugin : Plugin<Project> {
 
             linkerOpts("-L$libReleasePath", "-L$libDebugPath")
 
+
             val taskName = "copyTo${name.replaceFirstChar(Char::uppercase)}"
             val copyDllToLinkDir = tasks.register<Copy>(taskName) {
                 group = "kne"
@@ -56,7 +57,10 @@ class KTNativeJNAPlugin : Plugin<Project> {
                 into(linkTaskProvider.flatMap { it.destinationDirectory })
                 dependsOn("cmakeBuild")
             }
-            linkTaskProvider.configure { finalizedBy(copyDllToLinkDir) }
+            linkTaskProvider.configure {
+                dependsOn("cmakeBuild")
+                finalizedBy(copyDllToLinkDir)
+            }
         }
     }
 

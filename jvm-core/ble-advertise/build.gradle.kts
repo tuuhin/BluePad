@@ -51,6 +51,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kermit)
+            implementation(libs.kotlinx.datetime)
         }
         jvmTest.dependencies {
             implementation(libs.assertk)
