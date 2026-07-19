@@ -1,7 +1,6 @@
 package com.sam.bluepad.presentation.feature_sketches.composables
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Spacer
@@ -28,8 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import com.sam.bluepad.presentation.utils.transitions.SharedElementTransKeys
-import com.sam.bluepad.presentation.utils.transitions.sharedBoundsWrapper
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_receive
 import com.sam.bluepad.resources.ic_receive
@@ -94,12 +91,6 @@ fun SketchesListTopAppBar(
                         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                     ),
                     contentPadding = ButtonDefaults.SmallContentPadding,
-                    modifier = Modifier.sharedBoundsWrapper(
-                        key = SharedElementTransKeys.SHARED_BOUNDS_RECEIVE_FROM_OTHER_DEVICE,
-                        resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
-                        zIndexInOverlay = 1f,
-                        clipShape = ButtonDefaults.shape,
-                    ),
                 ) {
                     Icon(
                         painter = painterResource(Res.drawable.ic_receive),

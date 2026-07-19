@@ -3,6 +3,8 @@ package com.sam.bluepad.presentation.navigation.composables
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
@@ -59,8 +61,10 @@ import androidx.window.core.layout.WindowSizeClass
 import com.sam.bluepad.AppCommonViewModel
 import com.sam.bluepad.presentation.composables.RequestBTEnableDialog
 import com.sam.bluepad.presentation.navigation.nav_graph.RootTabLayoutNavGraph
+import com.sam.bluepad.presentation.utils.LocalAnimatedContentScope
 import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
 import com.sam.bluepad.presentation.utils.UiEventsHandler
+import com.sam.bluepad.presentation.utils.transitions.sharedTransitionRenderInOverlay
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.bluetooth_not_enabled_text
 import com.sam.bluepad.resources.ic_menu
@@ -82,6 +86,8 @@ fun AdaptiveNavigationSuitWrapper(
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     val windowSize = LocalWindowSizeInfo.current
+    val contentScope = LocalAnimatedContentScope.current
+
     val snackBarHostState = remember { SnackbarHostState() }
 
     val storeOwner = rememberViewModelStoreOwner()
@@ -119,6 +125,16 @@ fun AdaptiveNavigationSuitWrapper(
                 onSelectRoute = onSelectRoute,
                 selectedRoute = selectedRoute ?: RootTabLayoutNavGraph.ListRoute,
                 showNavBar = !windowSize.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND),
+                modifier = Modifier.sharedTransitionRenderInOverlay(1f)
+                    .then(
+                        if (contentScope == null)
+                            Modifier else with(contentScope) {
+                            Modifier.animateEnterExit(
+                                enter = slideInVertically { height -> height } + fadeIn(animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()),
+                                exit = slideOutVertically { height -> height } + fadeOut(animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()),
+                            )
+                        },
+                    ),
             )
         },
         modifier = modifier,
@@ -136,6 +152,16 @@ fun AdaptiveNavigationSuitWrapper(
                 showNavRail = windowSize.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND),
                 selectedRoute = selectedRoute ?: RootTabLayoutNavGraph.ListRoute,
                 initialRailExpanded = initialRailExpanded,
+                modifier = Modifier.sharedTransitionRenderInOverlay(1f)
+                    .then(
+                        if (contentScope == null)
+                            Modifier else with(contentScope) {
+                            Modifier.animateEnterExit(
+                                enter = slideInHorizontally { width -> -width } + fadeIn(animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()),
+                                exit = slideOutHorizontally { width -> -width } + fadeOut(animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()),
+                            )
+                        },
+                    ),
             )
             ContainerContent(
                 isBtActive = bluetoothState,

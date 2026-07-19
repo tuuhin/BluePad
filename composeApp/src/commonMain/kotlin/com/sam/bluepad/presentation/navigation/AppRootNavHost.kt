@@ -1,11 +1,16 @@
 package com.sam.bluepad.presentation.navigation
 
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
@@ -40,6 +45,9 @@ fun AppRootNavHost(modifier: Modifier = Modifier) {
         RootNavGraph.TabLayoutRoute,
     )
 
+    val spatialEffect = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val fastSpatialFloatEffect = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+
     NavDisplay(
         backStack = backStack,
         modifier = modifier,
@@ -49,17 +57,36 @@ fun AppRootNavHost(modifier: Modifier = Modifier) {
             rememberSaveableStateHolderNavEntryDecorator(),
             rememberViewModelStoreNavEntryDecorator(),
         ),
+        contentAlignment = Alignment.Center,
         transitionSpec = {
-            slideInVertically(initialOffsetY = { it }) + fadeIn() togetherWith
-                slideOutVertically(targetOffsetY = { -it }) + fadeOut()
+            scaleIn(
+                animationSpec = tween(durationMillis = 120, easing = FastOutLinearInEasing),
+                initialScale = 0.9f,
+            ) + fadeIn(animationSpec = spatialEffect) togetherWith
+                scaleOut(
+                    animationSpec = tween(durationMillis = 120, easing = EaseOutCubic),
+                    targetScale = 1.1f,
+                ) + fadeOut(fastSpatialFloatEffect)
         },
         popTransitionSpec = {
-            slideInVertically(initialOffsetY = { -it }) + fadeIn() togetherWith
-                slideOutVertically(targetOffsetY = { it }) + fadeOut()
+            scaleIn(
+                animationSpec = tween(durationMillis = 120, easing = FastOutLinearInEasing),
+                initialScale = 1.1f,
+            ) + fadeIn(animationSpec = spatialEffect) togetherWith
+                scaleOut(
+                    animationSpec = tween(durationMillis = 120, easing = EaseOutCubic),
+                    targetScale = 0.9f,
+                ) + fadeOut(fastSpatialFloatEffect)
         },
         predictivePopTransitionSpec = {
-            slideInVertically(initialOffsetY = { -it }) + fadeIn() togetherWith
-                slideOutVertically(targetOffsetY = { it }) + fadeOut()
+            scaleIn(
+                animationSpec = tween(durationMillis = 120, easing = FastOutLinearInEasing),
+                initialScale = 1.1f,
+            ) + fadeIn(animationSpec = spatialEffect) togetherWith
+                scaleOut(
+                    animationSpec = tween(durationMillis = 120, easing = EaseOutCubic),
+                    targetScale = 0.9f,
+                ) + fadeOut(fastSpatialFloatEffect)
         },
         entryProvider = entryProvider {
             rootTabLayoutEntry(backStack, startDestination = RootTabLayoutNavGraph.ListRoute)

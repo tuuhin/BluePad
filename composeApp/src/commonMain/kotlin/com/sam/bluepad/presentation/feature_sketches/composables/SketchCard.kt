@@ -1,6 +1,12 @@
 package com.sam.bluepad.presentation.feature_sketches.composables
 
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.EaseInOutBounce
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,8 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -61,7 +67,6 @@ fun SketchCard(
     onCopy: (() -> Unit)? = null
 ) {
     var showContextActions by remember { mutableStateOf(false) }
-    val density = LocalDensity.current
 
     Surface(
         onClick = onClick,
@@ -91,7 +96,15 @@ fun SketchCard(
                     overflow = TextOverflow.Ellipsis,
                     maxLines = 2,
                     modifier = Modifier.weight(1f)
-                        .sharedBoundsWrapper(key = SharedElementTransKeys.sharedElementSketchTitle(sketch.id)),
+                        .sharedTransitionSkipChildSize()
+                        .sharedBoundsWrapper(
+                            key = SharedElementTransKeys.sharedElementSketchTitle(sketch.id),
+                            enter = scaleIn(transformOrigin = TransformOrigin(0f, .5f)) + fadeIn(initialAlpha = .25f),
+                            exit = scaleOut(transformOrigin = TransformOrigin(0f, 0f)) + fadeOut(targetAlpha = .2f),
+                            resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                            boundsTransform = { _, _ -> tween(durationMillis = 200, easing = EaseInOutBounce) },
+                            placeHolderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+                        ),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Box {
@@ -157,8 +170,16 @@ fun SketchCard(
                 style = MaterialTheme.typography.bodyMediumEmphasized,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 overflow = TextOverflow.Ellipsis,
-                maxLines = 5,
-                modifier = Modifier.sharedTransitionSkipChildSize(),
+                maxLines = 3,
+                modifier = Modifier.sharedTransitionSkipChildSize()
+                    .sharedBoundsWrapper(
+                        key = SharedElementTransKeys.sharedElementSketchContent(sketch.id),
+                        enter = scaleIn(transformOrigin = TransformOrigin(0f, .5f)) + fadeIn(initialAlpha = .25f),
+                        exit = scaleOut(transformOrigin = TransformOrigin(0f, 0f)) + fadeOut(targetAlpha = .2f),
+                        resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                        boundsTransform = { _, _ -> tween(durationMillis = 200, easing = EaseInOutBounce) },
+                        placeHolderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+                    ),
             )
         }
     }
