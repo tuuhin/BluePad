@@ -1,4 +1,4 @@
-package com.sam.bluepad.presentation.navigation.utils
+package com.sam.bluepad.presentation.navigation.scene
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -16,7 +16,7 @@ import androidx.navigation3.scene.OverlayScene
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.scene.SceneStrategy
 import androidx.navigation3.scene.SceneStrategyScope
-import com.sam.bluepad.presentation.navigation.utils.BottomSheetSceneStrategy.Companion.bottomSheet
+import com.sam.bluepad.presentation.navigation.scene.BottomSheetSceneStrategy.Companion.bottomSheet
 import com.sam.bluepad.theme.Dimensions
 import kotlinx.coroutines.launch
 

@@ -13,29 +13,29 @@ import com.sam.bluepad.presentation.utils.UiEventsHandler
 import org.koin.compose.viewmodel.koinViewModel
 
 fun EntryProviderScope<NavKey>.sketchesListRouteEntry(
-	backStack: NavBackStack<NavKey>
+    backStack: NavBackStack<NavKey>,
 ) = entry<RootTabLayoutNavGraph.ListRoute> {
 
-	val viewModel = koinViewModel<SketchesViewmodel>()
-	val sketches by viewModel.sketches.collectAsStateWithLifecycle()
-	val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-	val isSketchSelected by viewModel.isSketchSelected.collectAsStateWithLifecycle()
+    val viewModel = koinViewModel<SketchesViewmodel>()
+    val sketches by viewModel.sketches.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isSketchSelected by viewModel.isSketchSelected.collectAsStateWithLifecycle()
 
-	UiEventsHandler(
-		eventsFlow = viewModel::uiEvent,
-		onNavigateBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
-	)
+    UiEventsHandler(
+        eventsFlow = viewModel::uiEvent,
+        onNavigateBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
+    )
 
-	SketchesListScreen(
-		sketches = sketches,
-		isLoading = isLoading,
-		onEvent = viewModel::onEvent,
-		showDeleteDialog = isSketchSelected,
-		onNavigateToSketch = { sketch ->
-			backStack.add(RootNavGraph.AddOrUpdateRoute(sketch?.id))
-		},
-		onNavigateToReceiveSync = {
-			backStack.add(RootNavGraph.ReceiveSyncDeviceRoute)
-		}
-	)
+    SketchesListScreen(
+        sketches = sketches,
+        isLoading = isLoading,
+        onEvent = viewModel::onEvent,
+        showDeleteDialog = isSketchSelected,
+        onNavigateToSketch = { sketch ->
+            backStack.add(RootNavGraph.AddOrUpdateRoute(sketch?.id))
+        },
+        onNavigateToReceiveSync = {
+            backStack.add(RootNavGraph.ReceiveSyncDeviceRoute)
+        },
+    )
 }

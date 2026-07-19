@@ -26,15 +26,20 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sam.bluepad.presentation.feature_sketches.events.CreateSketchState
+import com.sam.bluepad.presentation.utils.transitions.SharedElementTransKeys
+import com.sam.bluepad.presentation.utils.transitions.sharedBoundsWrapper
+import com.sam.bluepad.presentation.utils.transitions.sharedTransitionSkipChildSize
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.add_content_screen_note_text
 import com.sam.bluepad.resources.add_content_screen_title_text
 import org.jetbrains.compose.resources.stringResource
+import kotlin.uuid.Uuid
 
 @Composable
 fun CreateScreenContent(
     state: CreateSketchState,
     modifier: Modifier,
+    sketchId: Uuid? = null,
     contentPadding: PaddingValues = PaddingValues.Zero
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -70,7 +75,13 @@ fun CreateScreenContent(
             onKeyboardAction = { contentFocus.requestFocus() },
             modifier = Modifier
                 .fillMaxWidth()
-                .focusRequester(titleFocus),
+                .focusRequester(titleFocus)
+                .then(
+                    if (sketchId == null) Modifier
+                    else Modifier.sharedBoundsWrapper(
+                        key = SharedElementTransKeys.sharedElementSketchTitle(sketchId),
+                    ),
+                ),
         )
 
         TextField(
@@ -94,7 +105,8 @@ fun CreateScreenContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .focusRequester(contentFocus),
+                .focusRequester(contentFocus)
+                .sharedTransitionSkipChildSize(),
         )
     }
 }

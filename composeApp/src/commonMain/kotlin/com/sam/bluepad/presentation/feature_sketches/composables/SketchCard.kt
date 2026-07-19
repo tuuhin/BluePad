@@ -8,16 +8,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,13 +29,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.sam.bluepad.domain.models.SketchModel
 import com.sam.bluepad.presentation.utils.PreviewFakes
-import com.sam.bluepad.presentation.utils.SharedElementTransKeys
-import com.sam.bluepad.presentation.utils.sharedBoundsWrapper
+import com.sam.bluepad.presentation.utils.transitions.SharedElementTransKeys
+import com.sam.bluepad.presentation.utils.transitions.sharedBoundsWrapper
+import com.sam.bluepad.presentation.utils.transitions.sharedTransitionSkipChildSize
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.ic_copy
 import com.sam.bluepad.resources.ic_delete
@@ -56,13 +61,18 @@ fun SketchCard(
     onCopy: (() -> Unit)? = null
 ) {
     var showContextActions by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
 
-    Card(
+    Surface(
         onClick = onClick,
         shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
         modifier = modifier.sharedBoundsWrapper(
             key = SharedElementTransKeys.sharedContentSketch(sketch.id),
+            resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
             placeHolderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+            clipShape = MaterialTheme.shapes.extraLarge,
         ),
     ) {
         Column(
@@ -80,11 +90,25 @@ fun SketchCard(
                     color = MaterialTheme.colorScheme.onSurface,
                     overflow = TextOverflow.Ellipsis,
                     maxLines = 2,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f)
+                        .sharedBoundsWrapper(key = SharedElementTransKeys.sharedElementSketchTitle(sketch.id)),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Box {
-                    IconButton(onClick = { showContextActions = true }) {
+                    FilledIconButton(
+                        onClick = { showContextActions = true },
+                        shapes = IconButtonDefaults.shapes(
+                            shape = IconButtonDefaults.smallRoundShape,
+                            pressedShape = IconButtonDefaults.smallSelectedRoundShape,
+                        ),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        ),
+                        modifier =
+                            Modifier.minimumInteractiveComponentSize()
+                                .size(IconButtonDefaults.smallContainerSize(IconButtonDefaults.IconButtonWidthOption.Wide)),
+                    ) {
                         Icon(
                             painter = painterResource(Res.drawable.ic_vert_menu),
                             contentDescription = null,
@@ -134,6 +158,7 @@ fun SketchCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 overflow = TextOverflow.Ellipsis,
                 maxLines = 5,
+                modifier = Modifier.sharedTransitionSkipChildSize(),
             )
         }
     }

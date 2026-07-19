@@ -74,7 +74,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NavigationNavGraphWrapper(
+fun AdaptiveNavigationSuitWrapper(
     modifier: Modifier = Modifier,
     initialRailExpanded: Boolean = false,
     selectedRoute: RootTabLayoutNavGraph? = RootTabLayoutNavGraph.ListRoute,

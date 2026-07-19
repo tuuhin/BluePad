@@ -1,6 +1,7 @@
 package com.sam.bluepad.presentation.feature_sketches.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -30,6 +32,8 @@ import com.sam.bluepad.presentation.feature_sketches.composables.SketchesListTop
 import com.sam.bluepad.presentation.feature_sketches.events.SketchScreenEvent
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
+import com.sam.bluepad.presentation.utils.transitions.SharedElementTransKeys
+import com.sam.bluepad.presentation.utils.transitions.sharedBoundsWrapper
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_create_sketch
 import com.sam.bluepad.resources.ic_add
@@ -76,7 +80,7 @@ fun SketchesListScreen(
             ) {
                 ExtendedFloatingActionButton(
                     onClick = { onNavigateToSketch(null) },
-                    shape = MaterialTheme.shapes.large,
+                    shape = FloatingActionButtonDefaults.largeExtendedFabShape,
                     text = { Text(text = stringResource(Res.string.action_create_sketch)) },
                     icon = {
                         Icon(
@@ -85,6 +89,12 @@ fun SketchesListScreen(
                         )
                     },
                     expanded = windowSize.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND),
+                    modifier = Modifier.sharedBoundsWrapper(
+                        key = SharedElementTransKeys.SHARED_BOUNDS_CREATE_NEW_SKETCH,
+                        resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                        placeHolderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+                        clipShape = FloatingActionButtonDefaults.largeExtendedFabShape,
+                    ),
                 )
             }
         },

@@ -20,6 +20,7 @@ import com.sam.bluepad.presentation.navigation.dialogs.connectDeviceEntry
 import com.sam.bluepad.presentation.navigation.dialogs.createBondRouteEntry
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
 import com.sam.bluepad.presentation.navigation.nav_graph.RootTabLayoutNavGraph
+import com.sam.bluepad.presentation.navigation.scene.BottomSheetSceneStrategy
 import com.sam.bluepad.presentation.navigation.screens.blackListedDevicesRoute
 import com.sam.bluepad.presentation.navigation.screens.createOrUpdateSketchesEntry
 import com.sam.bluepad.presentation.navigation.screens.receiveSyncDataRouteEntry
@@ -27,7 +28,6 @@ import com.sam.bluepad.presentation.navigation.screens.rootTabLayoutEntry
 import com.sam.bluepad.presentation.navigation.screens.searchDevicesEntry
 import com.sam.bluepad.presentation.navigation.screens.syncDeviceRouteEntry
 import com.sam.bluepad.presentation.navigation.sheets.syncChangesListRouteEntry
-import com.sam.bluepad.presentation.navigation.utils.BottomSheetSceneStrategy
 import com.sam.bluepad.presentation.utils.LocalSharedTransitionScope
 
 @Composable

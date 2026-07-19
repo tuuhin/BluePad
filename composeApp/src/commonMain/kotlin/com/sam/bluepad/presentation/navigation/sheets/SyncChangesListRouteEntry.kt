@@ -2,6 +2,7 @@ package com.sam.bluepad.presentation.navigation.sheets
 
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheetProperties
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.Lifecycle
@@ -11,11 +12,13 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import com.sam.bluepad.presentation.feature_sync.ReviewSyncChangesSheetContent
 import com.sam.bluepad.presentation.feature_sync.event.SyncWorkflowEvent
 import com.sam.bluepad.presentation.feature_sync.viewmodel.ReviewSyncChangesViewModel
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
-import com.sam.bluepad.presentation.navigation.utils.BottomSheetSceneStrategy
+import com.sam.bluepad.presentation.navigation.scene.BottomSheetSceneStrategy
+import com.sam.bluepad.presentation.utils.LocalAnimatedContentScope
 import com.sam.bluepad.presentation.utils.UiEventsHandler
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.compose.viewmodel.koinViewModel
@@ -32,6 +35,7 @@ fun EntryProviderScope<NavKey>.syncChangesListRouteEntry(
 ) { route ->
 
     val lifecycleOwner = LocalLifecycleOwner.current
+    val contentScope = LocalNavAnimatedContentScope.current
 
     val viewModel = koinViewModel<ReviewSyncChangesViewModel> { parametersOf(route.sessionId, route.remoteDeviceId) }
 
@@ -62,8 +66,10 @@ fun EntryProviderScope<NavKey>.syncChangesListRouteEntry(
         onNavigateBack = { backStack.removeLastOrNull() },
     )
 
-    ReviewSyncChangesSheetContent(
-        state = screenState,
-        onEvent = viewModel::onEvent,
-    )
+    CompositionLocalProvider(LocalAnimatedContentScope provides contentScope) {
+        ReviewSyncChangesSheetContent(
+            state = screenState,
+            onEvent = viewModel::onEvent,
+        )
+    }
 }

@@ -8,6 +8,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
@@ -24,8 +25,8 @@ import com.sam.bluepad.presentation.feature_sketches.events.CreateSketchScreenEv
 import com.sam.bluepad.presentation.feature_sketches.events.CreateSketchState
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
-import com.sam.bluepad.presentation.utils.SharedElementTransKeys
-import com.sam.bluepad.presentation.utils.sharedBoundsWrapper
+import com.sam.bluepad.presentation.utils.transitions.SharedElementTransKeys
+import com.sam.bluepad.presentation.utils.transitions.sharedBoundsWrapper
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_save
 import com.sam.bluepad.resources.action_update
@@ -51,7 +52,6 @@ fun CreateSketchScreen(
     val topBarScrollBehaviour = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackBarHostState = LocalSnackBarState.current
     val windowSize = LocalWindowSizeInfo.current
-
 
     DeleteSketchDialog(
         showDialog = state.showDeleteDialog,
@@ -91,7 +91,8 @@ fun CreateSketchScreen(
                         contentDescription = "Save Action",
                     )
                 },
-                shape = if (isLargeScreen) FloatingActionButtonDefaults.largeExtendedFabShape else FloatingActionButtonDefaults.largeShape,
+                shape = if (isLargeScreen) FloatingActionButtonDefaults.largeExtendedFabShape
+                else FloatingActionButtonDefaults.largeShape,
                 expanded = isLargeScreen,
             )
         },
@@ -99,9 +100,17 @@ fun CreateSketchScreen(
         modifier = modifier.nestedScroll(topBarScrollBehaviour.nestedScrollConnection)
             .then(
                 if (sketchId == null) Modifier
+                    .sharedBoundsWrapper(
+                        key = SharedElementTransKeys.SHARED_BOUNDS_CREATE_NEW_SKETCH,
+                        resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                        placeHolderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+                        clipShape = MaterialTheme.shapes.extraLarge,
+                    )
                 else Modifier.sharedBoundsWrapper(
                     key = SharedElementTransKeys.sharedContentSketch(sketchId),
+                    resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
                     placeHolderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+                    clipShape = MaterialTheme.shapes.extraLarge,
                 ),
             ),
     ) { padding ->
@@ -114,6 +123,7 @@ fun CreateSketchScreen(
             onSuccess = {
                 CreateScreenContent(
                     state = state,
+                    sketchId = sketchId,
                     contentPadding = PaddingValues(
                         horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
                         vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING,

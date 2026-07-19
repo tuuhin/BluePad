@@ -20,5 +20,8 @@ fun EntryProviderScope<NavKey>.settingsRouteEntry(
 
     UiEventsHandler(eventsFlow = viewmodel::uiEvent)
 
-    SettingsScreen(deviceState = currentDevice, onEvent = viewmodel::onEvent)
+    SettingsScreen(
+        deviceState = currentDevice,
+        onEvent = viewmodel::onEvent,
+    )
 }

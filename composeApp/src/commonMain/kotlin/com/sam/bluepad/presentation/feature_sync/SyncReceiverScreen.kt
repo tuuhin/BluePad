@@ -1,5 +1,6 @@
 package com.sam.bluepad.presentation.feature_sync
 
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,6 +25,8 @@ import com.sam.bluepad.presentation.feature_sync.state.SyncReceiverScreenState
 import com.sam.bluepad.presentation.feature_sync.state.SyncUIState
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.PreviewFakes
+import com.sam.bluepad.presentation.utils.transitions.SharedElementTransKeys
+import com.sam.bluepad.presentation.utils.transitions.sharedBoundsWrapper
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_back
 import com.sam.bluepad.resources.ic_back
@@ -57,7 +60,11 @@ fun SyncReceiverScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
-        modifier = modifier.nestedScroll(scrollBehaviour.nestedScrollConnection),
+        modifier = modifier.nestedScroll(scrollBehaviour.nestedScrollConnection)
+            .sharedBoundsWrapper(
+                key = SharedElementTransKeys.SHARED_BOUNDS_RECEIVE_FROM_OTHER_DEVICE,
+                resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+            ),
     ) { scPadding ->
         SyncReceiverScreenContent(
             screenState = state,
