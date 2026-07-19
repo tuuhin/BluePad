@@ -14,3 +14,7 @@ plugins {
     alias(libs.plugins.lighthouse)
     alias(libs.plugins.catelog.update)
 }
+
+dependencyLocking {
+    lockAllConfigurations()
+}

@@ -121,6 +121,7 @@ kotlin {
             implementation(projects.jvmCore.btCommon)
             implementation(projects.jvmCore.bleAdvertise)
             implementation(projects.jvmCore.cryptoBridge)
+            implementation(projects.jvmCore.commonUtility)
 
         }
         jvmTest.dependencies {
