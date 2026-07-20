@@ -10,7 +10,14 @@ if (MSVC)
     # /MT = static CRT — embeds MSVC runtime inside the DLL
     # so lld (Kotlin Native) never has to resolve libcpmt.a etc.
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    add_compile_options(/EHsc /bigobj /Zc:__cplusplus)
+    add_compile_options(/EHsc /bigobj /Zc:__cplusplus /MP)
+endif ()
+
+find_program(SCCACHE sccache)
+if (SCCACHE)
+    message(STATUS "USING SCCACHE: ${SCCACHE}")
+    set(CMAKE_CXX_COMPILER_LAUNCHER ${SCCACHE})
+    set(CMAKE_C_COMPILER_LAUNCHER ${SCCACHE})
 endif ()
 
 # stack trace to show what
@@ -19,6 +26,8 @@ FetchContent_Declare(
         cpptrace
         GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
         GIT_TAG v1.0.4
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS FALSE
 )
 
 FetchContent_Declare(
@@ -26,11 +35,25 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/SergiusTheBest/plog
         GIT_TAG 1.1.10
         GIT_SHALLOW true
+        GIT_PROGRESS FALSE
         SOURCE_SUBDIR cmake_bypass_empty_dir
+)
+
+FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.15.2
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS FALSE
 )
 
 FetchContent_MakeAvailable(cpptrace)
 FetchContent_MakeAvailable(plog)
+
+set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
 
 # ---------- DLL instead of STATIC ----------
 add_library(bt_common SHARED
@@ -59,20 +82,22 @@ set_target_properties(bt_common PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin   # .dll goes here
         ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib   # .lib goes here
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
-        WINDOWS_EXPORT_ALL_SYMBOLS OFF  # we use __declspec manually
+        WINDOWS_EXPORT_ALL_SYMBOLS OFF
 )
 
-# ---------- Native Test EXE ----------
-add_executable(bt_common_test tests/test.cpp)
-target_include_directories(bt_common_test PRIVATE include)
-target_link_libraries(bt_common_test PRIVATE bt_common)
+add_executable(bt_common_tests tests/test.cpp)
 
-# Copy .dll next to test .exe so it can run
-add_custom_command(TARGET bt_common_test POST_BUILD
+target_link_libraries(bt_common_tests
+        PRIVATE bt_common
+        PRIVATE gtest
+        PRIVATE gtest_main
+)
+
+add_custom_command(TARGET bt_common_tests POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:bt_common>
-        $<TARGET_FILE_DIR:bt_common_test>
+        $<TARGET_FILE_DIR:bt_common_tests>
+        COMMENT "Copying bt_common.dll to test output directory for discovery execution"
 )
-
-enable_testing()
-add_test(NAME BT_COMMON_TESTS COMMAND bt_common_test)
+include(GoogleTest)
+gtest_discover_tests(bt_common_tests)

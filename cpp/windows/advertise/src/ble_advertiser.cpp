@@ -160,14 +160,16 @@ void ble_advertiser::add_service(const char* service_uuid) {
         const auto result                    = GattServiceProvider::CreateAsync(service_guid).get();
         OnServiceAddedCallback callbacks_ref = nullptr;
         void* user_data                      = nullptr;
-
         {
             std::lock_guard lock(m_mutex);
             user_data     = m_callbacks.user_data;
             callbacks_ref = m_callbacks.on_service_added;
         }
 
-        if (callbacks_ref == nullptr || user_data == nullptr) return;
+        if (callbacks_ref == nullptr || user_data == nullptr) {
+            WIN_LOG(L"MISSING CALLBACK REFERENCES CANNOT ADD SERVICE");
+            return;
+        }
         callbacks_ref(service_uuid, static_cast<int32_t>(result.Error()), user_data);
 
         if (result.Error() != BluetoothError::Success) {
@@ -180,7 +182,7 @@ void ble_advertiser::add_service(const char* service_uuid) {
             WIN_LOG(L"SERVICE ADDED SUCCESSFULLY SERVICE ID: " << h_uuid.c_str());
         }
 
-        WIN_LOG(L"WILL RESPONSE TO ADVERTISEMENT STATUS CHANGES");
+        WIN_LOG(L"SERVICE WILL RESPONSE TO ADVERTISEMENT STATUS CHANGES");
         m_service_provider.AdvertisementStatusChanged(
             [weak_self = weak_from_this()](GattServiceProvider const&,
                                            GattServiceProviderAdvertisementStatusChangedEventArgs const& args) {
@@ -321,7 +323,7 @@ void ble_advertiser::add_characteristic(const ble_characteristics characteristic
                         user_data    = self->m_callbacks.user_data;
                     }
 
-                    if (callback_ref == nullptr || nullptr) {
+                    if (callback_ref == nullptr) {
                         WIN_LOG(L"NO WRITE CALLBACK REGISTERED FOR CHARACTERISTIC");
                         return;
                     }
@@ -352,7 +354,7 @@ void ble_advertiser::add_characteristic(const ble_characteristics characteristic
                 // 1. Determine the exact type string for cleaner logs
                 const bool is_indication = (ch.CharacteristicProperties() & GattCharacteristicProperties::Indicate) ==
                                            GattCharacteristicProperties::Indicate;
-                const wchar_t* sub_type = is_indication ? L"INDICATION" : L"NOTIFICATION";
+                const wchar_t* sub_type  = is_indication ? L"INDICATION" : L"NOTIFICATION";
 
                 WIN_LOG(L"--- SUBSCRIBED CLIENTS CHANGED ---");
                 WIN_LOG(L"CHARACTERISTICS UUID : " << characteristics_uuid_h.c_str());

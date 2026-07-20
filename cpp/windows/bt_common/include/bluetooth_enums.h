@@ -45,6 +45,16 @@ enum bt_bond_request_error_code : int32_t {
     ERROR_DEVICE_CANNOT_BE_BONDED = 2,
 };
 
+enum bt_request_enable_status : int32_t {
+    REQUEST_ACCEPTED                   = 0,
+    REQUEST_DENIED_PRIVACY_ISSUES      = 1,
+    REQUEST_DENIED_BY_SYSTEM           = 2,
+    REQUEST_DENIED_BY_USER             = 3,
+    REQUEST_DENIED_CANNOT_FIND_ADAPTER = 4,
+    REQUEST_DENIED_UNKNOWN             = 5,
+    REQUEST_NOT_NEEDED                 = 6,
+};
+
 #ifdef __cplusplus
 }
 #endif

@@ -2,23 +2,31 @@ package com.sam.bluepad.theme
 
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 
 @Composable
 actual fun BluePadTheme(
-	isDarkTheme: Boolean,
-	dynamicColor: Boolean,
-	content: @Composable (() -> Unit)
+    isDarkTheme: Boolean,
+    dynamicColor: Boolean,
+    useSystemFonts: Boolean,
+    customTypography: Typography?,
+    content: @Composable (() -> Unit)
 ) {
-	val colorScheme = when {
-		isDarkTheme -> darkColorScheme
-		else -> lightColorScheme
-	}
+    val colorScheme = when {
+        isDarkTheme -> darkColorScheme
+        else -> lightColorScheme
+    }
 
-	MaterialExpressiveTheme(
-		colorScheme = colorScheme,
-		typography = AppTypography,
-		motionScheme = MotionScheme.expressive(),
-		content = content
-	)
+    val typography = when {
+        useSystemFonts || customTypography == null -> SystemTypography
+        else -> customTypography
+    }
+
+    MaterialExpressiveTheme(
+        colorScheme = colorScheme,
+        typography = typography,
+        motionScheme = MotionScheme.expressive(),
+        content = content,
+    )
 }

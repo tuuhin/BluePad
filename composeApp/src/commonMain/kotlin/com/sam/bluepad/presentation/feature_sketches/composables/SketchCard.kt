@@ -1,5 +1,12 @@
 package com.sam.bluepad.presentation.feature_sketches.composables
 
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.EaseInOutBounce
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,16 +14,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,12 +34,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.sam.bluepad.domain.models.SketchModel
 import com.sam.bluepad.presentation.utils.PreviewFakes
+import com.sam.bluepad.presentation.utils.transitions.SharedElementTransKeys
+import com.sam.bluepad.presentation.utils.transitions.sharedBoundsWrapper
+import com.sam.bluepad.presentation.utils.transitions.sharedTransitionSkipChildSize
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.ic_copy
 import com.sam.bluepad.resources.ic_delete
@@ -45,118 +59,160 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun SketchCard(
-	sketch: SketchModel,
-	onClick: () -> Unit,
-	modifier: Modifier = Modifier,
-	onDelete: (() -> Unit)? = null,
-	onShare: (() -> Unit)? = null,
-	onCopy: (() -> Unit)? = null
+    sketch: SketchModel,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onDelete: (() -> Unit)? = null,
+    onShare: (() -> Unit)? = null,
+    onCopy: (() -> Unit)? = null
 ) {
-	var showContextActions by remember { mutableStateOf(false) }
+    var showContextActions by remember { mutableStateOf(false) }
 
-	Card(
-		onClick = onClick,
-		shape = MaterialTheme.shapes.extraLarge,
-		modifier = modifier
-	) {
-		Column(
-			modifier = Modifier.fillMaxWidth()
-				.padding(Dimensions.CARD_INTERNAL_PADDING),
-			verticalArrangement = Arrangement.spacedBy(6.dp)
-		) {
-			Row(
-				modifier = Modifier.fillMaxWidth(),
-				verticalAlignment = Alignment.CenterVertically
-			) {
-				Text(
-					text = sketch.title,
-					style = MaterialTheme.typography.titleMediumEmphasized,
-					color = MaterialTheme.colorScheme.onSurface,
-					overflow = TextOverflow.Ellipsis,
-					maxLines = 2,
-					modifier = Modifier.weight(1f)
-				)
-				Spacer(modifier = Modifier.width(8.dp))
-				Box {
-					IconButton(onClick = { showContextActions = true }) {
-						Icon(
-							painter = painterResource(Res.drawable.ic_vert_menu),
-							contentDescription = null,
-						)
-					}
-					DropdownMenu(
-						expanded = showContextActions,
-						onDismissRequest = { showContextActions = false },
-						shape = MaterialTheme.shapes.medium
-					) {
-						ContextActions.entries.forEach { entry ->
-							DropdownMenuItem(
-								text = { Text(entry.actionText) },
-								leadingIcon = {
-									Icon(
-										painter = entry.actionIcon,
-										contentDescription = null
-									)
-								},
-								enabled = when (entry) {
-									ContextActions.COPY -> onCopy != null
-									ContextActions.DELETE -> onDelete != null
-									ContextActions.SHARE -> onShare != null
-								},
-								colors = if (entry == ContextActions.DELETE)
-									MenuDefaults.itemColors(
-										textColor = MaterialTheme.colorScheme.error,
-										leadingIconColor = MaterialTheme.colorScheme.error
-									)
-								else MenuDefaults.itemColors(),
-								onClick = {
-									when (entry) {
-										ContextActions.COPY -> onCopy?.invoke()
-										ContextActions.DELETE -> onDelete?.invoke()
-										ContextActions.SHARE -> onShare?.invoke()
-									}
-								},
-							)
-						}
-					}
-				}
-			}
-			HorizontalDivider()
-			Text(
-				text = sketch.content,
-				style = MaterialTheme.typography.bodyMediumEmphasized,
-				color = MaterialTheme.colorScheme.onSurfaceVariant,
-				overflow = TextOverflow.Ellipsis,
-				maxLines = 5,
-			)
-		}
-	}
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier.sharedBoundsWrapper(
+            key = SharedElementTransKeys.sharedContentSketch(sketch.id),
+            resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+            placeHolderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+            clipShape = MaterialTheme.shapes.extraLarge,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth()
+                .padding(Dimensions.CARD_INTERNAL_PADDING),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = sketch.title,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 2,
+                    modifier = Modifier.weight(1f)
+                        .sharedTransitionSkipChildSize()
+                        .sharedBoundsWrapper(
+                            key = SharedElementTransKeys.sharedElementSketchTitle(sketch.id),
+                            enter = scaleIn(transformOrigin = TransformOrigin(0f, .5f)) + fadeIn(initialAlpha = .25f),
+                            exit = scaleOut(transformOrigin = TransformOrigin(0f, 0f)) + fadeOut(targetAlpha = .2f),
+                            resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                            boundsTransform = { _, _ -> tween(durationMillis = 200, easing = EaseInOutBounce) },
+                            placeHolderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+                        ),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Box {
+                    FilledIconButton(
+                        onClick = { showContextActions = true },
+                        shapes = IconButtonDefaults.shapes(
+                            shape = IconButtonDefaults.smallRoundShape,
+                            pressedShape = IconButtonDefaults.smallSelectedRoundShape,
+                        ),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        ),
+                        modifier =
+                            Modifier.minimumInteractiveComponentSize()
+                                .size(IconButtonDefaults.smallContainerSize(IconButtonDefaults.IconButtonWidthOption.Wide)),
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_vert_menu),
+                            contentDescription = null,
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showContextActions,
+                        onDismissRequest = { showContextActions = false },
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        ContextActions.entries.forEach { entry ->
+                            DropdownMenuItem(
+                                text = { Text(entry.actionText) },
+                                leadingIcon = {
+                                    Icon(
+                                        painter = entry.actionIcon,
+                                        contentDescription = null,
+                                    )
+                                },
+                                enabled = when (entry) {
+                                    ContextActions.COPY -> onCopy != null
+                                    ContextActions.DELETE -> onDelete != null
+                                    ContextActions.SHARE -> onShare != null
+                                },
+                                colors = if (entry == ContextActions.DELETE)
+                                    MenuDefaults.itemColors(
+                                        textColor = MaterialTheme.colorScheme.error,
+                                        leadingIconColor = MaterialTheme.colorScheme.error,
+                                    )
+                                else MenuDefaults.itemColors(),
+                                onClick = {
+                                    when (entry) {
+                                        ContextActions.COPY -> onCopy?.invoke()
+                                        ContextActions.DELETE -> onDelete?.invoke()
+                                        ContextActions.SHARE -> onShare?.invoke()
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            HorizontalDivider()
+            Text(
+                text = sketch.content,
+                style = MaterialTheme.typography.bodyMediumEmphasized,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                overflow = TextOverflow.Ellipsis,
+                maxLines = 3,
+                modifier = Modifier.sharedTransitionSkipChildSize()
+                    .sharedBoundsWrapper(
+                        key = SharedElementTransKeys.sharedElementSketchContent(sketch.id),
+                        enter = scaleIn(transformOrigin = TransformOrigin(0f, .5f)) + fadeIn(initialAlpha = .25f),
+                        exit = scaleOut(transformOrigin = TransformOrigin(0f, 0f)) + fadeOut(targetAlpha = .2f),
+                        resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                        boundsTransform = { _, _ -> tween(durationMillis = 200, easing = EaseInOutBounce) },
+                        placeHolderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+                    ),
+            )
+        }
+    }
 }
 
 private enum class ContextActions {
-	COPY,
-	SHARE,
-	DELETE,
+    COPY,
+    SHARE,
+    DELETE,
 }
 
 private val ContextActions.actionText: String
-	@Composable
-	get() = when (this) {
-		ContextActions.COPY -> stringResource(Res.string.menu_action_copy)
-		ContextActions.SHARE -> stringResource(Res.string.menu_action_share)
-		ContextActions.DELETE -> stringResource(Res.string.menu_action_delete)
-	}
+    @Composable
+    get() = when (this) {
+        ContextActions.COPY -> stringResource(Res.string.menu_action_copy)
+        ContextActions.SHARE -> stringResource(Res.string.menu_action_share)
+        ContextActions.DELETE -> stringResource(Res.string.menu_action_delete)
+    }
 
 private val ContextActions.actionIcon: Painter
-	@Composable
-	get() = when (this) {
-		ContextActions.COPY -> painterResource(Res.drawable.ic_copy)
-		ContextActions.SHARE -> painterResource(Res.drawable.ic_share)
-		ContextActions.DELETE -> painterResource(Res.drawable.ic_delete)
-	}
+    @Composable
+    get() = when (this) {
+        ContextActions.COPY -> painterResource(Res.drawable.ic_copy)
+        ContextActions.SHARE -> painterResource(Res.drawable.ic_share)
+        ContextActions.DELETE -> painterResource(Res.drawable.ic_delete)
+    }
 
 @Preview
 @Composable
 fun SketchCardPreview() = BluePadTheme {
-	SketchCard(sketch = PreviewFakes.FAKE_SKETCH_MODEL, onClick = {}, onDelete = {})
+    SketchCard(
+        sketch = PreviewFakes.FAKE_SKETCH_MODEL,
+        onClick = {},
+        onDelete = {},
+    )
 }

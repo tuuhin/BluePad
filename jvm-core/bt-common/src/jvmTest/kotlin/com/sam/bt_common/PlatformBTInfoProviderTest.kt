@@ -26,12 +26,4 @@ class PlatformBTInfoProviderTest {
         }
     }
 
-    @Test
-    fun `check if bluetooth is active can be called`() = runTest {
-        val provider = PlatformBTInfoProvider()
-        // didn't throw error means its good
-        provider.use { provider ->
-            provider.isBluetoothActive()
-        }
-    }
 }

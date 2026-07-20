@@ -50,6 +50,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
@@ -94,12 +95,12 @@ actual class BLESyncConnectionManagerImpl private constructor(
 
     override fun discoverAndConnect(timeout: Duration): Flow<ResourcesSyncDataEvents> =
         flow<ResourcesSyncDataEvents> {
-            if (!PlatformBTInfoProvider.isBTActive) {
+            if (!PlatformBTInfoProvider.isBTActive()) {
                 emit(Resource.Error(BluetoothNotEnabledException()))
                 return@flow
             }
 
-            if (!PlatformBTInfoProvider.isLEConnectionAvailable) {
+            if (!PlatformBTInfoProvider.isLEConnectionAvailable()) {
                 emit(Resource.Error(BLENotSupportedException()))
                 return@flow
             }
@@ -110,7 +111,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
                 val firstAdvertisement = withTimeout(timeout) {
                     _scanner.advertisements
                         // an extra delay for the hardware to cool down
-                        .onEach { delay(100) }
+                        .onEach { delay(100.milliseconds) }
                         .first()
                 }
                 Logger.i(tag = TAG) { "SCAN RESULT FOUND" }

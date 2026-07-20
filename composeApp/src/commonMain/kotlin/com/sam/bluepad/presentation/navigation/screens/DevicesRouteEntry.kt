@@ -7,14 +7,14 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import com.sam.bluepad.presentation.feature_devices.screens.ManageDevicesScreen
 import com.sam.bluepad.presentation.feature_devices.viewmodel.ManageDeviceViewmodel
-import com.sam.bluepad.presentation.navigation.nav_graph.AssociatedNavGraph
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
+import com.sam.bluepad.presentation.navigation.nav_graph.RootTabLayoutNavGraph
 import com.sam.bluepad.presentation.utils.UiEventsHandler
 import org.koin.compose.viewmodel.koinViewModel
 
 fun EntryProviderScope<NavKey>.devicesRouteEntry(
     backStack: NavBackStack<NavKey>
-) = entry<AssociatedNavGraph.DeviceRoute> {
+) = entry<RootTabLayoutNavGraph.DeviceRoute> {
 
     val viewModel = koinViewModel<ManageDeviceViewmodel>()
     val savedDevices by viewModel.devices.collectAsStateWithLifecycle()
