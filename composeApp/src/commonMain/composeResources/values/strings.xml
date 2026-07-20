@@ -18,6 +18,7 @@
     <string name="action_add_new_device">Add Device</string>
     <string name="action_save">Save</string>
     <string name="action_update">Update</string>
+    <string name="action_set_device_local_name">Set a new alias</string>
     <string name="action_sync_device">Sync</string>
     <string name="action_enable">Request Enable</string>
     <string name="state_loading">Loading</string>
@@ -85,6 +86,7 @@
     <string name="settings_screen_re_enroll_device_title">Re-Enroll Device</string>
     <string name="settings_screen_re_enroll_device_text">Remove revoke tag from all revoked device</string>
     <string name="action_re_enroll_device">Re-Enroll</string>
+    <string name="settings_segment_personalization">Personalization</string>
     <!--  Others-->
     <string name="bluetooth_not_enabled_text">Bluetooth is not enabled</string>
     <string name="menu_action_copy">Copy</string>

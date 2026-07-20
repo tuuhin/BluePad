@@ -113,6 +113,7 @@ val darkColorScheme = darkColorScheme(
 expect fun BluePadTheme(
     isDarkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
-    typography: Typography = AppTypography,
+    useSystemFonts: Boolean = true,
+    customTypography: Typography? = AppTypographyCustom,
     content: @Composable () -> Unit,
 )

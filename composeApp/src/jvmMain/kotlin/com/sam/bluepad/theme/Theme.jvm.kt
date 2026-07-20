@@ -9,12 +9,18 @@ import androidx.compose.runtime.Composable
 actual fun BluePadTheme(
     isDarkTheme: Boolean,
     dynamicColor: Boolean,
-    typography: Typography,
+    useSystemFonts: Boolean,
+    customTypography: Typography?,
     content: @Composable (() -> Unit)
 ) {
     val colorScheme = when {
         isDarkTheme -> darkColorScheme
         else -> lightColorScheme
+    }
+
+    val typography = when {
+        useSystemFonts || customTypography == null -> SystemTypography
+        else -> customTypography
     }
 
     MaterialExpressiveTheme(

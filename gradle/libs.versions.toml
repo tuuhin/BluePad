@@ -1,5 +1,5 @@
 [versions]
-agp = "9.2.1"
+agp = "9.3.0"
 assertk = "0.28.1"
 kotlinxImmutable = "0.5.1"
 kotlinxDatetime = "0.8.0"
@@ -39,10 +39,11 @@ kableExceptions = "0.34.0"
 compose_toast = "3.1.0"
 turbine = "1.2.1"
 nucleusnativeaccess = "0.6.0"
-nucleus = "2.0.7"
+nucleus = "2.1.1"
 cryptographyCore = "0.6.0"
 lighthouse = "2.3.1"
 catelog-update = "1.1.0"
+wireRuntime = "7.0.0-alpha05"
 
 [libraries]
 #testing
@@ -108,6 +109,7 @@ whyoleg-cryptography-core = { module = "dev.whyoleg.cryptography:cryptography-co
 #datastore
 androidx-datastore = { module = "androidx.datastore:datastore", version.ref = "datastore" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+androidx-datastore-core-okio = { module = "androidx.datastore:datastore-core-okio", version.ref = "datastore" }
 #logging
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 kermit-koin = { module = "co.touchlab:kermit-koin", version.ref = "kermit" }
@@ -133,6 +135,7 @@ nucleus-decorated-window-material3 = { module = "dev.nucleusframework:nucleus.de
 #Gradle plugins
 kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 nucleus-nna-gradlePlugin = { module = "dev.nucleusframework.nna:dev.nucleusframework.nna.gradle.plugin", version.ref = "nucleusnativeaccess" }
+wire-runtime = { module = "com.squareup.wire:wire-runtime", version.ref = "wireRuntime" }
 
 [plugins]
 #agp
@@ -146,6 +149,7 @@ composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "k
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 jetbrains-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+wire-plugin = { id = "com.squareup.wire", version.ref = "wireRuntime" }
 #others
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 androidx-room = { id = "androidx.room", version.ref = "room" }
