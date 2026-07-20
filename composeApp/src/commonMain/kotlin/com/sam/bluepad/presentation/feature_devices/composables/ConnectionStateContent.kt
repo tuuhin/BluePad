@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialShapes
@@ -78,9 +79,10 @@ fun ConnectionStateContent(
 			when (peerState) {
 				BLEConnectionDeviceData.ConnectingOrDisconnecting -> {
 					Column(
-						verticalArrangement = Arrangement.spacedBy(spacing),
-						horizontalAlignment = Alignment.CenterHorizontally,
-					) {
+                        verticalArrangement = Arrangement.spacedBy(spacing),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.wrapContentSize(),
+                    ) {
 						LoadingIndicator(color = MaterialTheme.colorScheme.tertiaryContainer)
 						Text(
 							text = connectionState.readableString,
@@ -92,9 +94,10 @@ fun ConnectionStateContent(
 
 				BLEConnectionDeviceData.ConnectedWithoutData -> {
 					Column(
-						verticalArrangement = Arrangement.spacedBy(spacing),
-						horizontalAlignment = Alignment.CenterHorizontally,
-					) {
+                        verticalArrangement = Arrangement.spacedBy(spacing),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.wrapContentSize(),
+                    ) {
 						Box(
 							modifier = Modifier.background(
 								color = iconContainerColor,
@@ -119,9 +122,10 @@ fun ConnectionStateContent(
 
 				is BLEConnectionDeviceData.ContainsData -> {
 					Column(
-						verticalArrangement = Arrangement.spacedBy(spacing),
-						horizontalAlignment = Alignment.CenterHorizontally,
-					) {
+                        verticalArrangement = Arrangement.spacedBy(spacing),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.wrapContentSize(),
+                    ) {
 						Box(
 							modifier = Modifier.background(
 								color = iconContainerColor,
@@ -147,9 +151,10 @@ fun ConnectionStateContent(
 
 				BLEConnectionDeviceData.Disconnected -> {
 					Column(
-						verticalArrangement = Arrangement.spacedBy(spacing),
-						horizontalAlignment = Alignment.CenterHorizontally,
-					) {
+                        verticalArrangement = Arrangement.spacedBy(spacing),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.wrapContentSize(),
+                    ) {
 						Box(
 							modifier = Modifier.background(
 								color = iconContainerColor,

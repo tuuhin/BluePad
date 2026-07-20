@@ -2,6 +2,7 @@ package com.sam.bluepad.presentation.navigation.screens
 
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.Lifecycle
@@ -11,10 +12,12 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import com.sam.bluepad.presentation.feature_sync.SyncReceiverScreen
 import com.sam.bluepad.presentation.feature_sync.event.SyncWorkflowEvent
 import com.sam.bluepad.presentation.feature_sync.viewmodel.SyncReceiverViewmodel
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
+import com.sam.bluepad.presentation.utils.LocalAnimatedContentScope
 import com.sam.bluepad.presentation.utils.UiEventsHandler
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_back
@@ -29,6 +32,7 @@ fun EntryProviderScope<NavKey>.receiveSyncDataRouteEntry(
 ) = entry<RootNavGraph.ReceiveSyncDeviceRoute> {
 
     val lifecycleOwner = LocalLifecycleOwner.current
+    val contentScope = LocalNavAnimatedContentScope.current
 
     val viewModel = koinViewModel<SyncReceiverViewmodel>()
     val screenState by viewModel.screenState.collectAsStateWithLifecycle()
@@ -60,18 +64,20 @@ fun EntryProviderScope<NavKey>.receiveSyncDataRouteEntry(
     }
 
 
-    SyncReceiverScreen(
-        state = screenState,
-        onEvent = viewModel::onEvent,
-        navigation = {
-            if (backStack.isNotEmpty()) {
-                IconButton(onClick = { backStack.removeLastOrNull() }) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_back),
-                        contentDescription = stringResource(Res.string.action_back),
-                    )
+    CompositionLocalProvider(LocalAnimatedContentScope provides contentScope) {
+        SyncReceiverScreen(
+            state = screenState,
+            onEvent = viewModel::onEvent,
+            navigation = {
+                if (backStack.isNotEmpty()) {
+                    IconButton(onClick = { backStack.removeLastOrNull() }) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_back),
+                            contentDescription = stringResource(Res.string.action_back),
+                        )
+                    }
                 }
-            }
-        },
-    )
+            },
+        )
+    }
 }

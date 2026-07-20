@@ -36,6 +36,12 @@ dependencies {
     implementation(libs.nucleus.decorated.window.material3)
     // compose app
     implementation(projects.composeApp)
+    // compose desktop test
+    testImplementation(libs.cmp.ui.test.junit)
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlin.testJunit)
+    testImplementation(libs.koin.test.junit)
+    testImplementation(libs.koin.test)
 }
 
 nucleus.application {
@@ -45,7 +51,6 @@ nucleus.application {
         "--enable-native-access=ALL-UNNAMED",
         "--add-opens=java.base/java.nio=ALL-UNNAMED",
         "-Dsun.misc.unsafe.allow=true",
-        $$"-Djava.library.path=$APPDIR/resources/libs",
     )
 
     buildTypes {
@@ -62,6 +67,9 @@ nucleus.application {
     }
 
     nativeDistributions {
+
+        // JVM ARGS SPECIFIC TO DISTRIBUTION
+        jvmArgs += listOf($$"-Djava.library.path=$APPDIR/resources/libs")
 
         val commonProperties = Properties().apply {
             val commons = project.file("packaging.properties")

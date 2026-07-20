@@ -2,18 +2,32 @@ package com.sam.bluepad.presentation.feature_settings.composable
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.sam.bluepad.presentation.feature_settings.event.CurrentDeviceState
+import com.sam.bluepad.domain.settings.models.AppFontOption
+import com.sam.bluepad.presentation.feature_settings.event.SettingsScreenEvent
+import com.sam.bluepad.presentation.feature_settings.event.SettingsScreenState
+import com.sam.bluepad.resources.Res
+import com.sam.bluepad.resources.ic_typeface
+import com.sam.bluepad.resources.settings_segment_personalization
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun SettingsScreenContent(
-    state: CurrentDeviceState,
-    onUpdateName: (String) -> Unit,
+    state: SettingsScreenState,
+    onEvent: (SettingsScreenEvent) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues.Zero,
 ) {
@@ -24,12 +38,44 @@ fun SettingsScreenContent(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = modifier,
     ) {
+        if (state.device != null) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                CurrentDeviceInfoCard(
+                    deviceState = state.device,
+                    devicePlatform = state.platformOs,
+                    onUpdateName = { onEvent(SettingsScreenEvent.OnUpdateDeviceName(it)) },
+                    modifier = Modifier.animateItem(),
+                )
+            }
+        }
         item(span = { GridItemSpan(maxLineSpan) }) {
-            CurrentDeviceInfoCard(
-                deviceState = state,
-                onUpdateName = onUpdateName,
-                modifier = Modifier.animateItem()
+            Text(
+                text = stringResource(Res.string.settings_segment_personalization),
+                style = MaterialTheme.typography.bodyLargeEmphasized,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+        }
+        item {
+            ListItem(
+                checked = state.appSettings.fontOption == AppFontOption.SYSTEM,
+                onCheckedChange = { onEvent(SettingsScreenEvent.OnToggleAppFont) },
+                trailingContent = {
+                    Switch(
+                        checked = state.appSettings.fontOption == AppFontOption.SYSTEM,
+                        onCheckedChange = null,
+                    )
+                },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_typeface),
+                        contentDescription = null,
+                    )
+                },
+                supportingContent = { Text(text = "Use system font") },
+                content = { Text(text = "Select App font", style = MaterialTheme.typography.titleMediumEmphasized) },
             )
         }
     }
 }
+

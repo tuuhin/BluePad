@@ -69,7 +69,6 @@ kotlin {
 kotlinNativeExportCmakeExt {
     nativeLibName.set("btCommonNative")
     generatedPackageName.set("com.sam.bt_common.platform")
-    cInteropName.set("btCommon")
     cmakeFilePath.set(rootProject.file("cpp/windows/bt_common"))
 
     val isRelease = envNativeBuildType.getOrElse("false").toBoolean()

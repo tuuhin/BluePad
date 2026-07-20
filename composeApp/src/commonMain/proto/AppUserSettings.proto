@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package com.sam.bluepad.data.proto;
+
+message UserAppSettingsProto {
+    bool use_system_font = 1;
+}

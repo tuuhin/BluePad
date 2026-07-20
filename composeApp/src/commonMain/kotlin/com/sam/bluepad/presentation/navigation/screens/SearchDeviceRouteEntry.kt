@@ -2,6 +2,7 @@ package com.sam.bluepad.presentation.navigation.screens
 
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.Lifecycle
@@ -17,6 +18,7 @@ import com.sam.bluepad.presentation.feature_devices.viewmodel.BLEScanDevicesView
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph.ConnectDeviceRoute
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph.CreateDeviceBondRoute
+import com.sam.bluepad.presentation.utils.LocalAnimatedContentScope
 import com.sam.bluepad.presentation.utils.UiEventsHandler
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_back
@@ -33,6 +35,7 @@ fun EntryProviderScope<NavKey>.searchDevicesEntry(
     val screenState by viewModel.state.collectAsStateWithLifecycle()
 
     val lifecycle = LocalLifecycleOwner.current
+    val contentScope = LocalAnimatedContentScope.current
 
     LaunchedEffect(lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -55,18 +58,20 @@ fun EntryProviderScope<NavKey>.searchDevicesEntry(
     // an extra dialog for handling the bond state
 
 
-    AddDevicesScreen(
-        state = screenState,
-        onEvent = viewModel::onEvent,
-        onBackNavigation = {
-            if (backStack.isNotEmpty()) {
-                IconButton(onClick = { backStack.removeLastOrNull() }) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_back),
-                        contentDescription = stringResource(Res.string.action_back),
-                    )
+    CompositionLocalProvider(LocalAnimatedContentScope provides contentScope) {
+        AddDevicesScreen(
+            state = screenState,
+            onEvent = viewModel::onEvent,
+            onBackNavigation = {
+                if (backStack.isNotEmpty()) {
+                    IconButton(onClick = { backStack.removeLastOrNull() }) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_back),
+                            contentDescription = stringResource(Res.string.action_back),
+                        )
+                    }
                 }
-            }
-        },
-    )
+            },
+        )
+    }
 }

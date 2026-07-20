@@ -2,6 +2,8 @@ package com.sam.bluepad
 
 import androidx.compose.runtime.Composer
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.tooling.ComposeStackTraceMode
 import co.touchlab.kermit.CommonWriter
 import co.touchlab.kermit.Logger
@@ -12,6 +14,8 @@ import com.sam.bluepad.di.commonAppModule
 import com.sam.bluepad.di.createPlatformModule
 import com.sam.bluepad.di.viewModelModule
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
+import com.sam.bluepad.domain.settings.UserAppSettingsProvider
+import com.sam.bluepad.domain.settings.models.AppFontOption
 import com.sam.bluepad.theme.BluePadTheme
 import com.sam.bluepad.utils.TimestampMessageWriter
 import com.sam.bluepad.utils.setupNativeLibraries
@@ -48,13 +52,19 @@ fun main(args: Array<String>) = nucleusApplication(
         },
     ) {
 
+        val settingsProvider = koinInject<UserAppSettingsProvider>()
         val deviceInfoProvider = koinInject<LocalDeviceInfoProvider>()
         LaunchedEffect(Unit) {
             deviceInfoProvider.initiateDeviceInfo()
         }
 
+        val userSettings by settingsProvider.settingsFlow.collectAsState(null)
+
         // APPLICATION CODE
-        BluePadTheme(dynamicColor = true) {
+        BluePadTheme(
+            dynamicColor = true,
+            useSystemFonts = userSettings?.fontOption == AppFontOption.SYSTEM,
+        ) {
             NucleusWindowWrapper {
                 App()
             }

@@ -6,7 +6,6 @@ import org.gradle.api.provider.Property
 interface KTNativeJNAExtension {
     val generatedPackageName: Property<String>
     val nativeLibName: Property<String>
-    val cInteropName: Property<String>
     val releaseBuildEnabled: Property<Boolean>
     val cmakeFilePath: DirectoryProperty
 }

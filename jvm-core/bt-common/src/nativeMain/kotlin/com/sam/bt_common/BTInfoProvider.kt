@@ -9,6 +9,8 @@ interface BTInfoProvider {
     fun unregisterCallback(caller: Long)
 
     suspend fun isBluetoothActive(): Boolean
+
+    fun requestBTEnable(): Int
     fun isLEConnectionAllowed(): Boolean
     fun isPeripheralRoleSupported(): Boolean
 }

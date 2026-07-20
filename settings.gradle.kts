@@ -37,6 +37,7 @@ include(":composeApp")
 include(":jvm-core:ble-advertise")
 include(":jvm-core:bt-common")
 include(":jvm-core:crypto-bridge")
+include(":jvm-core:common-utility")
 // App entry points
 include(":androidApp")
 include(":desktopApp")
