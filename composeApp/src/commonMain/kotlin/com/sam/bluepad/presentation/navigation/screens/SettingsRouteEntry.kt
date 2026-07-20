@@ -16,12 +16,12 @@ fun EntryProviderScope<NavKey>.settingsRouteEntry(
 ) = entry<RootTabLayoutNavGraph.SettingsRoute> {
 
     val viewmodel = koinViewModel<SettingsViewmodel>()
-    val currentDevice by viewmodel.localDeviceData.collectAsStateWithLifecycle()
+    val screenState by viewmodel.state.collectAsStateWithLifecycle()
 
     UiEventsHandler(eventsFlow = viewmodel::uiEvent)
 
     SettingsScreen(
-        deviceState = currentDevice,
+        deviceState = screenState,
         onEvent = viewmodel::onEvent,
     )
 }
