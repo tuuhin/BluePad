@@ -11,9 +11,9 @@ import com.sam.bluepad.data.bluetooth.BluetoothStateProviderImpl
 import com.sam.bluepad.data.crypto.encryption.KeyEncryptionManagerImpl
 import com.sam.bluepad.data.crypto.files.CryptoFilePathProviderImpl
 import com.sam.bluepad.data.database.AppDBBuilder
-import com.sam.bluepad.data.datastore.DataStoreProvider
 import com.sam.bluepad.data.interactions.CopySketchInteractionImpl
 import com.sam.bluepad.data.interactions.ShareSketchInteractionImpl
+import com.sam.bluepad.data.utils.CommonAppFilesStore
 import com.sam.bluepad.data.utils.JVMPermissionController
 import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.data.utils.PlatformInfoProvider
@@ -36,10 +36,10 @@ import org.koin.dsl.bind
 import org.koin.dsl.module
 
 actual fun createPlatformModule(): Module = module {
+
+    singleOf(::CommonAppFilesStore)
     //db
-    single { AppDBBuilder() }
-    // datastore
-    singleOf(::DataStoreProvider)
+    singleOf(::AppDBBuilder)
 
     // coroutines dispatchers
     singleOf(::PlatformDispatcherProvider)

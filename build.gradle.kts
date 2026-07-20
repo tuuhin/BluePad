@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.kotlinx.serialization) apply false
     alias(libs.plugins.build.konfig) apply false
     alias(libs.plugins.jetbrains.kotlin.jvm) apply false
+    alias(libs.plugins.wire.plugin) apply false
     // quality of life plugins
     alias(libs.plugins.lighthouse)
     alias(libs.plugins.catelog.update)

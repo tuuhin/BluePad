@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.androidx.room)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.build.konfig)
+    alias(libs.plugins.wire.plugin)
 }
 
 kotlin {
@@ -87,6 +88,8 @@ kotlin {
             //data store
             implementation(libs.androidx.datastore)
             implementation(libs.androidx.datastore.preferences)
+            implementation(libs.androidx.datastore.core.okio)
+            implementation(libs.wire.runtime)
             // permissions
             implementation(libs.moko.permissions)
             // toast
@@ -177,5 +180,12 @@ buildkonfig {
     defaultConfigs {
         buildConfigField(FieldSpec.Type.STRING, "APP_ID", "e1e55e42-bb6c-4410-94e4-a2cc2e628c05")
         buildConfigField(FieldSpec.Type.BOOLEAN, "IS_DEBUG", "true")
+    }
+}
+
+wire {
+    kotlin {}
+    sourcePath {
+        srcDir("src/commonMain/proto")
     }
 }

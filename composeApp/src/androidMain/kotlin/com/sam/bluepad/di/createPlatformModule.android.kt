@@ -15,9 +15,9 @@ import com.sam.bluepad.data.bluetooth.BluetoothStateProviderImpl
 import com.sam.bluepad.data.crypto.encryption.KeyEncryptionManagerImpl
 import com.sam.bluepad.data.crypto.files.CryptoFilePathProviderImpl
 import com.sam.bluepad.data.database.AppDBBuilder
-import com.sam.bluepad.data.datastore.DataStoreProvider
 import com.sam.bluepad.data.interactions.CopySketchInteractionImpl
 import com.sam.bluepad.data.interactions.ShareSketchInteractionImpl
+import com.sam.bluepad.data.utils.CommonAppFilesStore
 import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
@@ -41,14 +41,14 @@ import org.koin.dsl.module
 
 
 actual fun createPlatformModule(): Module = module {
+
+    singleOf(::CommonAppFilesStore)
     // db provider
     single { AppDBBuilder(androidContext()) }
 
     // coroutines provider
     singleOf(::PlatformDispatcherProvider)
 
-    // datastore provider
-    singleOf(::DataStoreProvider)
     // ble provider
     singleOf(::BLEDiscoveryImpl) bind BLEDiscoveryManager::class
     singleOf(::BLEConnectionManagerImpl) bind BLEConnectionManager::class

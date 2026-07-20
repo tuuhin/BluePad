@@ -11,6 +11,8 @@ import com.sam.bluepad.data.database.BluePadDB
 import com.sam.bluepad.data.datastore.DataStoreProvider
 import com.sam.bluepad.data.datastore.DataStoreUtils
 import com.sam.bluepad.data.datastore.LocalDeviceInfoProviderImpl
+import com.sam.bluepad.data.datastore.UserAppSettingsProviderImpl
+import com.sam.bluepad.data.datastore.serializers.UserAppSettingsKT
 import com.sam.bluepad.data.repository.ExternalDevicesRepoImpl
 import com.sam.bluepad.data.repository.SketchesRepoImpl
 import com.sam.bluepad.data.serialization.SerializationProtocols
@@ -27,6 +29,7 @@ import com.sam.bluepad.domain.crypto.SyncDiffFileManager
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.repository.SketchesRepository
+import com.sam.bluepad.domain.settings.UserAppSettingsProvider
 import com.sam.bluepad.domain.sync.InPayloadManager
 import com.sam.bluepad.domain.sync.OutPayloadManager
 import com.sam.bluepad.domain.sync.SyncManager
@@ -41,6 +44,7 @@ import com.sam.bluepad.domain.use_cases.RandomNameGenerator
 import kotlinx.serialization.protobuf.ProtoBuf
 import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.singleOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -55,9 +59,18 @@ val commonAppModule = module(true) {
     single { get<BluePadDB>().sketchMetadataDao() }
     single { get<BluePadDB>().sketchContentDao() }
 
+    // datastore
+    singleOf(::DataStoreProvider)
     // preferences
-    single(createdAtStart = true) { get<DataStoreProvider>().provideDataStore(DataStoreUtils.APP_COMMONS_DATASTORE_FILE) }
+    single { get<DataStoreProvider>().providePreferencesDataStore(DataStoreUtils.APP_COMMONS_DATASTORE_FILE) }
         .bind<DataStore<Preferences>>()
+
+    single(named("app_settings")) {
+        get<DataStoreProvider>().provideSettingsDataStore(DataStoreUtils.APP_USER_SETTINGS_DATASTORE_FILE)
+    }.bind<DataStore<UserAppSettingsKT>>()
+
+    // settings
+    factory { UserAppSettingsProviderImpl(get(named("app_settings"))) }.bind<UserAppSettingsProvider>()
 
     //utils
     singleOf(::RandomNameGenerator)
