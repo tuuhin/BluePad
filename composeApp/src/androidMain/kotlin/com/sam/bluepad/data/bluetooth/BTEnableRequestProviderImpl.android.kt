@@ -38,7 +38,7 @@ actual class BTEnableRequestProviderImpl(private val context: Context) : BTEnabl
         }
     }
 
-    override fun onOpenSettings() {
+    override suspend fun onOpenSettings() {
         try {
             val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
                 .apply {

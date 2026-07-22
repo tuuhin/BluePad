@@ -1,16 +1,20 @@
 package com.sam.bluepad.data.bluetooth
 
 import co.touchlab.kermit.Logger
+import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.domain.bluetooth.BTEnableRequestProvider
 import com.sam.bt_common.models.BTJVMEnableResult
 import com.sam.bt_common.platform.PlatformBTInfoProvider
 import com.sam.bt_common.requestBTEnableAsync
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 private const val TAG = "BluetoothEnableRequest"
 
-actual class BTEnableRequestProviderImpl : BTEnableRequestProvider {
+actual class BTEnableRequestProviderImpl(
+    private val dispatchers: PlatformDispatcherProvider
+) : BTEnableRequestProvider {
 
     private val _lock = Mutex()
 
@@ -39,11 +43,13 @@ actual class BTEnableRequestProviderImpl : BTEnableRequestProvider {
         }
     }
 
-    override fun onOpenSettings() {
-        try {
-            PlatformBTInfoProvider().use { it.openBTSettings() }
-        } catch (e: Exception) {
-            Logger.e(tag = TAG, throwable = e) { "FAILED TO OPEN BLUETOOTH SETTINGS" }
+    override suspend fun onOpenSettings() {
+        withContext(dispatchers.io) {
+            try {
+                PlatformBTInfoProvider().use { it.openBTSettings() }
+            } catch (e: Exception) {
+                Logger.e(tag = TAG, throwable = e) { "FAILED TO OPEN BLUETOOTH SETTINGS" }
+            }
         }
     }
 }

@@ -53,9 +53,9 @@ class AppCommonViewModel(
         )
     }
 
-    fun onOpenAppSettings(){
+    fun onOpenAppSettings() = viewModelScope.launch {
         // Skip this if bluetooth is already enabled , being not needed in the context for this app
-        if (bluetoothState.value.isBTActive) return
+        if (bluetoothState.value.isBTActive) return@launch
         btRequestEnableProvider.onOpenSettings()
     }
 }

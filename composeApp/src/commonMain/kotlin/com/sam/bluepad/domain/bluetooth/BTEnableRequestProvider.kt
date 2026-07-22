@@ -30,5 +30,5 @@ interface BTEnableRequestProvider {
     /**
      * Navigates the user to the system Bluetooth Settings page
      */
-    fun onOpenSettings()
+    suspend fun onOpenSettings()
 }
