@@ -1,5 +1,6 @@
 package com.sam.bluepad.di
 
+import android.content.Context
 import com.sam.bluepad.data.ble.BLEAdvertisementImpl
 import com.sam.bluepad.data.ble.BLEConnectionManagerImpl
 import com.sam.bluepad.data.ble.BLEDiscoveryImpl
@@ -38,16 +39,17 @@ import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import org.koin.plugin.module.dsl.create
+import org.koin.plugin.module.dsl.single
 
 
 actual fun createPlatformModule(): Module = module {
 
-    singleOf(::CommonAppFilesStore)
-    // db provider
-    single { AppDBBuilder(androidContext()) }
+    single<CommonAppFilesStore> { create(::CommonAppFilesStore) }
+    single<AppDBBuilder> { create { context: Context -> AppDBBuilder(context) } }
 
     // coroutines provider
-    singleOf(::PlatformDispatcherProvider)
+    single<PlatformDispatcherProvider>()
 
     // ble provider
     singleOf(::BLEDiscoveryImpl) bind BLEDiscoveryManager::class

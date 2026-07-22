@@ -20,105 +20,107 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import org.koin.core.annotation.KoinViewModel
 
+@KoinViewModel
 class ManageDeviceViewmodel(
-	private val repository: ExternalDevicesRepository,
+    private val repository: ExternalDevicesRepository,
 ) : AppViewModel() {
 
-	private val _devices = MutableStateFlow(emptyList<ExternalDeviceModel>())
-	val devices = _devices
-		.onStart { loadDevicesList() }
-		.map { it.toImmutableList() }
-		.stateIn(
-			scope = viewModelScope,
-			started = SharingStarted.WhileSubscribed(5000L),
-			initialValue = persistentListOf()
-		)
+    private val _devices = MutableStateFlow(emptyList<ExternalDeviceModel>())
+    val devices = _devices
+        .onStart { loadDevicesList() }
+        .map { it.toImmutableList() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000L),
+            initialValue = persistentListOf(),
+        )
 
-	private val _isLoading = MutableStateFlow(true)
-	val isLoading = _isLoading.asStateFlow()
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading = _isLoading.asStateFlow()
 
-	private val _uiEvents = MutableSharedFlow<UIEvents>()
-	override val uiEvent: SharedFlow<UIEvents>
-		get() = _uiEvents
+    private val _uiEvents = MutableSharedFlow<UIEvents>()
+    override val uiEvent: SharedFlow<UIEvents>
+        get() = _uiEvents
 
-	fun onEvent(event: ManageDevicesScreenEvent) {
-		when (event) {
-			is ManageDevicesScreenEvent.OnRevokeDevice -> onRevokeDevice(event.device)
-			is ManageDevicesScreenEvent.OnDeleteDevice -> onDeleteDevice(event.device)
-		}
-	}
+    fun onEvent(event: ManageDevicesScreenEvent) {
+        when (event) {
+            is ManageDevicesScreenEvent.OnRevokeDevice -> onRevokeDevice(event.device)
+            is ManageDevicesScreenEvent.OnDeleteDevice -> onDeleteDevice(event.device)
+        }
+    }
 
-	private fun loadDevicesList() = repository.getAllDevices()
-		.onEach { res ->
-			when (res) {
-				is Resource.Error -> {
-					val message = res.message ?: res.error.message ?: "Some error"
-					_uiEvents.emit(UIEvents.ShowSnackBar(message))
-					_isLoading.update { false }
-				}
+    private fun loadDevicesList() = repository.getAllDevices()
+        .onEach { res ->
+            when (res) {
+                is Resource.Error -> {
+                    val message = res.message ?: res.error.message ?: "Some error"
+                    _uiEvents.emit(UIEvents.ShowSnackBar(message))
+                    _isLoading.update { false }
+                }
 
-				is Resource.Success -> {
-					_devices.update { res.data }
-					_isLoading.update { false }
-				}
+                is Resource.Success -> {
+                    _devices.update { res.data }
+                    _isLoading.update { false }
+                }
 
-				Resource.Loading -> _isLoading.update { true }
-			}
-		}
-		.launchIn(viewModelScope)
+                Resource.Loading -> _isLoading.update { true }
+            }
+        }
+        .launchIn(viewModelScope)
 
-	private fun onRevokeDevice(device: ExternalDeviceModel) =
-		repository.revokeOrUnRevokeDevice(device)
-			.onEach { res ->
-				when (res) {
-					is Resource.Error -> {
-						val message = res.message ?: res.error.message ?: "Some error"
-						_uiEvents.emit(UIEvents.ShowSnackBar(message))
-					}
+    private fun onRevokeDevice(device: ExternalDeviceModel) =
+        repository.revokeOrUnRevokeDevice(device)
+            .onEach { res ->
+                when (res) {
+                    is Resource.Error -> {
+                        val message = res.message ?: res.error.message ?: "Some error"
+                        _uiEvents.emit(UIEvents.ShowSnackBar(message))
+                    }
 
-					is Resource.Success -> {
-						val message = "${device.displayName} has been revoked"
-						_uiEvents.emit(UIEvents.ShowToast(message))
-					}
+                    is Resource.Success -> {
+                        val message = "${device.displayName} has been revoked"
+                        _uiEvents.emit(UIEvents.ShowToast(message))
+                    }
 
-					else -> {}
-				}
-			}.launchIn(viewModelScope)
+                    else -> {}
+                }
+            }.launchIn(viewModelScope)
 
-	private fun onDeleteDevice(device: ExternalDeviceModel) =
-		repository.deleteDevice(device).onEach { res ->
-			when (res) {
-				is Resource.Error -> {
-					val message = res.message ?: res.error.message ?: "Some error"
-					_uiEvents.emit(UIEvents.ShowSnackBar(message))
-				}
+    private fun onDeleteDevice(device: ExternalDeviceModel) =
+        repository.deleteDevice(device).onEach { res ->
+            when (res) {
+                is Resource.Error -> {
+                    val message = res.message ?: res.error.message ?: "Some error"
+                    _uiEvents.emit(UIEvents.ShowSnackBar(message))
+                }
 
-				is Resource.Success -> {
-					val message = "Device ${device.displayName} deleted"
-					val event = UIEvents.ShowSnackBarWithActions(
-						message,
-						action = { insertDevice(device) },
-						actionText = "Undo"
-					)
-					_uiEvents.emit(event)
-				}
+                is Resource.Success -> {
+                    val message = "Device ${device.displayName} deleted"
+                    val event = UIEvents.ShowSnackBarWithActions(
+                        message,
+                        action = { insertDevice(device) },
+                        actionText = "Undo",
+                    )
+                    _uiEvents.emit(event)
+                }
 
-				else -> {}
-			}
-		}.launchIn(viewModelScope)
+                else -> {}
+            }
+        }.launchIn(viewModelScope)
 
 
-	private fun insertDevice(device: ExternalDeviceModel) =
-		repository.saveOrUpdateDevice(device).onEach { res ->
-			when (res) {
-				is Resource.Error -> {
-					val message = res.message ?: res.error.message ?: "Some error"
-					_uiEvents.emit(UIEvents.ShowSnackBar(message))
-				}
+    private fun insertDevice(device: ExternalDeviceModel) =
+        repository.saveOrUpdateDevice(device).onEach { res ->
+            when (res) {
+                is Resource.Error -> {
+                    val message = res.message ?: res.error.message ?: "Some error"
+                    _uiEvents.emit(UIEvents.ShowSnackBar(message))
+                }
 
-				else -> {}
-			}
-		}.launchIn(viewModelScope)
+                else -> {}
+            }
+        }.launchIn(viewModelScope)
 
 }
