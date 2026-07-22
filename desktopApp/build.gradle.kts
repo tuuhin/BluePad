@@ -16,32 +16,24 @@ kotlin {
 }
 
 dependencies {
-    // compose
-    implementation(libs.cmp.runtime)
-    implementation(libs.cmp.foundation)
-    implementation(libs.cmp.ui)
-    implementation(libs.cmp.material3)
-    implementation(libs.cmp.components.resources)
-    // logging
+    // compose ui
+    implementation(libs.bundles.compose.ui)
+    // logging & koin
     implementation(libs.kermit)
     implementation(libs.kermit.koin)
-    // koin
-    implementation(libs.koin.core)
-    implementation(libs.koin.compose)
+    implementation(libs.bundles.koin.common)
     // kotlinx datetime
     implementation(libs.kotlinx.datetime)
-    // kdroid filter
-    implementation(libs.nucleus.core.application)
-    implementation(libs.nucleus.decorated.window.tao)
-    implementation(libs.nucleus.decorated.window.material3)
-    // compose app
+
+    // nucleus framework
+    implementation(libs.bundles.nucleus)
+    // compose app module
     implementation(projects.composeApp)
-    // compose desktop test
-    testImplementation(libs.cmp.ui.test.junit)
-    testImplementation(libs.kotlin.test)
-    testImplementation(libs.kotlin.testJunit)
-    testImplementation(libs.koin.test.junit)
+    // testing
     testImplementation(libs.koin.test)
+    testImplementation(libs.koin.test.junit)
+    testImplementation(libs.cmp.ui.test.junit)
+    testImplementation(libs.bundles.testing.unit)
 }
 
 nucleus.application {
@@ -91,7 +83,7 @@ nucleus.application {
         // java modules
         modules("java.instrument", "jdk.unsupported", "java.management")
 
-        // target common connfiguration
+        // target common configuration
         outputBaseDir.set(project.layout.buildDirectory.dir("desktop"))
         appResourcesRootDir.set(project.layout.projectDirectory.dir("desktopResources"))
         compressionLevel = CompressionLevel.Normal
@@ -156,4 +148,3 @@ compose.resources {
         },
     )
 }
-
