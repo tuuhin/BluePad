@@ -18,9 +18,8 @@ private const val TAG = "BluetoothStatusProvider"
 @OptIn(ExperimentalAtomicApi::class)
 actual class BluetoothStateProviderImpl : BluetoothStateProvider {
 
-    override val isBtActive: Boolean
-        get() = PlatformBTInfoProvider()
-            .use { provider -> provider.isBluetoothActive() }
+    override suspend fun isBtActive(): Boolean = PlatformBTInfoProvider()
+        .use { provider -> provider.isBluetoothActive() }
 
     override val bluetoothStatusFlow: Flow<Boolean>
         get() = callbackFlow {

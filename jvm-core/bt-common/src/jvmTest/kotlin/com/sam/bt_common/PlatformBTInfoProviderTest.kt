@@ -20,10 +20,16 @@ class PlatformBTInfoProviderTest {
     @Test
     fun `check if bluetooth peripheral connection supported`() = runTest {
         val provider = PlatformBTInfoProvider()
-        // didn't throw error means its good
         provider.use { provider ->
             assertThat(provider.isPeripheralRoleSupported()).isTrue()
         }
+    }
+
+    @Test
+    fun `bluetooth is active should pass without failing`() = runTest {
+        val provider = PlatformBTInfoProvider()
+        // didn't throw error means its good
+        provider.use { provider -> provider.isBluetoothActive() }
     }
 
 }

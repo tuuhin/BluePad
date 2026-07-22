@@ -284,7 +284,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
     }
 
 
-    actual override fun start(config: GATTAdvertiseConfig) = memScoped {
+    actual override suspend fun start(config: GATTAdvertiseConfig) = memScoped {
         val handle = createHandleIfNotSet()
 
         val cConfig = alloc<MingwBLEAdvertiserConfig>()

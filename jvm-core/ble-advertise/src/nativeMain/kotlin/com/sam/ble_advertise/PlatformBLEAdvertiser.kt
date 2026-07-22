@@ -9,7 +9,7 @@ expect class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
 
     override fun getStatusInt(): Int
 
-    override fun start(config: GATTAdvertiseConfig)
+    override suspend fun start(config: GATTAdvertiseConfig)
     override fun stop()
 
     override fun addService(serviceUuid: String)

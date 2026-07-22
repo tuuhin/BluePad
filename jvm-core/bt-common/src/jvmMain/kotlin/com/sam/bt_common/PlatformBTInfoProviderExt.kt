@@ -5,9 +5,8 @@ import com.sam.bt_common.platform.PlatformBTInfoProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-suspend fun PlatformBTInfoProvider.Companion.isBTActive(): Boolean = withContext(Dispatchers.IO) {
+suspend fun PlatformBTInfoProvider.Companion.isBTActive(): Boolean =
     PlatformBTInfoProvider().use { provider -> provider.isBluetoothActive() }
-}
 
 suspend fun PlatformBTInfoProvider.Companion.isLEConnectionAvailable(): Boolean = withContext(Dispatchers.IO) {
     PlatformBTInfoProvider().use { provider -> provider.isLEConnectionAllowed() }

@@ -1,6 +1,7 @@
 package com.sam.bt_common.models
 
 enum class BTJVMEnableResult(val statusCode: Int) {
+    REQUEST_OPTION_NOT_FOUND(-1),
     REQUEST_ACCEPTED(0),
     REQUEST_DENIED_PRIVACY_ISSUES(1),
     REQUEST_DENIED_BY_SYSTEM(2),

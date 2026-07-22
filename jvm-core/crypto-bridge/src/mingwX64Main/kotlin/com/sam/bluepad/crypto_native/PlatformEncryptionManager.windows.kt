@@ -63,4 +63,6 @@ actual class PlatformEncryptionManager : EncryptionManager {
             return@memScoped result
         }
     }
+
+    actual override fun cleanUpKeys() = Unit
 }

@@ -8,9 +8,13 @@ interface BTInfoProvider {
     fun registerCallback(callback: (Boolean) -> Unit): Long
     fun unregisterCallback(caller: Long)
 
-    fun requestBTEnable(): Int
+    suspend fun isBluetoothActive(): Boolean
 
-    fun isBluetoothActive(): Boolean
+    val canActivateBTFromApp: Boolean
+    val canRequestOpenSettings: Boolean
+    fun requestBTEnable(): Int
+    fun openBTSettings()
+
     fun isLEConnectionAllowed(): Boolean
     fun isPeripheralRoleSupported(): Boolean
 }
