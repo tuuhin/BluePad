@@ -11,7 +11,8 @@ internal typealias UserAppSettingsKT = UserAppSettingsProto
 
 internal object AppSettingsSerializer : OkioSerializer<UserAppSettingsKT> {
 
-    override val defaultValue: UserAppSettingsKT = UserAppSettingsKT(use_system_font = false)
+    override val defaultValue: UserAppSettingsKT =
+        UserAppSettingsKT(use_system_font = false, use_dynamic_colors = false)
 
     override suspend fun readFrom(source: BufferedSource): UserAppSettingsKT {
         try {

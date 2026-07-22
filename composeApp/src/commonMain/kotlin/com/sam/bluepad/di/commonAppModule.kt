@@ -65,7 +65,7 @@ val commonAppModule = module {
 
     // DataStore & Settings
     single<DataStoreProvider>()
-    factory<UserAppSettingsProviderImpl>() bind UserAppSettingsProvider::class
+    single<UserAppSettingsProviderImpl>() bind UserAppSettingsProvider::class
 
     // Utils
     single<RandomNameGenerator>()

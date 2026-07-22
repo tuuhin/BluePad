@@ -80,6 +80,8 @@ kotlin {
             // wire & serialization
             implementation(libs.wire.runtime)
             implementation(libs.kotlinx.serialization.protobuf)
+            // colors
+            implementation(libs.material.kolor)
         }
 
         commonTest.dependencies {
@@ -104,6 +106,8 @@ kotlin {
             implementation(projects.jvmCore.bleAdvertise)
             implementation(projects.jvmCore.cryptoBridge)
             implementation(projects.jvmCore.commonUtility)
+            // color
+            implementation(libs.nucleus.system.accent)
         }
 
         jvmTest.dependencies {

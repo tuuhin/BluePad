@@ -14,8 +14,8 @@ import com.sam.bluepad.di.commonAppModule
 import com.sam.bluepad.di.createPlatformModule
 import com.sam.bluepad.di.viewModelModule
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
-import com.sam.bluepad.domain.settings.UserAppSettingsProvider
 import com.sam.bluepad.domain.settings.models.AppFontOption
+import com.sam.bluepad.presentation.feature_settings.SettingsViewmodel
 import com.sam.bluepad.theme.BluePadTheme
 import com.sam.bluepad.utils.TimestampMessageWriter
 import com.sam.bluepad.utils.setupNativeLibraries
@@ -52,18 +52,18 @@ fun main(args: Array<String>) = nucleusApplication(
         },
     ) {
 
-        val settingsProvider = koinInject<UserAppSettingsProvider>()
         val deviceInfoProvider = koinInject<LocalDeviceInfoProvider>()
         LaunchedEffect(Unit) {
             deviceInfoProvider.initiateDeviceInfo()
         }
 
-        val userSettings by settingsProvider.settingsFlow.collectAsState(null)
+        val settingsProvider = koinInject<SettingsViewmodel>()
+        val userSettings by settingsProvider.state.collectAsState()
 
         // APPLICATION CODE
         BluePadTheme(
-            dynamicColor = true,
-            useSystemFonts = userSettings?.fontOption == AppFontOption.SYSTEM,
+            dynamicColor = userSettings.appSettings.useDynamicColor,
+            useSystemFonts = userSettings.appSettings.fontOption == AppFontOption.SYSTEM,
         ) {
             NucleusWindowWrapper {
                 App()
