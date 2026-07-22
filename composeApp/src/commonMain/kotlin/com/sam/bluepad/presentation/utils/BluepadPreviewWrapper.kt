@@ -8,7 +8,10 @@ class BluepadPreviewWrapper : PreviewWrapperProvider {
 
     @Composable
     override fun Wrap(content: @Composable (() -> Unit)) {
-        BluePadTheme(useSystemFonts = false) {
+        BluePadTheme(
+            useSystemFonts = false,
+            dynamicColor = false,
+        ) {
             content()
         }
     }

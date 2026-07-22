@@ -8,7 +8,6 @@ import com.sam.bluepad.domain.crypto.models.KeyEncryptionResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.security.KeyStore
-import java.security.Security
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -70,7 +69,6 @@ actual class KeyEncryptionManagerImpl : KeyEncryptionManager {
         keyStore.deleteEntry(SECURITY_KEY_ALIAS)
     }
 
-    override fun close() = Unit
 
     companion object {
         // encryption properties

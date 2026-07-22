@@ -1,18 +1,18 @@
 package com.sam.bluepad.di
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import com.sam.bluepad.data.crypto.EncryptionSessionManagerImpl
 import com.sam.bluepad.data.crypto.encryption.AESCBCEncryptionManager
 import com.sam.bluepad.data.crypto.files.KeyFileManagerImpl
 import com.sam.bluepad.data.crypto.files.SyncDiffFileManagerImpl
 import com.sam.bluepad.data.database.AppDBBuilder
 import com.sam.bluepad.data.database.BluePadDB
+import com.sam.bluepad.data.database.dao.DevicesInfoDao
+import com.sam.bluepad.data.database.dao.SketchContentDao
+import com.sam.bluepad.data.database.dao.SketchMetadataDao
+import com.sam.bluepad.data.database.dao.SketchesDao
 import com.sam.bluepad.data.datastore.DataStoreProvider
-import com.sam.bluepad.data.datastore.DataStoreUtils
 import com.sam.bluepad.data.datastore.LocalDeviceInfoProviderImpl
 import com.sam.bluepad.data.datastore.UserAppSettingsProviderImpl
-import com.sam.bluepad.data.datastore.serializers.UserAppSettingsKT
 import com.sam.bluepad.data.repository.ExternalDevicesRepoImpl
 import com.sam.bluepad.data.repository.SketchesRepoImpl
 import com.sam.bluepad.data.serialization.SerializationProtocols
@@ -42,65 +42,60 @@ import com.sam.bluepad.domain.use_cases.RandomGenerator
 import com.sam.bluepad.domain.use_cases.RandomGeneratorImpl
 import com.sam.bluepad.domain.use_cases.RandomNameGenerator
 import kotlinx.serialization.protobuf.ProtoBuf
-import org.koin.core.module.dsl.factoryOf
-import org.koin.core.module.dsl.singleOf
-import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import org.koin.plugin.module.dsl.create
+import org.koin.plugin.module.dsl.factory
+import org.koin.plugin.module.dsl.single
 
-val commonAppModule = module(true) {
-    // db module
-    single {
-        val dbBuilder = get<AppDBBuilder>()
-        BluePadDB.prepareRoomDb(dbBuilder.getDbBuilder())
-    }
-    single { get<BluePadDB>().devicesDao() }
-    single { get<BluePadDB>().sketchesDao() }
-    single { get<BluePadDB>().sketchMetadataDao() }
-    single { get<BluePadDB>().sketchContentDao() }
+private fun provideRoomDb(builder: AppDBBuilder): BluePadDB = BluePadDB.prepareRoomDb(builder.getDbBuilder())
+private fun provideDevicesDao(db: BluePadDB): DevicesInfoDao = db.devicesDao()
+private fun provideSketchesDao(db: BluePadDB): SketchesDao = db.sketchesDao()
+private fun provideSketchMetadataDao(db: BluePadDB): SketchMetadataDao = db.sketchMetadataDao()
+private fun provideSketchContentDao(db: BluePadDB): SketchContentDao = db.sketchContentDao()
+private fun provideProtoBuf(): ProtoBuf = SerializationProtocols.protobuf
 
-    // datastore
-    singleOf(::DataStoreProvider)
-    // preferences
-    single { get<DataStoreProvider>().providePreferencesDataStore(DataStoreUtils.APP_COMMONS_DATASTORE_FILE) }
-        .bind<DataStore<Preferences>>()
+val commonAppModule = module {
+    // DB Module
+    single(createdAtStart = true) { create(::provideRoomDb) } bind BluePadDB::class
+    single { create(::provideDevicesDao) } bind DevicesInfoDao::class
+    single { create(::provideSketchesDao) } bind SketchesDao::class
+    single { create(::provideSketchMetadataDao) } bind SketchMetadataDao::class
+    single { create(::provideSketchContentDao) } bind SketchContentDao::class
 
-    single(named("app_settings")) {
-        get<DataStoreProvider>().provideSettingsDataStore(DataStoreUtils.APP_USER_SETTINGS_DATASTORE_FILE)
-    }.bind<DataStore<UserAppSettingsKT>>()
+    // DataStore & Settings
+    single<DataStoreProvider>()
+    single<UserAppSettingsProviderImpl>() bind UserAppSettingsProvider::class
 
-    // settings
-    factory { UserAppSettingsProviderImpl(get(named("app_settings"))) }.bind<UserAppSettingsProvider>()
+    // Utils
+    single<RandomNameGenerator>()
+    single<RandomGeneratorImpl>() bind RandomGenerator::class
+    single<HashGenerator>()
+    single { create(::provideProtoBuf) } bind ProtoBuf::class
+    single<BytesEncoder>()
 
-    //utils
-    singleOf(::RandomNameGenerator)
-    singleOf(::RandomGeneratorImpl) bind RandomGenerator::class
-    singleOf(::HashGenerator)
-    single { SerializationProtocols.protobuf } bind ProtoBuf::class
-    single { BytesEncoder() } bind BytesEncoder::class
+    // Sync Manager
+    factory<SyncManagerImpl>() bind SyncManager::class
+    factory<OutgoingPayloadManagerImpl> { create(::OutgoingPayloadManagerImpl) } bind OutPayloadManager::class
+    factory<IncomingPayloadManagerImpl> { create(::IncomingPayloadManagerImpl) } bind InPayloadManager::class
 
-    // sync manager
-    factoryOf(::SyncManagerImpl) bind SyncManager::class
-    factoryOf(::OutgoingPayloadManagerImpl) bind OutPayloadManager::class
-    factoryOf(::IncomingPayloadManagerImpl) bind InPayloadManager::class
+    // Device Info Provider
+    single<LocalDeviceInfoProviderImpl>() bind LocalDeviceInfoProvider::class
 
-    // device id provider
-    singleOf(::LocalDeviceInfoProviderImpl) bind LocalDeviceInfoProvider::class
-    // repository
-    factoryOf(::ExternalDevicesRepoImpl) bind ExternalDevicesRepository::class
-    factoryOf(::SketchesRepoImpl) bind SketchesRepository::class
+    // Repository
+    factory<ExternalDevicesRepoImpl>() bind ExternalDevicesRepository::class
+    factory<SketchesRepoImpl> { create(::SketchesRepoImpl) } bind SketchesRepository::class
 
-    // sync diffs
-    factoryOf(::SyncDiffCalculatorImpl) bind SyncDiffCalculator::class
-    factoryOf(::SyncDataSessionReaderImpl) bind SyncDataSessionReader::class
-    factoryOf(::SyncDataSaverImpl) bind SyncDataSaver::class
+    // Sync Diffs
+    factory<SyncDiffCalculatorImpl>() bind SyncDiffCalculator::class
+    factory<SyncDataSessionReaderImpl> { create(::SyncDataSessionReaderImpl) } bind SyncDataSessionReader::class
+    factory<SyncDataSaverImpl>() bind SyncDataSaver::class
 
-    // files
-    singleOf(::KeyFileManagerImpl) bind KeyFileManager::class
-    factoryOf(::SyncDiffFileManagerImpl) bind SyncDiffFileManager::class
+    // Files
+    single<KeyFileManagerImpl>() bind KeyFileManager::class
+    factory<SyncDiffFileManagerImpl>() bind SyncDiffFileManager::class
 
-    // crypto
-    factoryOf(::AESCBCEncryptionManager) bind EncryptionManager::class
-    factoryOf(::EncryptionSessionManagerImpl)
-    factoryOf(::EncryptionSessionManagerImpl) bind EncryptionSessionManager::class
+    // Crypto
+    factory<AESCBCEncryptionManager> { create(::AESCBCEncryptionManager) } bind EncryptionManager::class
+    factory<EncryptionSessionManagerImpl> { create(::EncryptionSessionManagerImpl) } bind EncryptionSessionManager::class
 }

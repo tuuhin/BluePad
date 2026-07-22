@@ -8,4 +8,6 @@ interface UserAppSettingsProvider {
     val settingsFlow: Flow<UserAppSettingsModel>
 
     suspend fun toggleUseSystemFont()
+
+    suspend fun toggleUseDynamicColor()
 }

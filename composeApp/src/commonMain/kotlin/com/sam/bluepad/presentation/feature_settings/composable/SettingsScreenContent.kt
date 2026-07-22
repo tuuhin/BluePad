@@ -19,7 +19,12 @@ import com.sam.bluepad.domain.settings.models.AppFontOption
 import com.sam.bluepad.presentation.feature_settings.event.SettingsScreenEvent
 import com.sam.bluepad.presentation.feature_settings.event.SettingsScreenState
 import com.sam.bluepad.resources.Res
+import com.sam.bluepad.resources.ic_paint_brush
 import com.sam.bluepad.resources.ic_typeface
+import com.sam.bluepad.resources.settings_personalization_use_device_font_text
+import com.sam.bluepad.resources.settings_personalization_use_device_font_title
+import com.sam.bluepad.resources.settings_personalization_use_dynamic_color_text
+import com.sam.bluepad.resources.settings_personalization_use_dynamic_color_title
 import com.sam.bluepad.resources.settings_segment_personalization
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -72,8 +77,38 @@ fun SettingsScreenContent(
                         contentDescription = null,
                     )
                 },
-                supportingContent = { Text(text = "Use system font") },
-                content = { Text(text = "Select App font", style = MaterialTheme.typography.titleMediumEmphasized) },
+                supportingContent = { Text(text = stringResource(Res.string.settings_personalization_use_device_font_text)) },
+                content = {
+                    Text(
+                        text = stringResource(Res.string.settings_personalization_use_device_font_title),
+                        style = MaterialTheme.typography.titleMediumEmphasized,
+                    )
+                },
+            )
+        }
+        item {
+            ListItem(
+                checked = state.appSettings.useDynamicColor,
+                onCheckedChange = { onEvent(SettingsScreenEvent.UseDynamicColor) },
+                trailingContent = {
+                    Switch(
+                        checked = state.appSettings.useDynamicColor,
+                        onCheckedChange = null,
+                    )
+                },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_paint_brush),
+                        contentDescription = null,
+                    )
+                },
+                supportingContent = { Text(text = stringResource(Res.string.settings_personalization_use_dynamic_color_text)) },
+                content = {
+                    Text(
+                        text = stringResource(Res.string.settings_personalization_use_dynamic_color_title),
+                        style = MaterialTheme.typography.titleMediumEmphasized,
+                    )
+                },
             )
         }
     }

@@ -11,8 +11,14 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
 class UserAppSettingsProviderImpl(
-    private val dataStore: DataStore<UserAppSettingsKT>
+    private val dataStoreProvider: DataStoreProvider,
 ) : UserAppSettingsProvider {
+
+    private val dataStore: DataStore<UserAppSettingsKT> by lazy {
+        dataStoreProvider.provideSettingsDataStore(
+            DataStoreUtils.APP_USER_SETTINGS_DATASTORE_FILE,
+        )
+    }
 
     override val settingsFlow: Flow<UserAppSettingsModel>
         get() = dataStore.data.map { it.toDomain() }
@@ -22,6 +28,13 @@ class UserAppSettingsProviderImpl(
         dataStore.updateData { data -> data.copy(use_system_font = !data.use_system_font) }
     }
 
+    override suspend fun toggleUseDynamicColor() {
+        dataStore.updateData { data -> data.copy(use_dynamic_colors = !data.use_dynamic_colors) }
+    }
+
     private fun UserAppSettingsKT.toDomain() =
-        UserAppSettingsModel(fontOption = if (use_system_font) AppFontOption.SYSTEM else AppFontOption.DEFAULT)
+        UserAppSettingsModel(
+            fontOption = if (use_system_font) AppFontOption.SYSTEM else AppFontOption.DEFAULT,
+            useDynamicColor = use_dynamic_colors,
+        )
 }
