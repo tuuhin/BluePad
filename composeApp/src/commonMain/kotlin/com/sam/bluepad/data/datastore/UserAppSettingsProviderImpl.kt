@@ -11,8 +11,14 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
 class UserAppSettingsProviderImpl(
-    private val dataStore: DataStore<UserAppSettingsKT>
+    private val dataStoreProvider: DataStoreProvider,
 ) : UserAppSettingsProvider {
+
+    private val dataStore: DataStore<UserAppSettingsKT> by lazy {
+        dataStoreProvider.provideSettingsDataStore(
+            DataStoreUtils.APP_USER_SETTINGS_DATASTORE_FILE,
+        )
+    }
 
     override val settingsFlow: Flow<UserAppSettingsModel>
         get() = dataStore.data.map { it.toDomain() }

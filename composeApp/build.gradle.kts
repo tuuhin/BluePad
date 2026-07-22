@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.build.konfig)
     alias(libs.plugins.wire.plugin)
+    alias(libs.plugins.koin.compiler)
 }
 
 kotlin {
@@ -48,85 +49,63 @@ kotlin {
         }
 
         getByName("androidDeviceTest").dependencies {
-            implementation(libs.androidx.espresso.core)
-            implementation(libs.androidx.testExt.junit)
+            implementation(libs.bundles.testing.android)
+        }
+
+        getByName("androidHostTest").dependencies {
+            implementation(libs.junit)
         }
 
         commonMain.dependencies {
-            implementation(libs.cmp.runtime)
-            implementation(libs.cmp.foundation)
-            implementation(libs.cmp.ui)
-            implementation(libs.cmp.material3)
+            // compose ui & navigation
+            implementation(libs.bundles.compose.ui)
+            implementation(libs.bundles.compose.navigation3)
             implementation(libs.cmp.adaptive)
-            implementation(libs.cmp.components.resources)
             implementation(libs.cmp.ui.tooling.preview)
-            implementation(libs.androidx.lifecycle.viewmodelCompose)
-            implementation(libs.androidx.lifecycle.runtimeCompose)
-            // room database
-            implementation(libs.androidx.room.runtime)
-            implementation(libs.androidx.sqlite.bundled)
-            //di
-            implementation(libs.koin.core)
-            implementation(libs.koin.compose)
-            implementation(libs.koin.viewmodel)
-            implementation(libs.koin.compose.viewmodel)
+            // room database & datastore
+            implementation(libs.bundles.room)
+            implementation(libs.bundles.datastore)
+            // di
+            implementation(libs.bundles.koin.common)
+            implementation(libs.koin.annotations)
             implementation(libs.koin.compose.nav3)
-            // navigation
-            implementation(libs.jetbrains.navigation3.ui)
-            implementation(libs.jetbrains.material3.adaptiveNavigation3)
-            implementation(libs.jetbrains.lifecycle.viewmodelNavigation3)
-            // kotlinx datetime and immutables
-            implementation(libs.kotlinx.datetime)
-            implementation(libs.kotlinx.collections.immutable)
-            // crypto
-            implementation(libs.kotlin.crypto.sha2)
-            implementation(libs.kotlin.crypto.random)
-            implementation(libs.whyoleg.cryptography.core)
-            implementation(libs.whyoleg.cryptography.provider.optimal)
-            // logging
+            // kotlinx utilities
+            implementation(libs.bundles.kotlinx.common)
+            // crypto & bluetooth
+            implementation(libs.bundles.crypto)
+            // logging & notifications
             implementation(libs.kermit)
-            //data store
-            implementation(libs.androidx.datastore)
-            implementation(libs.androidx.datastore.preferences)
-            implementation(libs.androidx.datastore.core.okio)
-            implementation(libs.wire.runtime)
-            // permissions
             implementation(libs.moko.permissions)
-            // toast
             implementation(libs.compose.toast)
-            // protobuf
-            implementation(libs.kotlinx.serialization.core)
+            // wire & serialization
+            implementation(libs.wire.runtime)
             implementation(libs.kotlinx.serialization.protobuf)
-            // file paths
-            implementation(libs.kotlinx.io.core)
         }
+
         commonTest.dependencies {
-            implementation(libs.kotlin.test)
+            // koin test
             implementation(libs.koin.test)
             implementation(libs.koin.test.junit)
+            implementation(libs.koin.annotations)
+            // testing bundle
+            implementation(libs.bundles.testing.unit)
             implementation(libs.cmp.ui.test)
-            implementation(libs.assertk)
-            implementation(libs.turbine)
             implementation(project.dependencies.platform(libs.kotlinx.coroutines.bom))
-            implementation(libs.kotlinx.coroutines.test)
         }
+
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
-
             implementation(project.dependencies.platform(libs.kotlinx.coroutines.bom))
             implementation(libs.kotlinx.coroutinesSwing)
-
             // kable ble scanning
-            implementation(libs.kable.core)
-            implementation(libs.kable.exceptions)
-
+            implementation(libs.bundles.kable)
             // local modules
             implementation(projects.jvmCore.btCommon)
             implementation(projects.jvmCore.bleAdvertise)
             implementation(projects.jvmCore.cryptoBridge)
             implementation(projects.jvmCore.commonUtility)
-
         }
+
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.cmp.ui.test.junit)
@@ -141,14 +120,18 @@ kotlin {
     }
 }
 
+koinCompiler {
+    userLogs = true
+}
+
 
 room {
     schemaDirectory("$projectDir/schemas")
 }
 
 composeCompiler {
-    metricsDestination = layout.buildDirectory.dir("compose_compiler")
-    reportsDestination = layout.buildDirectory.dir("compose_compiler")
+//    metricsDestination = layout.buildDirectory.dir("compose_compiler")
+//    reportsDestination = layout.buildDirectory.dir("compose_compiler")
     stabilityConfigurationFiles.add(rootProject.layout.projectDirectory.file("stability_config.conf"))
 }
 
@@ -159,7 +142,6 @@ dependencies {
 }
 
 compose.resources {
-
     publicResClass = false
     packageOfResClass = "com.sam.bluepad.resources"
     generateResClass = auto

@@ -34,16 +34,17 @@ datastore = "1.2.1"
 kermit = "2.1.0"
 mokoPermissionsCompose = "0.18.1-desktop-5"
 build-konfig = "0.22.0"
-kableCore = "0.44.0"
+kableCore = "0.44.2"
 kableExceptions = "0.34.0"
 compose_toast = "3.1.0"
 turbine = "1.2.1"
 nucleusnativeaccess = "0.6.0"
-nucleus = "2.1.1"
+nucleus = "2.1.5"
 cryptographyCore = "0.6.0"
 lighthouse = "2.3.1"
 catelog-update = "1.1.0"
 wireRuntime = "7.0.0-alpha05"
+koin-plugin = "1.0.2"
 
 [libraries]
 #testing
@@ -137,6 +138,7 @@ kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", ve
 nucleus-nna-gradlePlugin = { module = "dev.nucleusframework.nna:dev.nucleusframework.nna.gradle.plugin", version.ref = "nucleusnativeaccess" }
 wire-runtime = { module = "com.squareup.wire:wire-runtime", version.ref = "wireRuntime" }
 
+
 [plugins]
 #agp
 androidApplication = { id = "com.android.application", version.ref = "agp" }
@@ -154,6 +156,7 @@ wire-plugin = { id = "com.squareup.wire", version.ref = "wireRuntime" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 androidx-room = { id = "androidx.room", version.ref = "room" }
 build-konfig = { id = "com.codingfeline.buildkonfig", version.ref = "build-konfig" }
+koin-compiler = { id = "io.insert-koin.compiler.plugin", version.ref = "koin-plugin" }
 # nucleus
 nucleus-framework = { id = "dev.nucleusframework", version.ref = "nucleus" }
 nucleus-nna = { id = "dev.nucleusframework.nna", version.ref = "nucleusnativeaccess" }
@@ -163,3 +166,18 @@ catelog-update = { id = "nl.littlerobots.version-catalog-update", version.ref = 
 #custom plugins
 nucleus-nna-cmake-ext = { id = "com.sam.bluepad.nucleus.nna.cmakeExt", version = "unspecified" }
 nucleus-build-ext = { id = "com.sam.bluepad.nucleus.buildExt", version = "unspecified" }
+
+
+[bundles]
+testing-unit = ["kotlin-test", "kotlin-testJunit", "junit", "assertk", "turbine", "kotlinx-coroutines-test"]
+testing-android = ["androidx-testExt-junit", "androidx-espresso-core"]
+compose-ui = ["cmp-runtime", "cmp-foundation", "cmp-ui", "cmp-material3", "cmp-components-resources", "androidx-lifecycle-viewmodelCompose", "androidx-lifecycle-runtimeCompose"]
+compose-navigation3 = ["jetbrains-lifecycle-viewmodelNavigation3", "jetbrains-material3-adaptiveNavigation3", "jetbrains-navigation3-ui"]
+koin-common = ["koin-core", "koin-viewmodel", "koin-compose", "koin-compose-viewmodel"]
+koin-android = ["koin-android", "koin-android-startup"]
+room = ["androidx-room-runtime", "androidx-sqlite-bundled"]
+datastore = ["androidx-datastore", "androidx-datastore-preferences", "androidx-datastore-core-okio"]
+crypto = ["kotlin-crypto-sha2", "kotlin-crypto-random", "whyoleg-cryptography-core", "whyoleg-cryptography-provider-optimal"]
+kable = ["kable-core", "kable-exceptions"]
+kotlinx-common = ["kotlinx-coroutines-core", "kotlinx-datetime", "kotlinx-collections-immutable", "kotlinx-serialization-core", "kotlinx-io-core"]
+nucleus = ["nucleus-core-application", "nucleus-decorated-window-tao", "nucleus-decorated-window-material3"]

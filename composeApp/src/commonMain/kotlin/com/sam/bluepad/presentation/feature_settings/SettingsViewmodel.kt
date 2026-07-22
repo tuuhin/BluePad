@@ -14,7 +14,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.koin.core.annotation.KoinViewModel
 
+@KoinViewModel
 class SettingsViewmodel(
     private val localDeviceProvider: LocalDeviceInfoProvider,
     private val platformInfoProvider: PlatformInfoProvider,
