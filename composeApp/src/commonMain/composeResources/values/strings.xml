@@ -87,6 +87,10 @@
     <string name="settings_screen_re_enroll_device_text">Remove revoke tag from all revoked device</string>
     <string name="action_re_enroll_device">Re-Enroll</string>
     <string name="settings_segment_personalization">Personalization</string>
+    <string name="settings_personalization_use_device_font_title">Use system font</string>
+    <string name="settings_personalization_use_device_font_text">Apply the device default font across the app</string>
+    <string name="settings_personalization_use_dynamic_color_title">Dynamic colors</string>
+    <string name="settings_personalization_use_dynamic_color_text">Use colors derived from your wallpaper</string>
     <!--  Others-->
     <string name="bluetooth_not_enabled_text">Bluetooth is not enabled</string>
     <string name="menu_action_copy">Copy</string>

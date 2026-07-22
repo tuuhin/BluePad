@@ -9,22 +9,24 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
-import com.sam.bluepad.domain.settings.UserAppSettingsProvider
 import com.sam.bluepad.domain.settings.models.AppFontOption
+import com.sam.bluepad.presentation.feature_settings.SettingsViewmodel
 import com.sam.bluepad.theme.BluePadTheme
 import dev.icerock.moko.permissions.PermissionsController
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
 
     private val _permissionController by inject<PermissionsController>()
     private val _localDeviceProvider by inject<LocalDeviceInfoProvider>()
-    private val _userSettings by inject<UserAppSettingsProvider>()
+
+    private val _userSettings by viewModel<SettingsViewmodel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // edge to edge
-        installSplashScreen()
+        val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
 
         // enable edge to edge
@@ -36,16 +38,15 @@ class MainActivity : ComponentActivity() {
         // bind to this activity
         _permissionController.bind(this)
 
-        setContent {
+        // Keep splash screen visible until settings are loaded
+        splash.setKeepOnScreenCondition { _userSettings.isSettingsLoaded.value }
 
-            val settings by _userSettings.settingsFlow.collectAsStateWithLifecycle(
-                initialValue = null,
-                lifecycleOwner = this,
-            )
+        setContent {
+            val settings by _userSettings.state.collectAsStateWithLifecycle()
 
             BluePadTheme(
-                dynamicColor = true,
-                useSystemFonts = settings?.fontOption == AppFontOption.SYSTEM,
+                dynamicColor = settings.appSettings.useDynamicColor,
+                useSystemFonts = settings.appSettings.fontOption == AppFontOption.SYSTEM,
             ) {
                 App()
             }

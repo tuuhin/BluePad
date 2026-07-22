@@ -4,6 +4,7 @@ assertk = "0.28.1"
 kotlinxImmutable = "0.5.1"
 kotlinxDatetime = "0.8.0"
 kotlinxSerialization = "1.11.0"
+materialKolor = "5.0.0"
 splashApiVersion = "1.2.0"
 android-compileSdk = "37"
 android-targetSdk = "37"
@@ -133,10 +134,13 @@ turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 nucleus-core-application = { module = "dev.nucleusframework:nucleus.nucleus-application", version.ref = "nucleus" }
 nucleus-decorated-window-tao = { module = "dev.nucleusframework:nucleus.decorated-window-tao", version.ref = "nucleus" }
 nucleus-decorated-window-material3 = { module = "dev.nucleusframework:nucleus.decorated-window-material3", version.ref = "nucleus" }
+nucleus-system-accent = { module = "dev.nucleusframework:nucleus.system-color", version.ref = "nucleus" }
+#others
+wire-runtime = { module = "com.squareup.wire:wire-runtime", version.ref = "wireRuntime" }
+material-kolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
 #Gradle plugins
 kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 nucleus-nna-gradlePlugin = { module = "dev.nucleusframework.nna:dev.nucleusframework.nna.gradle.plugin", version.ref = "nucleusnativeaccess" }
-wire-runtime = { module = "com.squareup.wire:wire-runtime", version.ref = "wireRuntime" }
 
 
 [plugins]
@@ -180,4 +184,4 @@ datastore = ["androidx-datastore", "androidx-datastore-preferences", "androidx-d
 crypto = ["kotlin-crypto-sha2", "kotlin-crypto-random", "whyoleg-cryptography-core", "whyoleg-cryptography-provider-optimal"]
 kable = ["kable-core", "kable-exceptions"]
 kotlinx-common = ["kotlinx-coroutines-core", "kotlinx-datetime", "kotlinx-collections-immutable", "kotlinx-serialization-core", "kotlinx-io-core"]
-nucleus = ["nucleus-core-application", "nucleus-decorated-window-tao", "nucleus-decorated-window-material3"]
+nucleus = ["nucleus-core-application", "nucleus-decorated-window-tao", "nucleus-decorated-window-material3", "nucleus-system-accent"]

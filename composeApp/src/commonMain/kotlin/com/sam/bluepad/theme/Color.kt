@@ -2,7 +2,7 @@ package com.sam.bluepad.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Seed = Color(0xFF4C5CDC)
+val SeedColor = Color(0xFF4C5CDC)
 
 val PrimaryLight = Color(0xFF3C4CCD)
 val OnPrimaryLight = Color(0xFFF3F1FF)
