@@ -28,6 +28,13 @@ class UserAppSettingsProviderImpl(
         dataStore.updateData { data -> data.copy(use_system_font = !data.use_system_font) }
     }
 
+    override suspend fun toggleUseDynamicColor() {
+        dataStore.updateData { data -> data.copy(use_dynamic_colors = !data.use_dynamic_colors) }
+    }
+
     private fun UserAppSettingsKT.toDomain() =
-        UserAppSettingsModel(fontOption = if (use_system_font) AppFontOption.SYSTEM else AppFontOption.DEFAULT)
+        UserAppSettingsModel(
+            fontOption = if (use_system_font) AppFontOption.SYSTEM else AppFontOption.DEFAULT,
+            useDynamicColor = use_dynamic_colors,
+        )
 }
