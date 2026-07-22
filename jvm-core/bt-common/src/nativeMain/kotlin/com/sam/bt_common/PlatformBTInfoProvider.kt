@@ -6,8 +6,12 @@ expect class PlatformBTInfoProvider : BTInfoProvider {
     override fun unregisterCallback(caller: Long)
 
     override suspend fun isBluetoothActive(): Boolean
-  
+
     override fun requestBTEnable(): Int
+    override fun openBTSettings()
+    override val canActivateBTFromApp: Boolean
+    override val canRequestOpenSettings: Boolean
+
     override fun isLEConnectionAllowed(): Boolean
     override fun isPeripheralRoleSupported(): Boolean
 }

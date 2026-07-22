@@ -1,36 +1,59 @@
 package com.sam.bt_common
 
-import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Logger
-import co.touchlab.kermit.LoggerConfig
-import co.touchlab.kermit.NSLogWriter
-import co.touchlab.kermit.Severity
-import platform.CoreBluetooth.*
-import platform.darwin.*
-import platform.Foundation.*
-import kotlinx.cinterop.*
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.suspendCancellableCoroutine
+import platform.AppKit.NSWorkspace
+import platform.AppKit.openURL
+import platform.CoreBluetooth.CBCentralManager
+import platform.CoreBluetooth.CBCentralManagerDelegateProtocol
+import platform.CoreBluetooth.CBCentralManagerOptionShowPowerAlertKey
+import platform.CoreBluetooth.CBManagerStatePoweredOff
+import platform.CoreBluetooth.CBManagerStatePoweredOn
+import platform.CoreBluetooth.CBManagerStateResetting
+import platform.CoreBluetooth.CBManagerStateUnauthorized
+import platform.CoreBluetooth.CBManagerStateUnknown
+import platform.CoreBluetooth.CBManagerStateUnsupported
+import platform.Foundation.NSDictionary
+import platform.Foundation.NSLock
+import platform.Foundation.NSNumber
+import platform.Foundation.NSURL
+import platform.Foundation.dictionaryWithDictionary
+import platform.Foundation.numberWithBool
+import platform.darwin.NSObject
+import platform.darwin.dispatch_get_main_queue
 import kotlin.coroutines.resume
 
-private object MacOsLogWriter : LoggerConfig {
-
-    override val minSeverity: Severity
-        get() = Severity.Debug
-    override val logWriterList: List<LogWriter>
-        get() = listOf(NSLogWriter())
-}
+private class ProbeRetainer(
+    var manager: CBCentralManager? = null,
+    var delegate: CBCentralManagerDelegateProtocol? = null
+)
 
 @OptIn(ExperimentalForeignApi::class)
 actual class PlatformBTInfoProvider : BTInfoProvider {
 
     private val _logger = Logger(config = MacOsLogWriter, tag = "NATIVE_MACOS_BT_COMMON")
-
     private val lock = NSLock()
 
     private var _centralManager: CBCentralManager? = null
     private var _centralDelegate: CBCentralManagerDelegateProtocol? = null
 
-    actual override fun registerCallback(callback: (Boolean) -> Unit): Long {
+    actual override fun requestBTEnable(): Int {
+        // status code -1 means request option not present
+        // user need to open settings to active
+        return -1
+    }
+
+    actual override fun openBTSettings() {
+        val url = NSURL.URLWithString("x-apple.systempreferences:com.apple.preferences.Bluetooth")
+            ?: return
+        NSWorkspace.sharedWorkspace.openURL(url)
+    }
+
+    actual override val canActivateBTFromApp: Boolean = false
+    actual override val canRequestOpenSettings: Boolean = true
+
+    actual override fun registerCallback(callback: (Boolean) -> Unit): Long = lock.use {
         if (_centralManager != null) {
             _logger.d { "CENTRAL MANAGER IS ALREADY REGISTERED UNREGISTER THIS TO CONTINUE" }
             return -1L
@@ -44,38 +67,45 @@ actual class PlatformBTInfoProvider : BTInfoProvider {
             }
         }
 
+        val options = NSDictionary.dictionaryWithDictionary(
+            mapOf(CBCentralManagerOptionShowPowerAlertKey to NSNumber.numberWithBool(false)),
+        )
+
         val centralManager = CBCentralManager(
             delegate = delegate,
             queue = dispatch_get_main_queue(),
-            options = mapOf(CBCentralManagerOptionShowPowerAlertKey to NSNumber.numberWithBool(true)),
+            options = options,
         )
 
         _centralManager = centralManager
         _centralDelegate = delegate
 
-        _logger.d { "CENTRAL MANAGER IS SET" }
+        _logger.d { "CENTRAL MANAGER IS SUCCESSFULLY SET" }
 
         val currentState = centralManager.state
         if (currentState != CBManagerStateUnknown && currentState != CBManagerStateResetting) {
+            // responding if state is already updated
             callback(currentState == CBManagerStatePoweredOn)
         }
-        // we dont need the handle instance
         return 0L
     }
 
     actual override fun unregisterCallback(caller: Long) = lock.use {
         _logger.d { "CLEARING CENTRAL MANAGER INSTANCE" }
-        lock.use {
-            _centralDelegate = null
-            _centralManager = null
-        }
+        _centralDelegate = null
+        _centralManager = null
     }
 
     actual override suspend fun isBluetoothActive(): Boolean {
+        lock.use {
+            val manager = _centralManager ?: return@use
+            val isInvalidState = manager.state == CBManagerStateUnknown || manager.state == CBManagerStateResetting
+            if (!isInvalidState) return@use
+            _logger.d { "CACHED PROBE FOUND RETURNING VALUE FROM PROBE" }
+            return manager.state == CBManagerStatePoweredOn
+        }
         return suspendCancellableCoroutine { cont ->
-
-            var manager: CBCentralManager? = null
-            var delegate: CBCentralManagerDelegateProtocol? = null
+            val retainer = ProbeRetainer()
 
             val tempDelegate = object : NSObject(), CBCentralManagerDelegateProtocol {
                 override fun centralManagerDidUpdateState(central: CBCentralManager) {
@@ -84,28 +114,28 @@ actual class PlatformBTInfoProvider : BTInfoProvider {
                     if (cont.isActive) {
                         _logger.d { "CENTRAL MANAGER STATE FROM COROUTINE :${central.bluetoothStateAsString()}" }
                         cont.resume(central.state == CBManagerStatePoweredOn)
-                        // cleans the delegate and manager
-                        manager = null
-                        delegate = null
                     }
+                    _logger.d { "CLEANING PROBE DATA" }
+                    retainer.manager = null
+                    retainer.delegate = null
                 }
             }
 
-            val probeManager = CBCentralManager(
-                delegate = tempDelegate,
-                queue = dispatch_get_main_queue(),
-                options = mapOf(CBCentralManagerOptionShowPowerAlertKey to NSNumber.numberWithBool(false)),
+            val options = NSDictionary.dictionaryWithDictionary(
+                mapOf(CBCentralManagerOptionShowPowerAlertKey to NSNumber.numberWithBool(false)),
             )
 
-            // Bind them together in a local scope holder
-            manager = probeManager
-            delegate = tempDelegate
-            _logger.d { "CENTRAL MANAGER BLUETOOTH STATE WILL RESPOND SOON" }
+            retainer.delegate = tempDelegate
+            retainer.manager = CBCentralManager(
+                delegate = tempDelegate,
+                queue = dispatch_get_main_queue(),
+                options = options,
+            )
 
             cont.invokeOnCancellation {
                 _logger.d { "CENTRAL MANAGER CANCELLED AND CLEANED" }
-                manager = null
-                delegate = null
+                retainer.manager = null
+                retainer.delegate = null
             }
         }
     }

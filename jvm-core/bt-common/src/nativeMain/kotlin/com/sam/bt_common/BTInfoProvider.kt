@@ -10,7 +10,11 @@ interface BTInfoProvider {
 
     suspend fun isBluetoothActive(): Boolean
 
+    val canActivateBTFromApp: Boolean
+    val canRequestOpenSettings: Boolean
     fun requestBTEnable(): Int
+    fun openBTSettings()
+
     fun isLEConnectionAllowed(): Boolean
     fun isPeripheralRoleSupported(): Boolean
 }
