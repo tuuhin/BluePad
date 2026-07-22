@@ -1,7 +1,8 @@
 package com.sam.bluepad
 
-import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.v2.runDesktopComposeUiTest
 import co.touchlab.kermit.Logger
 import co.touchlab.kermit.koin.KermitKoinLogger
 import com.sam.bluepad.di.commonAppModule
@@ -11,10 +12,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.koin.test.KoinTestRule
 
+
+@OptIn(ExperimentalTestApi::class)
 class IsDesktopAppRunnableTest {
 
-    @get:Rule
-    val composeTestRule = createComposeRule()
 
     @get:Rule
     val koinTestRule = KoinTestRule.create {
@@ -23,10 +24,10 @@ class IsDesktopAppRunnableTest {
     }
 
     @Test
-    fun testAppShows() {
-        composeTestRule.setContent {
+    fun testAppShows() = runDesktopComposeUiTest {
+        setContent {
             App()
         }
-        composeTestRule.onRoot().assertExists()
+        onRoot().assertExists()
     }
 }

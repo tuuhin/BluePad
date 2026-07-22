@@ -24,15 +24,17 @@ dependencies {
     implementation(libs.bundles.koin.common)
     // kotlinx datetime
     implementation(libs.kotlinx.datetime)
-
     // nucleus framework
     implementation(libs.bundles.nucleus)
     // compose app module
     implementation(projects.composeApp)
-    // testing
+    //koin
     testImplementation(libs.koin.test)
     testImplementation(libs.koin.test.junit)
+    // compose ui test
+    testImplementation(libs.cmp.ui.test)
     testImplementation(libs.cmp.ui.test.junit)
+    // testing
     testImplementation(libs.bundles.testing.unit)
 }
 
