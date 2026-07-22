@@ -18,6 +18,7 @@
     <string name="action_add_new_device">Add Device</string>
     <string name="action_save">Save</string>
     <string name="action_update">Update</string>
+    <string name="action_open_bluetooth_settings">Open Settings</string>
     <string name="action_set_device_local_name">Set a new alias</string>
     <string name="action_sync_device">Sync</string>
     <string name="action_enable">Request Enable</string>
@@ -136,5 +137,6 @@
     <string name="create_bond_dialog_title">Request paring :%s</string>
     <string name="create_bond_dialog_text">Devices are not bonded to each other cannot perform action without being bonded</string>
     <string name="bluetooth_not_enabled_dialog_title">Bluetooth not enabled</string>
-    <string name="bluetooth_not_enabled_dialog_text">App relies on bluetooth for sync and device connections, turn it on to continue</string>
+    <string name="bluetooth_not_enabled_dialog_text_normal">App relies on bluetooth for sync and device connections, turn it on to continue</string>
+    <string name="bluetooth_not_enabled_dialog_text_settings">Open app settings  turn it on and continue</string>
 </resources>

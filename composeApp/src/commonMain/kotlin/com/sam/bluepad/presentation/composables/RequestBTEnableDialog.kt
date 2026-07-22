@@ -15,10 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import com.sam.bluepad.resources.Res
-import com.sam.bluepad.resources.action_enable
-import com.sam.bluepad.resources.bluetooth_not_enabled_dialog_text
-import com.sam.bluepad.resources.bluetooth_not_enabled_dialog_title
-import com.sam.bluepad.resources.ic_bt_not_enabled
+import com.sam.bluepad.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -26,8 +23,11 @@ import org.jetbrains.compose.resources.stringResource
 fun RequestBTEnableDialog(
     showDialog: Boolean,
     onDismiss: () -> Unit,
-    onAccept: () -> Unit,
+    onActivate: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    canRequestActivate: Boolean = false,
+    canOpenSettings: Boolean = false,
     shape: Shape = AlertDialogDefaults.shape,
     containerColor: Color = AlertDialogDefaults.containerColor,
     tonalElevation: Dp = AlertDialogDefaults.TonalElevation,
@@ -46,22 +46,25 @@ fun RequestBTEnableDialog(
         titleContentColor = titleContentColor,
         textContentColor = textContentColor,
         confirmButton = {
-            Button(
-                onClick = onAccept,
-                shapes = ButtonDefaults.shapes(
-                    shape = ButtonDefaults.shape,
-                    pressedShape = ButtonDefaults.pressedShape,
-                ),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
-                contentPadding = ButtonDefaults.SmallContentPadding,
-            ) {
-                Text(
-                    text = stringResource(Res.string.action_enable),
-                    fontWeight = FontWeight.SemiBold,
-                )
+            if (canRequestActivate || canOpenSettings) {
+                Button(
+                    onClick = if (canRequestActivate) onActivate else onOpenSettings,
+                    shapes = ButtonDefaults.shapes(
+                        shape = ButtonDefaults.shape,
+                        pressedShape = ButtonDefaults.pressedShape,
+                    ),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                    contentPadding = ButtonDefaults.SmallContentPadding,
+                ) {
+                    Text(
+                        text = if (canRequestActivate) stringResource(Res.string.action_enable)
+                        else stringResource(Res.string.action_open_bluetooth_settings),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         },
         icon = {
@@ -78,7 +81,9 @@ fun RequestBTEnableDialog(
         },
         text = {
             Text(
-                text = stringResource(Res.string.bluetooth_not_enabled_dialog_text),
+                text = if (canRequestActivate)
+                    stringResource(Res.string.bluetooth_not_enabled_dialog_text_normal)
+                else stringResource(Res.string.bluetooth_not_enabled_dialog_text_settings,),
                 textAlign = TextAlign.Center,
             )
         },

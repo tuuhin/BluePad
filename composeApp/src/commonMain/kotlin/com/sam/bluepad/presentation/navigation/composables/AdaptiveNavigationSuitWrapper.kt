@@ -58,7 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import androidx.window.core.layout.WindowSizeClass
-import com.sam.bluepad.AppCommonViewModel
+import com.sam.bluepad.presentation.core.AppCommonViewModel
 import com.sam.bluepad.presentation.composables.RequestBTEnableDialog
 import com.sam.bluepad.presentation.navigation.nav_graph.RootTabLayoutNavGraph
 import com.sam.bluepad.presentation.utils.LocalAnimatedContentScope
@@ -105,7 +105,13 @@ fun AdaptiveNavigationSuitWrapper(
     RequestBTEnableDialog(
         showDialog = showDialog,
         onDismiss = { showDialog = false },
-        onAccept = {
+        canOpenSettings = bluetoothState.canOpenBTSettings,
+        canRequestActivate = bluetoothState.canRequestBTActive,
+        onOpenSettings = {
+            viewModel.onOpenAppSettings()
+            showDialog = false
+        },
+        onActivate = {
             viewModel.onRequestEnableBT()
             showDialog = false
         },
@@ -164,7 +170,7 @@ fun AdaptiveNavigationSuitWrapper(
                     ),
             )
             ContainerContent(
-                isBtActive = bluetoothState,
+                isBtActive = bluetoothState.isBTActive,
                 content = content,
                 onRequestBTActive = { showDialog = true },
                 modifier = Modifier.weight(1f)
