@@ -1,6 +1,8 @@
 import dev.nucleusframework.desktop.application.dsl.CompressionLevel
+import dev.nucleusframework.desktop.application.dsl.DmgContentType
 import dev.nucleusframework.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.konan.properties.Properties
+import org.gradle.internal.os.OperatingSystem
 
 plugins {
     alias(libs.plugins.jetbrains.kotlin.jvm)
@@ -11,9 +13,7 @@ plugins {
     alias(libs.plugins.nucleus.build.ext)
 }
 
-val osName = System.getProperty("os.name").lowercase()
-val isMac = osName.contains("mac")
-val isWindows = osName.contains("windows")
+val osName: OperatingSystem = OperatingSystem.current()
 
 kotlin {
     jvmToolchain(22)
@@ -103,7 +103,7 @@ nucleus.application {
         // packaging configs
         val packagingRoot = project.layout.projectDirectory.dir("packaging")
 
-        windows {
+        if (osName.isWindows) windows {
             iconFile.set(packagingRoot.file("windows/icons.ico"))
             upgradeUuid = commonProperties.getProperty("WINDOWS_UPGRADE_UUID", null)?.ifEmpty { null }
             console = false
@@ -143,8 +143,7 @@ nucleus.application {
                 wide310x150Logo.set(packagingRoot.file("windows/appx/Wide310x150Logo.png"))
             }
         }
-
-        macOS {
+        else if (osName.isMacOsX) macOS {
             bundleID = commonProperties.getProperty("APP_PACKAGE_NAME")
             dockName = commonProperties.getProperty("APP_NAME")
             appCategory = "public.app-category.productivity"
@@ -172,19 +171,17 @@ nucleus.application {
             }
 
             dmg {
-                title = "$packageName $version"
+                title =
+                    "${commonProperties.getProperty("APP_NAME")} ${commonProperties.getProperty("APP_PACKAGE_VERSION")}"
                 badgeIcon.set(packagingRoot.file("macos/icons/BluePad.icns"))
                 backgroundColor = commonProperties.getProperty("APP_INSTALLER_BACKGROUND")
 
                 iconSize = 128
-                iconTextSize = 12
+                iconTextSize = 16
 
-                window {
-                    x = 400
-                    y = 100
-                    width = 640
-                    height = 420
-                }
+                window { x = 400; y = 100; width = 540; height = 380 }
+                content(x = 130, y = 220, type = DmgContentType.File, name = "BluePad.app")
+                content(x = 410, y = 220, type = DmgContentType.Link, path = "/Applications")
             }
         }
     }
@@ -260,10 +257,10 @@ val generateWindowsAppIcon = tasks.register<Exec>("genAppIconWindos") {
 }
 
 tasks.configureEach {
-    if (isMac && (name.startsWith("package") || name.startsWith("createDist") || name.startsWith("compile"))) {
+    if (osName.isMacOsX && (name.startsWith("package") || name.startsWith("createDist") || name.startsWith("compile"))) {
         dependsOn(generateMacosAppIcns)
     }
-    if (isWindows && (name.startsWith("package") || name.startsWith("createDist") || name.startsWith("compile"))) {
+    if (osName.isWindows && (name.startsWith("package") || name.startsWith("createDist") || name.startsWith("compile"))) {
         dependsOn(generateWindowsAppIcon)
     }
 }
