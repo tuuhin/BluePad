@@ -1,8 +1,8 @@
 import dev.nucleusframework.desktop.application.dsl.CompressionLevel
 import dev.nucleusframework.desktop.application.dsl.DmgContentType
 import dev.nucleusframework.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.konan.properties.Properties
 import org.gradle.internal.os.OperatingSystem
+import org.jetbrains.kotlin.konan.properties.Properties
 
 plugins {
     alias(libs.plugins.jetbrains.kotlin.jvm)
@@ -104,7 +104,7 @@ nucleus.application {
         val packagingRoot = project.layout.projectDirectory.dir("packaging")
 
         if (osName.isWindows) windows {
-            iconFile.set(packagingRoot.file("windows/icons.ico"))
+            iconFile.set(packagingRoot.file("windows/bluepad-1024.ico"))
             upgradeUuid = commonProperties.getProperty("WINDOWS_UPGRADE_UUID", null)?.ifEmpty { null }
             console = false
             perUserInstall = true
@@ -206,7 +206,7 @@ val generateMacosAppIcns = tasks.register<Exec>("genAppIconMacos") {
     group = "nucleus packaging"
     description = "Generates clipped, rounded macos icons"
 
-    val icon = project.layout.projectDirectory.file("packaging/bluepad-1024.png")
+    val icon = project.layout.projectDirectory.file("packaging/bluepad-1024.svg")
     val commonProperties = Properties().apply {
         val commons = project.file("packaging.properties")
         commons.inputStream().use(::load)
@@ -233,13 +233,13 @@ val generateWindowsAppIcon = tasks.register<Exec>("genAppIconWindos") {
     group = "nucleus packaging"
     description = "Generates clipped, rounded Windows assets from the SVG source icon."
 
-    val icon = project.layout.projectDirectory.file("packaging/bluepad-1024.png")
+    val icon = project.layout.projectDirectory.file("packaging/bluepad-1024.svg")
     val commonProperties = Properties().apply {
         val commons = project.file("packaging.properties")
         commons.inputStream().use(::load)
     }
 
-    val script = project.layout.projectDirectory.file("packaging/windows/app_images.bat")
+    val script = project.layout.projectDirectory.file("packaging/windows/appx_images.bat")
     val bgColor = commonProperties.getProperty("APP_INSTALLER_BACKGROUND", "#C4F18C")
     val outputDir = project.layout.projectDirectory.dir("packaging/windows/appx")
 
