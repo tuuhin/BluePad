@@ -6,8 +6,11 @@ import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import platform.Foundation.NSData
+import platform.Foundation.NSString
+import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.create
 import platform.Foundation.data
+import platform.Foundation.dataUsingEncoding
 import platform.posix.memcpy
 
 internal fun ByteArray.toNSData(): NSData {
@@ -25,4 +28,8 @@ internal fun NSData.toByteArray(): ByteArray {
         memcpy(pinned.addressOf(0), bytes(), length.toULong())
     }
     return bytes
+}
+
+internal fun String.toNSData(): NSData? {
+    return NSString.create(this).dataUsingEncoding(NSUTF8StringEncoding)
 }

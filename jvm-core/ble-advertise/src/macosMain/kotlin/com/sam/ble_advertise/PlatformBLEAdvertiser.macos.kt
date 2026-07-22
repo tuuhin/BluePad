@@ -9,9 +9,13 @@ import com.sam.ble_advertise.models.BLECharacteristicsModel
 import com.sam.ble_advertise.models.GATTAdvertiseConfig
 import kotlinx.cinterop.*
 import platform.CoreBluetooth.*
+import platform.Foundation.NSArray
+import platform.Foundation.NSDictionary
 import platform.darwin.NSObject
 import platform.darwin.dispatch_get_main_queue
 import platform.Foundation.NSError
+import platform.Foundation.NSHost
+import platform.Foundation.create
 import kotlin.properties.Delegates
 
 
@@ -178,6 +182,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
 
     actual override fun getStatusInt(): Int = _advertisementStatus
 
+    @OptIn(BetaInteropApi::class)
     actual override suspend fun start(config: GATTAdvertiseConfig) {
         val service = _currentService ?: run {
             _logger.e { "NO SERVICE HAS BEEN ADDED INCLUDE SERVICES TO CONTINUE" }
@@ -185,12 +190,21 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
         }
 
         val advertisement = buildMap<Any?, Any?> {
-            _logger.d { "EXPOSING ADVERTISEMENT SERVICE UUIDS :${service.UUID}" }
-            put(CBAdvertisementDataServiceUUIDsKey, listOf(service.UUID))
+
+            // add the name for the current device
+            // dont include it we need to provide the advertisment data within 31 bytes
+             val host = NSHost.currentHost().localizedName
+             if (host != null) put(CBAdvertisementDataLocalNameKey, host)
 
             if (config.serviceData.isNotBlank()) {
                 _logger.d { "EXPOSING ADVERTISEMENT SERVICE DATA :${config.serviceData}" }
-                put(CBAdvertisementDataLocalNameKey, config.serviceData)
+
+                val data = config.serviceData.toNSData()
+                val serviceData = NSDictionary.create(mapOf(service.UUID.UUIDString to data))
+                put(CBAdvertisementDataServiceDataKey, serviceData)
+            } else {
+                _logger.d { "EXPOSING ADVERTISEMENT SERVICE UUIDS :${service.UUID}" }
+                put(CBAdvertisementDataServiceUUIDsKey, NSArray.create(listOf(service.UUID)))
             }
         }
 
@@ -211,7 +225,7 @@ actual class PlatformBLEAdvertiser : KNativeBLEAdvertiser {
         _manager.removeAllServices()
 
         // clear advertisement info
-        _advertisementData =null
+        _advertisementData = null
         _advertisementStatus = 1
 
         _callback.onServiceStatusChanged(_advertisementStatus)
