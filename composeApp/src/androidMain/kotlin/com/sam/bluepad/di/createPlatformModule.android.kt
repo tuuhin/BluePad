@@ -33,54 +33,54 @@ import com.sam.bluepad.domain.crypto.files.CryptoFilePathProvider
 import com.sam.bluepad.domain.interactions.CopySketchInteraction
 import com.sam.bluepad.domain.interactions.ShareSketchInteraction
 import dev.icerock.moko.permissions.PermissionsController
-import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
-import org.koin.core.module.dsl.factoryOf
-import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 import org.koin.plugin.module.dsl.create
+import org.koin.plugin.module.dsl.factory
 import org.koin.plugin.module.dsl.single
 
+private fun createAppDb(context: Context): AppDBBuilder = AppDBBuilder(context)
+private fun createPermissionController(context: Context): PermissionsController = PermissionsController(context)
 
 actual fun createPlatformModule(): Module = module {
 
     single<CommonAppFilesStore> { create(::CommonAppFilesStore) }
-    single<AppDBBuilder> { create { context: Context -> AppDBBuilder(context) } }
+    single<AppDBBuilder> { create(::createAppDb) }
 
     // coroutines provider
     single<PlatformDispatcherProvider>()
 
     // ble provider
-    singleOf(::BLEDiscoveryImpl) bind BLEDiscoveryManager::class
-    singleOf(::BLEConnectionManagerImpl) bind BLEConnectionManager::class
+    single<BLEDiscoveryImpl>() bind BLEDiscoveryManager::class
+    single<BLEConnectionManagerImpl>() bind BLEConnectionManager::class
 
     // ble advertisement
-    singleOf(::ServerConnectionCallback)
-    factoryOf(::BLEGattAdvertisementCallback)
-    singleOf(::BLEGattAdvertiserConfig)
-    singleOf(::BLEAdvertisementImpl) bind BLEAdvertisementManager::class
+    single<ServerConnectionCallback> { create(::ServerConnectionCallback) }
+    factory<BLEGattAdvertisementCallback>()
+    single<BLEGattAdvertiserConfig>()
+    single<BLEAdvertisementImpl>() bind BLEAdvertisementManager::class
 
     // ble sync callbacks
-    factoryOf(::SyncDeviceDiscoveryCallback)
-    factoryOf(::SyncDeviceConnectionCallback)
-    singleOf(::BLESyncConnectionManagerImpl) bind BLESyncConnectionManager::class
+    factory<SyncDeviceDiscoveryCallback>()
+    factory<SyncDeviceConnectionCallback> { create(::SyncDeviceConnectionCallback) }
+    single<BLESyncConnectionManagerImpl>() bind BLESyncConnectionManager::class
 
     // permission controller
-    single { PermissionsController(androidContext()) }
+    single<PermissionsController> { create(::createPermissionController) }
 
     // bluetooth state provider
-    singleOf(::BluetoothStateProviderImpl) bind BluetoothStateProvider::class
-    factoryOf(::BTDeviceBondManagerImpl) bind BTDeviceBondManager::class
-    factoryOf(::BTEnableRequestProviderImpl) bind BTEnableRequestProvider::class
+    single<BluetoothStateProviderImpl>() bind BluetoothStateProvider::class
+    factory<BTDeviceBondManagerImpl>() bind BTDeviceBondManager::class
+    factory<BTEnableRequestProviderImpl>() bind BTEnableRequestProvider::class
 
-    singleOf(::PlatformInfoProvider)
+    single<PlatformInfoProvider>()
 
     // interactions
-    singleOf(::ShareSketchInteractionImpl) bind ShareSketchInteraction::class
-    singleOf(::CopySketchInteractionImpl) bind CopySketchInteraction::class
+    single<ShareSketchInteractionImpl>() bind ShareSketchInteraction::class
+    single<CopySketchInteractionImpl>() bind CopySketchInteraction::class
 
     // crypto
-    factoryOf(::CryptoFilePathProviderImpl) bind CryptoFilePathProvider::class
-    factoryOf(::KeyEncryptionManagerImpl) bind KeyEncryptionManager::class
+    single<CryptoFilePathProviderImpl>() bind CryptoFilePathProvider::class
+    factory<KeyEncryptionManagerImpl>() bind KeyEncryptionManager::class
 }
