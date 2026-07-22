@@ -11,6 +11,10 @@ plugins {
     alias(libs.plugins.nucleus.build.ext)
 }
 
+val osName = System.getProperty("os.name").lowercase()
+val isMac = osName.contains("mac")
+val isWindows = osName.contains("windows")
+
 kotlin {
     jvmToolchain(22)
 }
@@ -115,7 +119,7 @@ nucleus.application {
                 createStartMenuShortcut = true
                 runAfterFinish = true
                 deleteAppDataOnUninstall = false
-                installerIcon.set(packagingRoot.file("windows/icons.ico"))
+                installerIcon.set(packagingRoot.file("windows/bluepad-1024.ico"))
                 includeScript.set(packagingRoot.file("windows/nsis/packaging_install.nsh"))
             }
 
@@ -198,4 +202,68 @@ compose.resources {
             layout.projectDirectory.dir("src/main/resources/composeResources")
         },
     )
+}
+
+
+val generateMacosAppIcns = tasks.register<Exec>("genAppIconMacos") {
+    group = "nucleus packaging"
+    description = "Generates clipped, rounded macos icons"
+
+    val icon = project.layout.projectDirectory.file("packaging/bluepad-1024.png")
+    val commonProperties = Properties().apply {
+        val commons = project.file("packaging.properties")
+        commons.inputStream().use(::load)
+    }
+
+    val script = project.layout.projectDirectory.file("packaging/macos/app_images.sh")
+    val bgColor = commonProperties.getProperty("APP_INSTALLER_BACKGROUND", "#C4F18C")
+
+    // Declare inputs & outputs for Gradle incremental build caching
+    inputs.file(icon)
+    inputs.file(script)
+    inputs.property("bgColor", bgColor)
+    outputs.dir(project.layout.projectDirectory.dir("packaging/macos/icons"))
+
+    workingDir(project.layout.projectDirectory.file("packaging"))
+    commandLine(
+        "bash", script.asFile.absolutePath, icon.asFile.absolutePath,
+        "-c", bgColor, "-r", "22", "-f", "85",
+    )
+
+}
+
+val generateWindowsAppIcon = tasks.register<Exec>("genAppIconWindos") {
+    group = "nucleus packaging"
+    description = "Generates clipped, rounded Windows assets from the SVG source icon."
+
+    val icon = project.layout.projectDirectory.file("packaging/bluepad-1024.png")
+    val commonProperties = Properties().apply {
+        val commons = project.file("packaging.properties")
+        commons.inputStream().use(::load)
+    }
+
+    val script = project.layout.projectDirectory.file("packaging/windows/app_images.bat")
+    val bgColor = commonProperties.getProperty("APP_INSTALLER_BACKGROUND", "#C4F18C")
+    val outputDir = project.layout.projectDirectory.dir("packaging/windows/appx")
+
+    // Declare inputs & outputs for Gradle incremental build caching
+    inputs.file(icon)
+    inputs.file(script)
+    inputs.property("bgColor", bgColor)
+    outputs.dir(outputDir)
+
+    workingDir(project.layout.projectDirectory.file("packaging"))
+    commandLine(
+        "cmd", "/c", script.asFile.absolutePath, icon.asFile.absolutePath, outputDir.asFile.absolutePath,
+        "-c", bgColor, "-r", "12",
+    )
+}
+
+tasks.configureEach {
+    if (isMac && (name.startsWith("package") || name.startsWith("createDist") || name.startsWith("compile"))) {
+        dependsOn(generateMacosAppIcns)
+    }
+    if (isWindows && (name.startsWith("package") || name.startsWith("createDist") || name.startsWith("compile"))) {
+        dependsOn(generateWindowsAppIcon)
+    }
 }
