@@ -140,10 +140,8 @@ actual class BLEConnectionManagerImpl(
 
         // stop the connection if collector scope is cancelled
         awaitClose {
-            if (result.isSuccess) {
-                val gatt = result.getOrThrow()
-                gatt?.close()
-            }
+            val gatt = result.getOrNull()
+            gatt?.close()
             callback.cleanUp()
             cleanUp()
         }
