@@ -56,7 +56,7 @@ actual fun createPlatformModule(): Module = module {
     single<BLEConnectionManagerImpl>() bind BLEConnectionManager::class
 
     // ble advertisement
-    single<ServerConnectionCallback> { create(::ServerConnectionCallback) }
+    factory<ServerConnectionCallback> { create(::ServerConnectionCallback) }
     factory<BLEGattAdvertisementCallback>()
     single<BLEGattAdvertiserConfig>()
     single<BLEAdvertisementImpl>() bind BLEAdvertisementManager::class
