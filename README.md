@@ -53,7 +53,7 @@ Sync is strictly a user-triggered flow, so your data stays exactly where you wan
    <img src="./artwork/desktop/devices_screen.png" width="33%"/>
 </p>
 
-To check out the working of the app follow this [video](./artwork/video/project_working_video.mp4)
+To check out the working of the app follow this video.(Coming soon 😁😁)
 
 ## 🚀 Getting Started
 
