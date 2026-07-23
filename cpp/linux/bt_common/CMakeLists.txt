@@ -39,6 +39,7 @@ add_library(bt_common SHARED
         src/bt_common_utils.cpp
         src/bt_connection.cpp
         src/bt_bond_manager.cpp
+        src/custom_bluez.cpp
 )
 
 target_compile_definitions(bt_common PRIVATE BT_COMMON_EXPORTS)
@@ -63,7 +64,7 @@ set_target_properties(bt_common PROPERTIES
         WINDOWS_EXPORT_ALL_SYMBOLS OFF
 )
 
-# Testing
+# -- Testing ------------------------------------------------------
 FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git

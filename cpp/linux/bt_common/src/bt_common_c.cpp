@@ -71,8 +71,20 @@ void bluetooth_caller_unregister_listener() {
 }
 
 BT_COMMON_API bt_bond_state is_device_bonded(const char* device_address) {
-    const auto state = bluetooth_bond_manager::get_bond_state(device_address).get();
-    return static_cast<bt_bond_state>(state);
+
+    const auto& instance = bluetooth_bond_manager::instance();
+    auto response_future = instance.get_bond_state(device_address);
+
+    const auto timeout_duration = std::chrono::milliseconds(timeout_ms);
+    const auto status           = response_future.wait_for(timeout_duration);
+
+    if (status == std::future_status::ready) {
+        return response_future.get();
+    }
+    if (status == std::future_status::timeout) {
+        throw std::runtime_error("Timeout occurred");
+    }
+    return ERROR_UNKNOWN;
 }
 
 BT_COMMON_API bt_bond_manager_handle create_bond_manager() {
