@@ -25,11 +25,35 @@ jobs:
                     distribution: "liberica"
                     cache: gradle
 
-            -   name: Install ImageMagick
+            -   name: Ensure ImageMagick is Installed
                 shell: pwsh
                 run: |
-                    winget install ImageMagick.ImageMagick --silent --accept-package-agreements --accept-source-agreements
-                    magick -version
+                    if (Get-Command magick -ErrorAction SilentlyContinue) {
+                      Write-Host "ImageMagick is already installed."
+                      magick -version
+                    } else {
+                      Write-Host "ImageMagick not found. Installing via Chocolatey..."
+                      choco install imagemagick -y
+
+                      # Refresh PATH for current session
+                      $env:Path += ";C:\Program Files\ImageMagick-*"
+
+                      if (Get-Command magick -ErrorAction SilentlyContinue) {
+                        Write-Host "ImageMagick installed successfully."
+                        magick -version
+                      } else {
+                        $magick = Get-ChildItem "C:\Program Files" -Directory |
+                          Where-Object { $_.Name -like "ImageMagick*" } |
+                          Select-Object -First 1
+
+                        if ($magick) {
+                          & "$($magick.FullName)\magick.exe" -version
+                          $env:Path += ";$($magick.FullName)"
+                        } else {
+                          throw "ImageMagick installation failed or magick.exe could not be found."
+                        }
+                      }
+                    }
 
             -   name: Initialize MSVC
                 uses: ilammy/msvc-dev-cmd@v1
