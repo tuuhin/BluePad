@@ -53,7 +53,7 @@ Sync is strictly a user-triggered flow, so your data stays exactly where you wan
    <img src="./artwork/desktop/devices_screen.png" width="33%"/>
 </p>
 
-To check out the working of the app follow this video.(Coming soon 😁😁)
+To check out the working of the app follow this [video](https://youtu.be/YaNYKMAs0pU).
 
 ## 🚀 Getting Started
 
@@ -148,7 +148,9 @@ Sync features require real devices. Emulators are not suitable for BLE or Blueto
 
 ## 🚧 Some plans for later
 
-The journey doesn't end here! (probably 🙂) Here’s what’s planned for next:
+Note: Work on BluePad is currently paused! ⏸️
+Since the app still breaks more often than a fragile vase in a earthquake zone, I'm taking a break. Hopefully, by the
+time I come back to resume development, a fine collection of GitHub issues will be waiting for me to fix! 😅
 
 - [ ] Incremental sketch synchronization
 - [ ] Better conflict resolution
