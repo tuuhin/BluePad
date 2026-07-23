@@ -1,0 +1,20 @@
+name: Build Android Target
+
+on:
+    release:
+        types: [ created ]
+    workflow_dispatch:
+
+jobs:
+    android:
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
+            -   name: Setup Java
+                uses: actions/setup-java@v4
+                with:
+                    java-version: '22'
+                    distribution: 'liberica'
+                    cache: 'gradle'
+            -   run: chmod +x ./gradlew
+            -   run: ./gradlew :androidApp:assembleDebug

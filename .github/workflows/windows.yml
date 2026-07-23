@@ -1,0 +1,57 @@
+name: Build and Test Windows Pipeline
+
+on:
+    release:
+        types: [ created ]
+    workflow_dispatch:
+
+jobs:
+    build-windows:
+        name: Build & Test Windows Target
+        runs-on: windows-latest
+
+        env:
+            CI: "true"
+            NATIVE_BUILD_TYPE_RELEASE: "true"
+
+        steps:
+            -   name: Checkout Code
+                uses: actions/checkout@v4
+
+            -   name: Setup Java
+                uses: actions/setup-java@v4
+                with:
+                    java-version: '22'
+                    distribution: 'liberica'
+                    cache: 'gradle'
+
+            -   name: Setup MSVC Developer Command Prompt
+                uses: ilammy/msvc-dev-cmd@v1
+
+            -   name: Setup MSBuild
+                uses: microsoft/setup-msbuild@v2
+
+            -   name: Setup CMake
+                uses: jwlawson/actions-setup-cmake@v2
+
+            -   name: Install ImageMagick
+                shell: pwsh
+                run: |
+                    winget install ImageMagick.ImageMagick --silent --accept-package-agreements --accept-source-agreements
+                    # Add ImageMagick to path if needed, or verify
+                    magick -version
+
+            -   name: Configure CMake (Native C++)
+                run: cmake -S cpp/windows -B cpp/windows/build -G "Visual Studio 17 2022" -A x64
+
+            -   name: Build C++ (Native C++)
+                run: cmake --build cpp/windows/build --config Release
+
+            -   name: Run CTest (Native C++ Unit Tests)
+                shell: pwsh
+                run: |
+                    cd cpp/windows/build
+                    ctest -C Release --output-on-failure
+
+            -   name: Build & Package (Gradle KMP)
+                run: .\gradlew.bat :desktopApp:assemble :desktopApp:packageDistributionForCurrentOS --stacktrace --no-parallel

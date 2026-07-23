@@ -9,24 +9,34 @@
 
 ## 📌 About & 💡 Motivation
 
-BluePad is a cross-platform, offline-first app for sketching and idea-syncing! Built with Kotlin
-Multiplatform, it’s all about keeping your notes secure and synced between your own devices without the fuss.
+BluePad is a cross-platform, offline-first app for sketching and idea-syncing! Built with Compose Multiplatform and
+Kotlin Multiplatform, it’s all about keeping your sketches secure and synced between your own devices without the fuss.
 
-We know the drill—emailing yourself links, hopping onto messaging apps just to save a thought, or fighting with cloud
-sync permissions. Why not try a cleaner way? There are options like Quick Share and AirDrop which are also used for
-transferring text and blobs, but why not try BluePad? By leveraging Bluetooth Low Energy (BLE), BluePad lets you pass
-sketches between trusted devices locally. No cloud accounts, no internet required, and definitely no third-party
-snooping.
+Remember the nostalgia of the old days, when we used to stand close to each other, pairing up phones just to send a song
+over Bluetooth? It felt personal, local, and direct. We wanted to bring that exact feeling back for your personal data.
 
-Why not give it a whirl and reclaim your data? With BluePad, you stay in the driver's seat. Sync is strictly a
-user-triggered adventure, so your data stays exactly where you want it, when you want it, and how you want it.
+So why not create something like that using kotlin to sync notes or sketches between devices.
+By leveraging Bluetooth Low Energy (BLE 5), BluePad lets you pass sketches between trusted
+devices locally. No cloud accounts, no internet required, and definitely no third-party snooping.
 
-The project focuses on real-world peer-to-peer communication, clean architecture, and realistic
-constraints rather than background magic or always-on syncing.
+Sync is strictly a user-triggered flow, so your data stays exactly where you want it, when you want it.
+
+## ✨ Key Features
+
+- **🎨 Sketch Management (CRUD)**: Create, read, update, and delete sketches locally.
+- **⚡ Offline Proximity Sync**: Sync sketches between devices using BLE 5. The sync is user-initiated with an explicit "
+  Sync on one, Advertise on the other" workflow, preventing unexpected data transfers.
+- **🔒 Secure by Design**:
+    - **On-Disk Encryption**: Local sketches and configuration details are encrypted.
+    - **User Approval**: Every incoming sketch must be explicitly approved by the user before it is saved to the local
+      database.
+- **🌈 Personalization**:
+    - **Dynamic Colors**: Material 3 dynamic color scheme (System Accent) support for Windows and Android.
+    - **Custom Fonts**: Seamless integration with your operating system's default system fonts.
 
 ## 📷 Screenshots
 
-#### Android
+### Android
 
 <p align="center">
    <img src="./artwork/mobile/list_screen.png" width=20%" />
@@ -35,7 +45,7 @@ constraints rather than background magic or always-on syncing.
    <img src="./artwork/mobile/settings_screen.png" width="20%"/>
 </p>
 
-#### Windows
+### Windows
 
 <p align="center">
    <img src="./artwork/desktop/list_screen.png" width=32%" />
@@ -43,7 +53,7 @@ constraints rather than background magic or always-on syncing.
    <img src="./artwork/desktop/devices_screen.png" width="33%"/>
 </p>
 
-To check out the working of the app follow this [video](./artwork/video/project_working_video.mp4)
+To check out the working of the app follow this video.(Coming soon 😁😁)
 
 ## 🚀 Getting Started
 
@@ -51,19 +61,22 @@ To build `BluePad` from source follow these instructions
 
 ### Prerequisites
 
-***Windows (Supported)***
+#### 🤖 Android & 🪟 Windows (Full Feature Support)
 
 - **JDK:** 22 or higher.
-- **Environment**: Windows 10/11 (BLE hardware support required for device syncing).
+- **Environment**: Windows 10/11 (BLE 5 hardware support required for device syncing).
 - **C++ Build Tools**: Visual Studio 2022 (Community or higher) with the "Desktop development with C++" workload
   installed. This is required to compile the underlying C++ Bluetooth modules.
 - **Windows SDK**: Usually bundled with the Visual Studio C++ workload. (Tested on Version 10.0.26100.0)
 - **CMake**: Installed and added to your System PATH (often handled by the IDE or Visual Studio)
-- IDE: IntelliJ IDEA or Android Studio with the Kotlin Multiplatform plugin.
+- **IDE**: IntelliJ IDEA or Android Studio with the Kotlin Multiplatform plugin.
 
-#### macOS and Linux (Not yet supported)
+#### 🍎 macOS (Limited Support)
 
-Planning to work on at least one soon, once the core app is complete
+Runs successfully, but is limited to local sketch management. Bluetooth Low Energy (BLE 5) advertising and sync
+functionality are not supported on macOS
+
+#### 🐧 Linux (Not yet supported)
 
 ### Clone the Repository
 
@@ -74,11 +87,11 @@ Planning to work on at least one soon, once the core app is complete
 
 ### Run on Android
 
+Sync features require real devices. Emulators are not suitable for BLE or Bluetooth testing.
+
 - Open the project in Android Studio
 - Select the `androidApp` configuration
 - Run on a physical device (Bluetooth required)
-
-> Sync features require real devices. Emulators are not suitable for BLE or Bluetooth testing.
 
 ### Run on Desktop (JVM)
 
@@ -126,33 +139,42 @@ Planning to work on at least one soon, once the core app is complete
 ## 📚 What I Learned
 
 - Practical limitations of **BLE discovery** across devices and operating systems
-- How the BLE 5.0 stack differs from BLE 4.2 (more insights on how BLE works)
-- How selection of Bluetooth Low Energy helps in better syncing (idea)
+- How the BLE 5.0 Extended Advertising stack differs from BLE 4.2 (more insights on how BLE works)
 - Structuring Kotlin Multiplatform projects with clear platform boundaries
 - Working with native C modules and building APIs out of them
 - Working with `winRT` and how Bluetooth APIs are handled in Windows
 - A mention to [NativeAccess Library](https://github.com/kdroidFilter/NucleusNativeAccess) which helps to
   create JVM library based on the native code implementation
 
-## 🚧 What's Next?
+## 🚧 Some plans for later
 
-The journey doesn't end here! Here’s what’s planned for next:
+The journey doesn't end here! (probably 🙂) Here’s what’s planned for next:
 
-- [ ] **Secure Sync:** Implementing full end-to-end encryption for every sketch transfer.
-- [ ] **Smoothening Experience:** Refining the device registration and pairing flow for a "just works" experience.
-- [ ] **Rethink the User experience:** A major UI/UX polish pass with Material 3 motion and better accessibility.
-- [ ] **Making the sketches more fun:** Adding more sketch (idea) models.
-- [ ] **Modularization:** Finalizing the modularization of the codebase for even better KMP scalability.
+- [ ] Incremental sketch synchronization
+- [ ] Better conflict resolution
+- [ ] Richer sketch types
+- [ ] Improved accessibility
+- [ ] Full macOS support
+- [ ] Linux support
+- [ ] Performance optimizations
+- [ ] Further modularization
 
-## 🏁 The Conclusion (For Now)
+## 🤝 Contributors & 🐛 Issues
+
+Contributions are welcome! If you'd like to help improve BluePad:
+
+- Check out the active [Issues](https://github.com/tuuhin/BluePad/issues) or open a new one to report bugs or suggest
+  enhancements.
+- Fork the repository, create a branch, and submit a Pull Request.
+
+If you encounter any bugs, have questions, or want to discuss feature designs, please open an issue on GitHub.
+
+## 🏁 The Conclusion
 
 And that’s the story of BluePad! 🎬
 
 Building this was a wild ride through the world of Bluetooth stacks, JNI bridges, and the "it works on my machine" magic
-of Kotlin Multiplatform. If there’s one thing this project proved, it’s that you don’t need a massive cloud server to
-keep your ideas in sync—just a little bit of BLE and a lot of Kotlin.
+of Kotlin Multiplatform
 
 Turns out, Bluetooth isn't just for your wireless headphones; it’s a pretty capable (if sometimes grumpy) companion for
 secure, local data syncing. We hope exploring BluePad gives you some inspiration for your own offline-first adventures.
-
-**Your data, your devices, your rules.** 🟦✌
