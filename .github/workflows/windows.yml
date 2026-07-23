@@ -25,6 +25,14 @@ jobs:
                     distribution: "liberica"
                     cache: gradle
 
+            -   name: Install CMake 4.0.2
+                uses: ssrobins/install-cmake@v1
+                with:
+                    version: 4.0.2
+
+            -   name: Verify CMake
+                run: cmake --version
+
             -   name: Ensure ImageMagick is Installed
                 shell: pwsh
                 run: |
@@ -32,36 +40,27 @@ jobs:
                       Write-Host "ImageMagick is already installed."
                       magick -version
                     } else {
-                      Write-Host "ImageMagick not found. Installing via Chocolatey..."
+                      Write-Host "ImageMagick not found. Installing..."
                       choco install imagemagick -y
 
-                      # Refresh PATH for current session
-                      $env:Path += ";C:\Program Files\ImageMagick-*"
+                      $magickDir = Get-ChildItem "C:\Program Files" -Directory |
+                        Where-Object { $_.Name -like "ImageMagick*" } |
+                        Select-Object -First 1
 
-                      if (Get-Command magick -ErrorAction SilentlyContinue) {
-                        Write-Host "ImageMagick installed successfully."
-                        magick -version
+                      if ($magickDir) {
+                        $env:Path += ";$($magickDir.FullName)"
+                        & "$($magickDir.FullName)\magick.exe" -version
                       } else {
-                        $magick = Get-ChildItem "C:\Program Files" -Directory |
-                          Where-Object { $_.Name -like "ImageMagick*" } |
-                          Select-Object -First 1
-
-                        if ($magick) {
-                          & "$($magick.FullName)\magick.exe" -version
-                          $env:Path += ";$($magick.FullName)"
-                        } else {
-                          throw "ImageMagick installation failed or magick.exe could not be found."
-                        }
+                        throw "ImageMagick installation failed."
                       }
                     }
 
-            -   name: Initialize MSVC
+            -   name: Initialize MSVC Environment
                 uses: ilammy/msvc-dev-cmd@v1
 
-            -   name: Verify Toolchain
+            -   name: Verify MSVC
                 shell: pwsh
                 run: |
-                    cmake --version
                     cl
                     & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest
 
