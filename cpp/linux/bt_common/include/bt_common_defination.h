@@ -5,8 +5,8 @@
 #include <stdbool.h>
 
 // Instance-based caller for bluetooth caller
-typedef void* BluetoothCallerPtr;
-typedef void (*BluetoothStatusCallback)(bool is_on);
+typedef void* bt_active_caller_ptr;
+typedef void (*bt_status_callback)(bool is_on);
 
 // instance handle for the bond_manager class
 typedef void* bt_bond_manager_handle;

@@ -54,7 +54,7 @@ bool ble_is_peripheral_role_supported() {
     return false;
 }
 
-void bluetooth_caller_register_listener(BluetoothStatusCallback callback) {
+void bluetooth_caller_register_listener(bt_status_callback callback) {
 
     auto& instance = bt_connection::instance();
     instance
@@ -71,21 +71,10 @@ void bluetooth_caller_unregister_listener() {
 }
 
 BT_COMMON_API bt_bond_state is_device_bonded(const char* device_address) {
-
-    const auto& instance = bluetooth_bond_manager::instance();
-    auto response_future = instance.get_bond_state(device_address);
-
-    const auto timeout_duration = std::chrono::milliseconds(timeout_ms);
-    const auto status           = response_future.wait_for(timeout_duration);
-
-    if (status == std::future_status::ready) {
-        return response_future.get();
-    }
-    if (status == std::future_status::timeout) {
-        throw std::runtime_error("Timeout occurred");
-    }
-    return ERROR_UNKNOWN;
+    return bluetooth_bond_manager::get_bond_state(device_address);
 }
+
+BT_COMMON_API enum bt_request_enable_status request_bluetooth_enable() { return bt_connection::request_bt_enable(); }
 
 BT_COMMON_API bt_bond_manager_handle create_bond_manager() {
     return new std::shared_ptr(std::make_shared<bluetooth_bond_manager>());

@@ -1,5 +1,6 @@
 #include "bt_connection.h"
 #include "bt_common_utils.h"
+#include "device_internal.h"
 
 #include <gio/gio.h>
 
@@ -88,4 +89,89 @@ void bt_connection::unregister_bt_listener() {
     if (m_adapter == nullptr) return;
     m_onStatusChange       = nullptr;
     m_isListenerRegistered = false;
+}
+bt_request_enable_status bt_connection::request_bt_enable() {
+    GError* error         = nullptr;
+    GDBusConnection* conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, nullptr, &error);
+    if (conn == nullptr) {
+        if (error != nullptr) g_error_free(error);
+        LINUX_LOG("ACCESS DENIED CANNOT ENABLE BLUETOOTH FROM HERE");
+        return REQUEST_DENIED_PRIVACY_ISSUES;
+    }
+
+    // binc setup
+    Adapter* adapter = binc_adapter_get_default(conn);
+    if (adapter != nullptr) {
+        if (binc_adapter_get_powered_state(adapter) != FALSE) {
+            LINUX_LOG("BLUETOOTH ALREADY ENABLED NO NEED TO ENABLE IT AGAIN");
+            g_object_unref(conn);
+            return REQUEST_NOT_NEEDED;
+        }
+        LINUX_LOG("ENABLING BIN ADAPTER");
+        binc_adapter_power_on(adapter);
+
+        if (binc_adapter_get_powered_state(adapter) != FALSE) {
+            LINUX_LOG("REQUEST ACCEPTED BY THE USER");
+            g_object_unref(conn);
+            return REQUEST_ACCEPTED;
+        }
+        return REQUEST_DENIED_UNKNOWN;
+    }
+
+    std::string target_path;
+    LINUX_LOG("CANNOT FOUND ADAPTER LOOKING WITH D-BUS ");
+
+    GVariant* managed_objs = g_dbus_connection_call_sync(
+        conn, "org.bluez", "/", "org.freedesktop.DBus.ObjectManager", "GetManagedObjects", nullptr,
+        G_VARIANT_TYPE("(a{oa{sa{sv}}})"), G_DBUS_CALL_FLAGS_NONE, -1, nullptr, &error);
+
+    if (managed_objs != nullptr) {
+        GVariantIter* objects_iter = nullptr;
+        g_variant_get(managed_objs, "(a{oa{sa{sv}}})", &objects_iter);
+
+        const char* object_path     = nullptr;
+        GVariant* i_faces_and_props = nullptr;
+
+        while (g_variant_iter_loop(objects_iter, "{&o@a{sa{sv}}}", &object_path, &i_faces_and_props)) {
+            if (g_variant_lookup_value(i_faces_and_props, "org.bluez.Adapter1", nullptr) == nullptr) continue;
+            target_path = object_path;
+        }
+        g_variant_iter_free(objects_iter);
+        g_variant_unref(managed_objs);
+    }
+
+    if (error != nullptr) g_error_free(error);
+    if (target_path.empty()) {
+        LINUX_LOG("UNABLE TO FIND ANY BLUETOOTH ADAPTER");
+        g_object_unref(conn);
+        return REQUEST_DENIED_CANNOT_FIND_ADAPTER;
+    }
+
+    LINUX_LOG("FOUND ADAPTER AT " + target_path);
+
+    GVariant* set_result = g_dbus_connection_call_sync(
+        conn, "org.bluez", target_path.c_str(), "org.freedesktop.DBus.Properties", "Set",
+        g_variant_new("(ssv)", "org.bluez.Adapter1", "Powered", g_variant_new_variant(g_variant_new_boolean(TRUE))),
+        nullptr, G_DBUS_CALL_FLAGS_NONE, -1, nullptr, &error);
+
+    if (set_result == nullptr) {
+        if (error != nullptr) {
+            LINUX_LOG("CANNOT SET RADIO STATE EXCEPTION: " << error->message);
+            if (error->code == G_DBUS_ERROR_ACCESS_DENIED || error->code == G_DBUS_ERROR_AUTH_FAILED) {
+                LINUX_LOG("ACCESS DENIED BY SYSTEM");
+                g_error_free(error);
+                g_object_unref(conn);
+                return REQUEST_DENIED_BY_SYSTEM;
+            }
+            g_error_free(error);
+        }
+        g_object_unref(conn);
+        return REQUEST_DENIED_UNKNOWN;
+    }
+
+    g_variant_unref(set_result);
+    g_object_unref(conn);
+
+    LINUX_LOG("REQUEST ACCEPTED BY THE USER");
+    return REQUEST_ACCEPTED;
 }
