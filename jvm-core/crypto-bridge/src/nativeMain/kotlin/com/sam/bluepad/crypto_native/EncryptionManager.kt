@@ -10,4 +10,10 @@ interface EncryptionManager {
 
     @CName("decrypt_data")
     fun decryptData(bytes: ByteArray): ByteArray
+
+    /**
+     * This method is only to be run from test cases
+     */
+    @CName("clean_up_keys")
+    fun cleanUpKeys()
 }

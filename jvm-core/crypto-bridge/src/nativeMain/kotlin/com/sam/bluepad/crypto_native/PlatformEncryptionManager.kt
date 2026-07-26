@@ -4,4 +4,5 @@ expect class PlatformEncryptionManager : EncryptionManager {
 
     override fun decryptData(bytes: ByteArray): ByteArray
     override fun encryptData(bytes: ByteArray): ByteArray
+    override fun cleanUpKeys()
 }

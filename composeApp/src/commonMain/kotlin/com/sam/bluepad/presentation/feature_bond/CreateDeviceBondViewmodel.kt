@@ -22,10 +22,12 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.koin.core.annotation.InjectedParam
+import org.koin.core.annotation.KoinViewModel
 
-
+@KoinViewModel
 class CreateDeviceBondViewmodel(
-    private val address: String,
+    @InjectedParam private val address: String,
     private val btDeviceBondManager: BTDeviceBondManager,
 ) : AppViewModel() {
 

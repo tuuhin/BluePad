@@ -7,8 +7,8 @@ import com.sam.bluepad.domain.ble.BLEConnectionType
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
-import com.sam.bluepad.presentation.feature_sync.event.SyncWorkflowEvent
 import com.sam.bluepad.presentation.feature_sync.event.SyncReceiverScreenEvent
+import com.sam.bluepad.presentation.feature_sync.event.SyncWorkflowEvent
 import com.sam.bluepad.presentation.feature_sync.state.SyncReceiverScreenState
 import com.sam.bluepad.presentation.feature_sync.state.SyncUIState
 import com.sam.bluepad.presentation.utils.AppViewModel
@@ -28,8 +28,10 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.koin.core.annotation.KoinViewModel
 import kotlin.uuid.Uuid
 
+@KoinViewModel
 class SyncReceiverViewmodel(
     localDeviceProvider: LocalDeviceInfoProvider,
     platformProvider: PlatformInfoProvider,
@@ -102,7 +104,10 @@ class SyncReceiverViewmodel(
                 is AdvertiserSyncEvent.HandshakeFailed -> _uiEvents.emit(UIEvents.ShowSnackBar(event.message))
                 is AdvertiserSyncEvent.HandshakeSuccess -> _foreignDevice.update { event.device }
                 is AdvertiserSyncEvent.SyncFailed -> _syncPhase.update { SyncUIState.Failed(event.reason) }
-                is AdvertiserSyncEvent.SyncStarted -> _syncPhase.update { SyncUIState.Running }
+                is AdvertiserSyncEvent.SyncStarted -> {
+                    _foreignDevice.update { event.device }
+                    _syncPhase.update { SyncUIState.Running }
+                }
                 is AdvertiserSyncEvent.HalfDuplexCompleted -> _syncPhase.update { SyncUIState.HalfDuplexCompleted }
                 is AdvertiserSyncEvent.FullDuplexCompleted -> {
                     _syncSessionId.update { event.sessionId }

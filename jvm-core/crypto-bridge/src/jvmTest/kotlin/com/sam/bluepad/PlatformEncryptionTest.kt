@@ -1,11 +1,17 @@
 package com.sam.bluepad
 
 import com.sam.bluepad.platform.native.PlatformEncryptionManager
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class PlatformEncryptionTest {
+
+    @AfterTest
+    fun tearDown() = PlatformEncryptionManager().use { platform ->
+        platform.cleanUpKeys()
+    }
 
     @Test
     fun `check basic platform encryption working`() = PlatformEncryptionManager().use { platform ->
@@ -71,6 +77,7 @@ class PlatformEncryptionTest {
 
         // DPAPI often includes some entropy or timestamp, so results might differ or be same,
         // but we definitely want to ensure they both decrypt to the same thing.
+        assertTrue(!enc1.contentEquals(enc2), "Encrypted data should be different for same input")
         assertEquals(data.decodeToString(), platform.decryptData(enc1).decodeToString())
         assertEquals(data.decodeToString(), platform.decryptData(enc2).decodeToString())
     }

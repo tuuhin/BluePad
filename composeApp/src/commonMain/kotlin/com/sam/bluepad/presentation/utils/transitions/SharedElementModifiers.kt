@@ -1,0 +1,178 @@
+package com.sam.bluepad.presentation.utils.transitions
+
+import androidx.compose.animation.BoundsTransform
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.Spring.StiffnessMediumLow
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment.Companion.Center
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.ContentScale
+import androidx.graphics.shapes.Morph
+import androidx.graphics.shapes.RoundedPolygon
+import androidx.graphics.shapes.rectangle
+import com.sam.bluepad.presentation.utils.LocalAnimatedContentScope
+import com.sam.bluepad.presentation.utils.LocalSharedTransitionScope
+import com.sam.bluepad.theme.MorphOverlayClip
+
+private val NormalSpring = spring(
+    stiffness = StiffnessMediumLow,
+    visibilityThreshold = Rect.VisibilityThreshold,
+)
+
+fun Modifier.sharedElementWrapper(
+    key: Any,
+    renderInOverlayDuringTransition: Boolean = true,
+    zIndexInOverlay: Float = 0f,
+    placeHolderSize: SharedTransitionScope.PlaceholderSize = SharedTransitionScope.PlaceholderSize.ContentSize,
+    boundsTransform: BoundsTransform = BoundsTransform { _, _ -> NormalSpring },
+    clipShape: Shape = RectangleShape,
+) = composed {
+    val transitionScope = LocalSharedTransitionScope.current ?: return@composed Modifier
+    val contentScope = LocalAnimatedContentScope.current ?: return@composed Modifier
+
+    with(transitionScope) {
+        val state = rememberSharedContentState(key)
+
+        Modifier.sharedElement(
+            sharedContentState = state,
+            animatedVisibilityScope = contentScope,
+            renderInOverlayDuringTransition = renderInOverlayDuringTransition,
+            zIndexInOverlay = zIndexInOverlay,
+            placeholderSize = placeHolderSize,
+            boundsTransform = boundsTransform,
+            clipInOverlayDuringTransition = OverlayClip(clipShape),
+        )
+    }
+}
+
+
+fun Modifier.sharedBoundsWrapper(
+    key: Any,
+    enter: EnterTransition = fadeIn(),
+    exit: ExitTransition = fadeOut(),
+    renderInOverlayDuringTransition: Boolean = true,
+    resizeMode: SharedTransitionScope.ResizeMode =
+        SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.FillWidth, Center),
+    zIndexInOverlay: Float = 0f,
+    placeHolderSize: SharedTransitionScope.PlaceholderSize = SharedTransitionScope.PlaceholderSize.ContentSize,
+    boundsTransform: BoundsTransform = BoundsTransform { _, _ -> NormalSpring },
+    clipShape: Shape = RectangleShape,
+) = composed {
+
+    val transitionScope = LocalSharedTransitionScope.current ?: return@composed Modifier
+    val contentScope = LocalAnimatedContentScope.current ?: return@composed Modifier
+
+    with(transitionScope) {
+
+        val state = rememberSharedContentState(key)
+        Modifier.sharedBounds(
+            sharedContentState = state,
+            animatedVisibilityScope = contentScope,
+            exit = exit,
+            enter = enter,
+            boundsTransform = boundsTransform,
+            renderInOverlayDuringTransition = renderInOverlayDuringTransition,
+            zIndexInOverlay = zIndexInOverlay,
+            placeholderSize = placeHolderSize,
+            resizeMode = resizeMode,
+            clipInOverlayDuringTransition = OverlayClip(clipShape),
+        )
+    }
+}
+
+fun Modifier.sharedBoundsWrapper(
+    key: Any,
+    enter: EnterTransition = fadeIn(),
+    exit: ExitTransition = fadeOut(),
+    renderInOverlayDuringTransition: Boolean = true,
+    resizeMode: SharedTransitionScope.ResizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
+        ContentScale.FillWidth,
+        Center,
+    ),
+    zIndexInOverlay: Float = 0f,
+    placeHolderSize: SharedTransitionScope.PlaceholderSize = SharedTransitionScope.PlaceholderSize.ContentSize,
+    boundsTransform: BoundsTransform = BoundsTransform { _, _ -> NormalSpring },
+    fromShape: RoundedPolygon = RoundedPolygon.rectangle(),
+    toShape: RoundedPolygon = RoundedPolygon.rectangle(),
+) = composed {
+
+    val transitionScope = LocalSharedTransitionScope.current ?: return@composed Modifier
+    val contentScope = LocalAnimatedContentScope.current ?: return@composed Modifier
+
+    with(transitionScope) {
+
+        val state = rememberSharedContentState(key)
+
+        val animationProgress by contentScope.transition.animateFloat(
+            label = "MorphProgress",
+        ) { enterExitState ->
+            when (enterExitState) {
+                EnterExitState.PreEnter, EnterExitState.PostExit -> 1f
+                EnterExitState.Visible -> 0f
+            }
+        }
+
+        val morph = remember(fromShape, toShape) {
+            Morph(fromShape.normalized(), toShape.normalized())
+        }
+
+        val overlayClip: SharedTransitionScope.OverlayClip =
+            remember(morph) { MorphOverlayClip(morph) { animationProgress } }
+
+        Modifier.sharedBounds(
+            sharedContentState = state,
+            animatedVisibilityScope = contentScope,
+            exit = exit,
+            enter = enter,
+            boundsTransform = boundsTransform,
+            renderInOverlayDuringTransition = renderInOverlayDuringTransition,
+            zIndexInOverlay = zIndexInOverlay,
+            placeholderSize = placeHolderSize,
+            resizeMode = resizeMode,
+            clipInOverlayDuringTransition = overlayClip,
+        )
+    }
+}
+
+@Composable
+fun Modifier.sharedTransitionSkipChildSize(): Modifier {
+    val transitionScope = LocalSharedTransitionScope.current ?: return Modifier
+
+    return with(transitionScope) {
+        this@sharedTransitionSkipChildSize.skipToLookaheadSize()
+    }
+}
+
+@Composable
+fun Modifier.sharedTransitionSkipChildPosition(): Modifier {
+    val transitionScope = LocalSharedTransitionScope.current ?: return Modifier
+
+    return with(transitionScope) {
+        this@sharedTransitionSkipChildPosition
+            .skipToLookaheadPosition()
+    }
+}
+
+
+@Composable
+fun Modifier.sharedTransitionRenderInOverlay(zIndexInOverlay: Float): Modifier {
+    val transitionScope = LocalSharedTransitionScope.current ?: return Modifier
+    return with(transitionScope) {
+        this@sharedTransitionRenderInOverlay
+            .renderInSharedTransitionScopeOverlay(zIndexInOverlay = zIndexInOverlay)
+    }
+}

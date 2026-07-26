@@ -24,6 +24,8 @@ import com.sam.bluepad.presentation.feature_sync.state.SyncReceiverScreenState
 import com.sam.bluepad.presentation.feature_sync.state.SyncUIState
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.PreviewFakes
+import com.sam.bluepad.presentation.utils.transitions.sharedTransitionSkipChildPosition
+import com.sam.bluepad.presentation.utils.transitions.sharedTransitionSkipChildSize
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_back
 import com.sam.bluepad.resources.ic_back
@@ -54,6 +56,8 @@ fun SyncReceiverScreen(
                 isSyncRunning = isSyncRunning,
                 navigation = navigation,
                 onStopOrCancelSync = { onEvent(SyncReceiverScreenEvent.StopSyncReceiver) },
+                modifier = Modifier.sharedTransitionSkipChildSize()
+                    .sharedTransitionSkipChildPosition(),
             )
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
@@ -62,11 +66,15 @@ fun SyncReceiverScreen(
         SyncReceiverScreenContent(
             screenState = state,
             onEvent = onEvent,
-            modifier = Modifier.fillMaxSize().padding(
-                horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
-                vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING,
-            ),
             contentPadding = scPadding,
+            modifier = Modifier
+                .sharedTransitionSkipChildSize()
+                .sharedTransitionSkipChildPosition()
+                .fillMaxSize()
+                .padding(
+                    horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
+                    vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING,
+                ),
         )
     }
 }

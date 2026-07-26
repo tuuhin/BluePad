@@ -11,7 +11,10 @@ enum class DevicePlatformOS {
 	@SerialName("2")
 	WINDOWS,
 
-	@SerialName("3")
+    @SerialName("3")
+    MACOS,
+
+	@SerialName("-1")
 	UNKNOWN;
 
 	companion object {

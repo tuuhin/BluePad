@@ -30,7 +30,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.koin.core.annotation.KoinViewModel
 
+@KoinViewModel
 class BLEScanDevicesViewModel(
     private val bleScanManager: BLEDiscoveryManager,
     private val permissionManger: PermissionsController,

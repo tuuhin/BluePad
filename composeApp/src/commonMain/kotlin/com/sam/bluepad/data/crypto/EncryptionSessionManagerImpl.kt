@@ -65,8 +65,12 @@ class EncryptionSessionManagerImpl private constructor(
 
 
     override suspend fun decryptAndReadData(sessionId: Uuid): ByteArray {
-        val keyResult = fileManager.readKeyResult()
         // decode the given key
+        val keyResult = try {
+            fileManager.readKeyResult()
+        } catch (_: Exception) {
+            throw MissingKeyFileException()
+        }
         val decodedKey = keyEncryptionManager.decrypt(keyResult.encrypted, keyResult.iv)
         // read the content
         val content = syncFileManager.readContent(sessionId = sessionId)

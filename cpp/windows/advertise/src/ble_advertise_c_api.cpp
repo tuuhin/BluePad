@@ -1,4 +1,3 @@
-#include <iostream>
 #include <memory>
 
 #include "ble_advertise_c_api.h"
@@ -12,6 +11,7 @@ BLEAdvertiserPtr ble_advertiser_create() {
 }
 
 void ble_advertiser_destroy(BLEAdvertiserPtr advertiser) {
+    if (advertiser == nullptr) return;
     delete static_cast<std::shared_ptr<ble_advertiser>*>(advertiser);
 }
 

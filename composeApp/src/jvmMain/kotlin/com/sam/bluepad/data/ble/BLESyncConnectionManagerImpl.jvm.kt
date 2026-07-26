@@ -29,6 +29,7 @@ import com.sam.bt_common.platform.PlatformBTInfoProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.awaitClose
@@ -46,10 +47,13 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
@@ -94,12 +98,12 @@ actual class BLESyncConnectionManagerImpl private constructor(
 
     override fun discoverAndConnect(timeout: Duration): Flow<ResourcesSyncDataEvents> =
         flow<ResourcesSyncDataEvents> {
-            if (!PlatformBTInfoProvider.isBTActive) {
+            if (!PlatformBTInfoProvider.isBTActive()) {
                 emit(Resource.Error(BluetoothNotEnabledException()))
                 return@flow
             }
 
-            if (!PlatformBTInfoProvider.isLEConnectionAvailable) {
+            if (!PlatformBTInfoProvider.isLEConnectionAvailable()) {
                 emit(Resource.Error(BLENotSupportedException()))
                 return@flow
             }
@@ -110,10 +114,11 @@ actual class BLESyncConnectionManagerImpl private constructor(
                 val firstAdvertisement = withTimeout(timeout) {
                     _scanner.advertisements
                         // an extra delay for the hardware to cool down
-                        .onEach { delay(100) }
+                        .onEach { delay(100.milliseconds) }
                         .first()
                 }
                 Logger.i(tag = TAG) { "SCAN RESULT FOUND" }
+                delay(100.milliseconds)
                 val identifier = firstAdvertisement.identifier.toString()
                 emit(Resource.Success(ConnectorSyncEvent.DeviceFound(identifier)))
                 // deals with the connection
@@ -169,6 +174,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
                 send(ConnectorSyncEvent.DeviceScanTimeout)
                 Logger.i(tag = TAG) { "FAILED TO CONNECT TO THE DEVICE TIMEOUT OCCURRED" }
                 close()
+                return@channelFlow
             }
 
             try {
@@ -278,17 +284,21 @@ actual class BLESyncConnectionManagerImpl private constructor(
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Logger.e(tag = TAG, throwable = e) { "UNKNOWN EXCEPTION MESSAGE:$e" }
-            } finally {
-                try {
-                    Logger.i(tag = TAG) { "DISCONNECTING THE PERIPHERAL" }
-                    peripheral.disconnect()
-                } catch (_: CancellationException) {
-                    Logger.w(tag = TAG) { "FAILED TO DISCONNECT THE PERIPHERAL" }
-                }
             }
             awaitClose {
-                Logger.i(tag = TAG) { "PERIPHERAL CONNECTION CLOSED" }
-                peripheral.close()
+                runBlocking(NonCancellable) {
+                    try {
+                        Logger.i(tag = TAG) { "DISCONNECTING THE PERIPHERAL" }
+                        withTimeoutOrNull(2.seconds) {
+                            peripheral.disconnect()
+                        }
+                    } catch (_: CancellationException) {
+                        Logger.w(tag = TAG) { "FAILED TO DISCONNECT THE PERIPHERAL" }
+                    } finally {
+                        Logger.i(tag = TAG) { "PERIPHERAL CONNECTION CLOSED" }
+                        peripheral.close()
+                    }
+                }
             }
         }.flowOn(Dispatchers.IO)
     }

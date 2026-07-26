@@ -24,11 +24,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import org.koin.core.annotation.InjectedParam
+import org.koin.core.annotation.KoinViewModel
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
+@KoinViewModel
 class AddSketchViewModel(
-    private val sketchId: Uuid?,
+    @InjectedParam private val sketchId: Uuid?,
     private val repository: SketchesRepository,
     private val localDeviceProvider: LocalDeviceInfoProvider,
 ) : AppViewModel() {

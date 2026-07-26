@@ -1,13 +1,16 @@
 package com.sam.bluepad.presentation.feature_devices.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -84,14 +87,14 @@ fun ManageDevicesScreen(
                 onNavigateToAdvertise = onNavigateToAdvertiseRoute,
                 onNavigateToBlockDevices = onNavigateToRevokeDevicesRoute,
                 navigation = navigation,
-                topBarScrollBehaviour = topBarScrollBehaviour
+                topBarScrollBehaviour = topBarScrollBehaviour,
             )
         },
         floatingActionButton = {
             AnimatedVisibility(
                 visible = hasAtLeastOneDevice,
-                enter = slideInVertically(),
-                exit = slideOutVertically()
+                enter = scaleIn(MaterialTheme.motionScheme.slowSpatialSpec()) + fadeIn(),
+                exit = scaleOut(MaterialTheme.motionScheme.slowSpatialSpec()) + fadeOut(),
             ) {
                 ExtendedFloatingActionButton(
                     onClick = onNavigateToAddDeviceRoute,
@@ -104,12 +107,13 @@ fun ManageDevicesScreen(
                             modifier = Modifier.size(FloatingActionButtonDefaults.MediumIconSize),
                         )
                     },
-                    expanded = isLargeScreen
+                    expanded = isLargeScreen,
                 )
             }
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
-        modifier = modifier.nestedScroll(topBarScrollBehaviour.nestedScrollConnection)
+        contentWindowInsets = WindowInsets(),
+        modifier = modifier.nestedScroll(topBarScrollBehaviour.nestedScrollConnection),
     ) { padding ->
         ListContentLoadingWrapper(
             content = devices,
@@ -118,7 +122,7 @@ fun ManageDevicesScreen(
             onEmpty = {
                 EmptyBlackListedDevicesContainer(
                     onAddDevice = onNavigateToAddDeviceRoute,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
                 )
             },
             onItems = { devices ->
@@ -134,8 +138,8 @@ fun ManageDevicesScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
                         horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
-                        vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING
-                    )
+                        vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING,
+                    ),
                 )
             },
         )
@@ -150,13 +154,13 @@ private fun EmptyBlackListedDevicesContainer(
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
     ) {
         Image(
             painter = painterResource(Res.drawable.ic_no_devices),
             contentDescription = "No devices present",
             colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.secondary),
-            modifier = Modifier.size(200.dp)
+            modifier = Modifier.size(200.dp),
         )
         Text(
             text = stringResource(Res.string.devices_screen_list_empty),
@@ -172,8 +176,8 @@ private fun EmptyBlackListedDevicesContainer(
             contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
             shapes = ButtonDefaults.shapes(
                 shape = ButtonDefaults.shape,
-                pressedShape = ButtonDefaults.squareShape
-            )
+                pressedShape = ButtonDefaults.squareShape,
+            ),
         ) {
             Text(text = stringResource(Res.string.action_add_new_device))
         }

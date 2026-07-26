@@ -51,154 +51,149 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ScanDeviceCard(
-	device: BLEPeerDevice,
-	onConnect: () -> Unit,
-	modifier: Modifier = Modifier,
-	isActionEnabled: Boolean = true,
-	shape: Shape = MaterialTheme.shapes.large,
+    device: BLEPeerDevice,
+    onConnect: () -> Unit,
+    modifier: Modifier = Modifier,
+    isActionEnabled: Boolean = true,
+    shape: Shape = MaterialTheme.shapes.large,
 ) {
-	Card(
-		modifier = modifier,
-		shape = shape,
-		elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-	) {
-		Column(
-			modifier = Modifier.fillMaxWidth().padding(Dimensions.CARD_INTERNAL_PADDING),
-			verticalArrangement = Arrangement.spacedBy(4.dp)
-		) {
-			Row(
-				verticalAlignment = Alignment.CenterVertically,
-				horizontalArrangement = Arrangement.SpaceBetween,
-				modifier = Modifier.fillMaxWidth()
-			) {
-				Text(
-					text = stringResource(Res.string.scan_result_device_name_title),
-					style = MaterialTheme.typography.bodyMediumEmphasized,
-					fontWeight = FontWeight.SemiBold,
-					color = MaterialTheme.colorScheme.onSurface
-				)
-				Text(
-					text = device.bleDeviceName
-						?: stringResource(Res.string.scan_result_device_name_not_found),
-					style = MaterialTheme.typography.titleMediumEmphasized,
-					color = if (device.bleDeviceName == null) MaterialTheme.colorScheme.tertiary
-					else MaterialTheme.colorScheme.primary
-				)
-			}
-			Row(
-				verticalAlignment = Alignment.CenterVertically,
-				horizontalArrangement = Arrangement.SpaceBetween,
-				modifier = Modifier.fillMaxWidth()
-			) {
-				Text(
-					text = stringResource(Res.string.scan_result_device_address_tittle),
-					style = MaterialTheme.typography.bodyMediumEmphasized,
-					fontWeight = FontWeight.SemiBold,
-					color = MaterialTheme.colorScheme.onSurface
-				)
-				Text(
-					text = device.deviceAddress,
-					style = MaterialTheme.typography.titleSmallEmphasized,
-					fontFamily = FontFamily.Monospace,
-					fontWeight = FontWeight.SemiBold,
-					color = MaterialTheme.colorScheme.primary
-				)
-			}
-			Row(
-				verticalAlignment = Alignment.CenterVertically,
-				horizontalArrangement = Arrangement.SpaceBetween,
-				modifier = Modifier.fillMaxWidth()
-			) {
-				Text(
-					text = stringResource(Res.string.scan_result_device_signal_strength_title),
-					style = MaterialTheme.typography.bodyMediumEmphasized,
-					fontWeight = FontWeight.SemiBold,
-					color = MaterialTheme.colorScheme.onSurface
-				)
-				DeviceSignalStrength(
-					device = device,
-					style = MaterialTheme.typography.titleSmallEmphasized
-				)
-			}
-			HorizontalDivider()
-			Button(
-				onClick = onConnect,
-				colors = ButtonDefaults.buttonColors(
-					containerColor = MaterialTheme.colorScheme.secondary,
-					contentColor = MaterialTheme.colorScheme.onSecondary
-				),
-				shapes = ButtonDefaults.shapes(
-					shape = ButtonDefaults.shape,
-					pressedShape = ButtonDefaults.mediumPressedShape
-				),
-				enabled = isActionEnabled,
-				contentPadding = ButtonDefaults.SmallContentPadding,
-				modifier = Modifier.fillMaxWidth().align(Alignment.CenterHorizontally),
-			) {
-				Text(
-					text = stringResource(Res.string.action_connect),
-					style = MaterialTheme.typography.bodyMediumEmphasized
-				)
-			}
-		}
-	}
+    Card(
+        modifier = modifier,
+        shape = shape,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(Dimensions.CARD_INTERNAL_PADDING),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(Res.string.scan_result_device_name_title),
+                    style = MaterialTheme.typography.bodyMediumEmphasized,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = device.bleDeviceName ?: stringResource(Res.string.scan_result_device_name_not_found),
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    color = if (device.bleDeviceName == null) MaterialTheme.colorScheme.tertiary
+                    else MaterialTheme.colorScheme.primary,
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(Res.string.scan_result_device_address_tittle),
+                    style = MaterialTheme.typography.bodyMediumEmphasized,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = device.deviceAddress,
+                    style = MaterialTheme.typography.titleSmallEmphasized,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(Res.string.scan_result_device_signal_strength_title),
+                    style = MaterialTheme.typography.bodyMediumEmphasized,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                DeviceSignalStrength(
+                    device = device,
+                    style = MaterialTheme.typography.titleSmallEmphasized,
+                )
+            }
+            HorizontalDivider()
+            Button(
+                onClick = onConnect,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = MaterialTheme.colorScheme.onSecondary,
+                ),
+                shapes = ButtonDefaults.shapes(
+                    shape = ButtonDefaults.shape,
+                    pressedShape = ButtonDefaults.mediumPressedShape,
+                ),
+                enabled = isActionEnabled,
+                contentPadding = ButtonDefaults.SmallContentPadding,
+                modifier = Modifier.fillMaxWidth().align(Alignment.CenterHorizontally),
+            ) {
+                Text(
+                    text = stringResource(Res.string.action_connect),
+                    style = MaterialTheme.typography.bodyMediumEmphasized,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+    }
 }
 
 @Composable
 private fun DeviceSignalStrength(
-	device: BLEPeerDevice,
-	modifier: Modifier = Modifier,
-	style: TextStyle = MaterialTheme.typography.bodyMediumEmphasized,
-	color: Color = MaterialTheme.colorScheme.secondary
+    device: BLEPeerDevice,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.bodyMediumEmphasized,
+    color: Color = MaterialTheme.colorScheme.secondary
 ) {
 
-	val power by remember(device.rssi) { derivedStateOf { device.signalStrength } }
-	val powerAnimatedColor by animateColorAsState(
-		targetValue = power.color,
-		animationSpec = tween(durationMillis = 200, easing = EaseIn)
-	)
+    val power by remember(device.rssi) { derivedStateOf { device.signalStrength } }
+    val powerAnimatedColor by animateColorAsState(
+        targetValue = power.color,
+        animationSpec = tween(durationMillis = 200, easing = EaseIn),
+    )
 
-	Row(
-		horizontalArrangement = Arrangement.spacedBy(4.dp),
-		verticalAlignment = Alignment.CenterVertically, modifier = modifier,
-	) {
-		Box(
-			modifier = Modifier
-				.size(16.dp)
-				.shadow(
-					elevation = 8.dp,
-					shape = MaterialTheme.shapes.large,
-					ambientColor = powerAnimatedColor,
-					spotColor = powerAnimatedColor
-				)
-				.background(powerAnimatedColor, CircleShape)
-		)
-		Text(
-			text = power.readableString,
-			style = style,
-			color = color,
-		)
-	}
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically, modifier = modifier,
+    ) {
+        Box(
+            modifier = Modifier.size(16.dp).shadow(
+                elevation = 8.dp,
+                shape = MaterialTheme.shapes.large,
+                ambientColor = powerAnimatedColor,
+                spotColor = powerAnimatedColor,
+            ).background(powerAnimatedColor, CircleShape),
+        )
+        Text(
+            text = power.readableString,
+            style = style,
+            color = color,
+        )
+    }
 }
 
 private val BLEPeerSignalStrength.readableString: String
-	@Composable
-	get() = when (this) {
-		BLEPeerSignalStrength.EXCELLENT -> stringResource(Res.string.scan_device_signal_strength_excellent)
-		BLEPeerSignalStrength.GOOD -> stringResource(Res.string.scan_device_signal_strength_good)
-		BLEPeerSignalStrength.AVG -> stringResource(Res.string.scan_device_signal_strength_avg)
-		BLEPeerSignalStrength.POOR -> stringResource(Res.string.scan_device_signal_strength_poor)
-		BLEPeerSignalStrength.VER_POOR -> stringResource(Res.string.scan_device_signal_strength_very_poor)
-		BLEPeerSignalStrength.UN_RELIABLE -> stringResource(Res.string.scan_device_signal_strength_unreliable)
-	}
+    @Composable get() = when (this) {
+        BLEPeerSignalStrength.EXCELLENT -> stringResource(Res.string.scan_device_signal_strength_excellent)
+        BLEPeerSignalStrength.GOOD -> stringResource(Res.string.scan_device_signal_strength_good)
+        BLEPeerSignalStrength.AVG -> stringResource(Res.string.scan_device_signal_strength_avg)
+        BLEPeerSignalStrength.POOR -> stringResource(Res.string.scan_device_signal_strength_poor)
+        BLEPeerSignalStrength.VER_POOR -> stringResource(Res.string.scan_device_signal_strength_very_poor)
+        BLEPeerSignalStrength.UN_RELIABLE -> stringResource(Res.string.scan_device_signal_strength_unreliable)
+    }
 
 private val BLEPeerSignalStrength.color: Color
-	@Composable
-	get() = when (this) {
-		BLEPeerSignalStrength.EXCELLENT -> Color(0xFF00E676)
-		BLEPeerSignalStrength.GOOD -> Color(0xFF66BB6A)
-		BLEPeerSignalStrength.AVG -> Color(0xFFFFCA28)
-		BLEPeerSignalStrength.POOR -> Color(0xFFFF7043)
-		BLEPeerSignalStrength.VER_POOR -> Color(0xFFEF5350)
-		BLEPeerSignalStrength.UN_RELIABLE -> Color(0xFF9E9E9E)
-	}
+    @Composable get() = when (this) {
+        BLEPeerSignalStrength.EXCELLENT -> Color(0xFF00E676)
+        BLEPeerSignalStrength.GOOD -> Color(0xFF66BB6A)
+        BLEPeerSignalStrength.AVG -> Color(0xFFFFCA28)
+        BLEPeerSignalStrength.POOR -> Color(0xFFFF7043)
+        BLEPeerSignalStrength.VER_POOR -> Color(0xFFEF5350)
+        BLEPeerSignalStrength.UN_RELIABLE -> Color(0xFF9E9E9E)
+    }

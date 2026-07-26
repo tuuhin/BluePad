@@ -17,9 +17,13 @@ import kotlin.uuid.Uuid
 private const val TAG = "LOCAL_DEVICE_INFO_PROVIDER"
 
 class LocalDeviceInfoProviderImpl(
-    private val preferences: DataStore<Preferences>,
+    private val dataStoreProvider: DataStoreProvider,
     private val randomNameGenerator: RandomNameGenerator,
 ) : LocalDeviceInfoProvider {
+
+    private val preferences: DataStore<Preferences> by lazy {
+        dataStoreProvider.providePreferencesDataStore(DataStoreUtils.APP_COMMONS_DATASTORE_FILE)
+    }
 
     private val _deviceIdKey = byteArrayPreferencesKey(DataStoreUtils.APP_DEVICE_ID_KEY)
     private val _deviceName = stringPreferencesKey(DataStoreUtils.APP_DEVICE_NAME_KEY)

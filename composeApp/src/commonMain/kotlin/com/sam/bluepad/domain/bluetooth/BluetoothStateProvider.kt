@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface BluetoothStateProvider {
 
-	val isBtActive: Boolean
+    suspend fun isBtActive(): Boolean
 
 	val bluetoothStatusFlow: Flow<Boolean>
 }

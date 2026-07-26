@@ -1,2 +1,5 @@
 /build
 desktopResources/*
+/packaging/windows/appx/*
+/packaging/windows/*.ico
+/packaging/macos/icons/*

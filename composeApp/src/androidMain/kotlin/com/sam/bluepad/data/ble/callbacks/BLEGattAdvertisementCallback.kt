@@ -33,9 +33,9 @@ class BLEGattAdvertisementCallback : AdvertisingSetCallback() {
             -15 -> "TX POWER LEVEL LOW"
             -7 -> "TX POWER LEVEL MEDIUM"
             1 -> "TX POWER LEVEL HIGH"
-            else -> null
+            else -> "UNKNOWN"
         }
-        Logger.d(tag = TAG) { "BLE5 ADVERTISING STARTED | $powerLevel" }
+        Logger.d(tag = TAG) { "BLE5 ADVERTISING STARTED | POWER LEVEL$powerLevel" }
         _isRunning.value = true
     }
 
