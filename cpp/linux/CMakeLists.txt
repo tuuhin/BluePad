@@ -4,3 +4,4 @@ project(linux_ble)
 set(CMAKE_CXX_STANDARD 20)
 
 add_subdirectory(bt_common)
+add_subdirectory(ble_advertise)
