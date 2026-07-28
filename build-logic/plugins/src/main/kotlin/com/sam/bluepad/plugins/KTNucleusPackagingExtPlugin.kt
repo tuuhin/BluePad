@@ -122,31 +122,40 @@ class KTNucleusPackagingExtPlugin : Plugin<Project> {
      * We need to set the paths for the native library as our library has a transitive dependency
      */
     private fun Task.setUpProjectPathForRun(project: Project) {
-
         val forkOptions = this as? ProcessForkOptions ?: return
 
-        val binDirs = mutableSetOf<String>()
+        project.rootProject.allprojects {
+            plugins.withId("org.jetbrains.kotlin.multiplatform") {
+                val kotlinExp = extensions.findByType<KotlinMultiplatformExtension>() ?: return@withId
+                val nativeBinaries = kotlinExp.targets
+                    .filterIsInstance<KotlinNativeTarget>()
+                    .flatMap { it.binaries }
 
-        // check all the subprojects for kmp ext and take the native targets
-        for (subproject in project.rootProject.subprojects) {
-            val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>() ?: continue
-            val nativeBinaries = kotlinExp.targets.filterIsInstance<KotlinNativeTarget>()
-                .flatMap { it.binaries }
-
-            for (binary in nativeBinaries) {
-                val file = binary.outputFile
-                // Check if it's a dynamic/shared library
-                val isLibFile = file.extension in arrayOf("dll", "so", "dylib")
-                if (!isLibFile) continue
-                binDirs.add(file.parentFile.absolutePath)
-                // wait for the library to get build
-                dependsOn(binary.linkTaskProvider)
+                for (binary in nativeBinaries) {
+                    this@setUpProjectPathForRun.dependsOn(binary.linkTaskProvider)
+                }
             }
         }
 
-        if (binDirs.isEmpty()) return
-
         doFirst {
+            val binDirs = mutableSetOf<String>()
+
+            for (subproject in project.rootProject.allprojects) {
+                val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>() ?: continue
+                val nativeBinaries = kotlinExp.targets
+                    .filterIsInstance<KotlinNativeTarget>()
+                    .flatMap { it.binaries }
+
+                for (binary in nativeBinaries) {
+                    val file = binary.outputFile
+                    if (file.extension in arrayOf("dll", "so", "dylib")) {
+                        binDirs.add(file.parentFile.absolutePath)
+                    }
+                }
+            }
+
+            if (binDirs.isEmpty()) return@doFirst
+
             val pathSeparator = File.pathSeparator
             val existingPath = System.getenv("PATH") ?: ""
 

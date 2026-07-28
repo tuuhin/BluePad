@@ -9,6 +9,7 @@ import org.gradle.kotlin.dsl.configure
 
 class KTCodeQualityPlugin : Plugin<Project> {
 
+
     override fun apply(target: Project) {
         target.applyPlugins()
         target.configureSpotless()
@@ -29,6 +30,20 @@ class KTCodeQualityPlugin : Plugin<Project> {
         buildUponDefaultConfig.set(true)
         config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
         allRules.set(true)
+
+        source.setFrom(
+            files(
+                // common main
+                "src/commonMain/kotlin",
+                // desktop targets
+                "src/jvmMain/kotlin",
+                "src/macosMain/kotlin",
+                "src/mingwMain/kotlin",
+                "src/desktopMain/kotlin",
+                // normal entry point
+                "src/main/kotlin",
+            ),
+        )
     }
 
 
