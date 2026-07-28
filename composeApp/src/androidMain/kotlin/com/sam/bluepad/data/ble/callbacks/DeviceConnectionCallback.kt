@@ -11,8 +11,10 @@ import com.sam.bluepad.domain.ble.enums.BLEConnectionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
 import kotlin.uuid.toKotlinUuid
 
@@ -63,7 +65,7 @@ class DeviceConnectionCallback(
 
     override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(tag=TAG) { "CANNOT DISCOVER SERVICES" }
+            Logger.w(tag = TAG) { "CANNOT DISCOVER SERVICES" }
             onGAttFailed("Cannot discover services")
             return
         }
@@ -71,27 +73,33 @@ class DeviceConnectionCallback(
             ?.find { it.uuid.toKotlinUuid() == BLEConstants.DEVICE_INFO_SERVICE_ID } ?: run {
             gatt?.disconnect()
             gatt?.close()
-            Logger.w(tag=TAG) { "INVALID CHARACTERISTICS FOUND CLOSING CONNECTION " }
+            Logger.w(tag = TAG) { "INVALID CHARACTERISTICS FOUND CLOSING CONNECTION " }
             return
         }
         // we read all the characteristics
-        val requiredCharacteristics = service.characteristics.filter { it.uuid != null }
-        Logger.d(tag=TAG) { "NO. OF CHARACTERISTICS FOUND STARTING READ :${requiredCharacteristics.size}" }
+        val readAbleCharacteristics = service.characteristics.filter { it.uuid != null }
+            .filter { (it.properties and BluetoothGattCharacteristic.PROPERTY_READ) != 0 }
+
+        Logger.d(tag = TAG) { "NO. OF CHARACTERISTICS FOUND STARTING READ :${readAbleCharacteristics.size}" }
         // read characteristic
-        _readQueue.addAll(requiredCharacteristics)
-        _readQueue.poll()?.let {
-            Logger.d(tag=TAG) { "REQUESTING ${it.uuid} READ" }
-            gatt.readCharacteristic(it)
+        _readQueue.addAll(readAbleCharacteristics)
+
+        coroutineScope.launch {
+            delay(100.milliseconds)
+            _readQueue.poll()?.let {
+                val readReq = gatt.readCharacteristic(it)
+                Logger.d(tag = TAG) { "REQUESTING CHARACTERISTICS ${it.uuid} READ REQUEST STATUS: $readReq" }
+            }
         }
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(tag=TAG) { "CANNOT DISCOVER SERVICES" }
+            Logger.w(tag = TAG) { "CANNOT DISCOVER SERVICES" }
             onGAttFailed("Cannot request higher mtu")
             return
         }
-        Logger.d(tag=TAG) { "UPDATED MTU :$mtu" }
+        Logger.d(tag = TAG) { "UPDATED MTU :$mtu" }
         gatt?.discoverServices()
     }
 
@@ -114,14 +122,18 @@ class DeviceConnectionCallback(
     ) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
             onGAttFailed("Cannot read characteristics :${characteristic.uuid}")
-            Logger.w(tag=TAG) { "CANNOT READ CHARACTERISTICS" }
+            Logger.w(tag = TAG) { "CANNOT READ CHARACTERISTICS STATUS :$status" }
             return
         }
         coroutineScope.launch {
-            Logger.d(tag=TAG) { "READING CHARACTERISTICS :${characteristic.uuid}" }
+            Logger.d(tag = TAG) { "READING CHARACTERISTICS :${characteristic.uuid}" }
             onReadCharacteristic(gatt, characteristic.uuid.toKotlinUuid(), value)
             // check if anything left on the queue
-            _readQueue.poll()?.let { gatt.readCharacteristic(it) }
+            _readQueue.poll()?.let {
+                delay(100.milliseconds)
+                val readReq = gatt.readCharacteristic(it)
+                Logger.d(tag = TAG) { "REQUESTING CHARACTERISTICS ${it.uuid} READ REQUEST STATUS: $readReq" }
+            }
         }
     }
 
@@ -132,11 +144,11 @@ class DeviceConnectionCallback(
         status: Int
     ) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Logger.w(tag=TAG) { "WRITE CHARACTERISTICS FAILED" }
+            Logger.w(tag = TAG) { "WRITE CHARACTERISTICS FAILED" }
             return
         }
         coroutineScope.launch {
-            Logger.d(tag=TAG) { "WRITE CHARACTERISTICS FOR :${characteristic.uuid} SUCCESS" }
+            Logger.d(tag = TAG) { "WRITE CHARACTERISTICS FOR :${characteristic.uuid} SUCCESS" }
             onWriteCharacteristic(gatt, characteristic.uuid.toKotlinUuid())
         }
     }

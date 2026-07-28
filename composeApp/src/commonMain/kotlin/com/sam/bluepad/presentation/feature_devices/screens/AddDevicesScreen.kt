@@ -1,6 +1,7 @@
 package com.sam.bluepad.presentation.feature_devices.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -9,22 +10,17 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumFlexibleTopAppBar
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
@@ -40,21 +36,16 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sam.bluepad.presentation.composables.ListContentLoadingWrapper
-import com.sam.bluepad.presentation.feature_devices.composables.BLEScanStartStopButton
-import com.sam.bluepad.presentation.feature_devices.composables.MultipleDeviceWarning
+import com.sam.bluepad.presentation.feature_devices.composables.AddDeviceScreenTopBar
 import com.sam.bluepad.presentation.feature_devices.composables.ScanDevicesList
 import com.sam.bluepad.presentation.feature_devices.events.AddDeviceScreenEvent
 import com.sam.bluepad.presentation.feature_devices.state.AddDeviceScreenState
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.resources.Res
-import com.sam.bluepad.resources.add_devices_screen_subtitle
-import com.sam.bluepad.resources.add_devices_screen_title
 import com.sam.bluepad.resources.ic_no_devices
-import com.sam.bluepad.resources.ic_refresh
 import com.sam.bluepad.resources.scan_results_no_device_desc
 import com.sam.bluepad.resources.scan_results_no_device_title
 import com.sam.bluepad.theme.Dimensions
@@ -88,30 +79,14 @@ fun AddDevicesScreen(
 
     Scaffold(
         topBar = {
-            MediumFlexibleTopAppBar(
-                title = { Text(text = stringResource(Res.string.add_devices_screen_title)) },
-                subtitle = { Text(text = stringResource(Res.string.add_devices_screen_subtitle)) },
-                navigationIcon = onBackNavigation,
-                scrollBehavior = topBarScrollBehaviour,
-                actions = {
-                    OutlinedButton(
-                        onClick = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
-                        enabled = isRefreshButtonEnabled,
-                        contentPadding = ButtonDefaults.SmallContentPadding,
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_refresh),
-                            contentDescription = null,
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    BLEScanStartStopButton(
-                        isScanning = state.isScanning,
-                        onStopScan = { onEvent(AddDeviceScreenEvent.OnStopDeviceScan) },
-                        onStartScan = { onEvent(AddDeviceScreenEvent.OnStartDeviceScan) },
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                },
+            AddDeviceScreenTopBar(
+                isScanRunning = state.isScanning,
+                isRefreshButtonEnabled = isRefreshButtonEnabled,
+                navigation = onBackNavigation,
+                topBarScrollBehaviour = topBarScrollBehaviour,
+                onRefreshItems = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
+                onStartScan = { onEvent(AddDeviceScreenEvent.OnStartDeviceScan) },
+                onStopScan = { onEvent(AddDeviceScreenEvent.OnStopDeviceScan) },
             )
         },
         snackbarHost = { SnackbarHost(snackBarHostState) },
@@ -132,43 +107,35 @@ fun AddDevicesScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            Box(
+            ListContentLoadingWrapper(
+                content = state.peers,
                 modifier = Modifier.weight(1f)
                     .fillMaxSize()
-                    .padding(
-                        horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
-                        vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING,
-                    ),
-            ) {
-                MultipleDeviceWarning(
-                    showWarning = state.isScanning,
-                    modifier = Modifier.fillMaxWidth(.75f)
-                        .align(Alignment.BottomCenter)
-                        .zIndex(1f),
-                )
-                ListContentLoadingWrapper(
-                    content = state.peers,
-                    onItems = { peers ->
-                        ScanDevicesList(
-                            searchedPeers = peers,
-                            isListRefreshing = state.isListRefreshing,
-                            onListRefresh = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
-                            onConnect = { device ->
-                                // stop running scan before connect performing this for all cases
-                                if (state.isScanning) onEvent(AddDeviceScreenEvent.OnStopDeviceScan)
-                                onEvent(AddDeviceScreenEvent.CheckBondStateForDevice(device))
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    },
-                    onEmpty = {
-                        NoDevicesFoundContainer(
-                            showContainer = !state.isScanning,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    },
-                )
-            }
+                    .animateContentSize(),
+                contentPadding = PaddingValues(
+                    horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
+                    vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING,
+                ),
+                onItems = { peers ->
+                    ScanDevicesList(
+                        searchedPeers = peers,
+                        isListRefreshing = state.isListRefreshing,
+                        onListRefresh = { onEvent(AddDeviceScreenEvent.OnRefreshDeviceList) },
+                        onConnect = { device ->
+                            // stop running scan before connect performing this for all cases
+                            if (state.isScanning) onEvent(AddDeviceScreenEvent.OnStopDeviceScan)
+                            onEvent(AddDeviceScreenEvent.CheckBondStateForDevice(device))
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                },
+                onEmpty = {
+                    NoDevicesFoundContainer(
+                        showContainer = !state.isScanning,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                },
+            )
         }
     }
 }

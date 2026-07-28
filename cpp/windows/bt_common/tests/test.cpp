@@ -1,17 +1,39 @@
 #include "bt_common_c_api.h"
-#include <iostream>
+#include <chrono>
+#include <gtest/gtest.h>
 
-int main(int argc, char* argv[]) {
+TEST(BT_COMMON_TEST, SHOULD_RETURN_TRUE_OR_FALSE) {
+    init_logger();
+    const bool result = ble_is_bluetooth_active();
+    EXPECT_TRUE(result == true || result == false);
+}
 
-    try {
-        const auto creator = bluetooth_caller_register_listener(
-            [](const bool isOn) { std::cout << "CURRENT BT STATE" << isOn << std::endl; });
+TEST(BT_COMMON_TEST, CHECK_IS_PERIPHERAL_IS_AVAILABLE) {
+    const bool result = ble_is_peripheral_role_supported();
+    EXPECT_TRUE(result == true || result == false);
+}
 
-        std::cout << "Press [ENTER] to stop monitoring and exit." << std::endl;
-        std::cin.get();
+TEST(BT_COMMON_TEST, CHECK_IS_SECURE_CONNECTION_AVAILABLE) {
+    const bool result = ble_is_secure_connection_available();
+    EXPECT_TRUE(result == true || result == false);
+}
 
-        bluetooth_caller_unregister_listener(creator);
-    } catch (...) {
-        std::cerr << "FAILED TO EXECUTE THE CODE";
-    }
+TEST(BT_CALLBACK_TEST, REGISTER_CALLBACK) {
+    const auto ptr =
+        bluetooth_caller_register_listener([](const bool is_on) { EXPECT_TRUE(is_on == true || is_on == false); });
+    bluetooth_caller_unregister_listener(ptr);
+}
+
+TEST(BT_CALLBACK_TEST, UNREGISTER_WITHOUT_REGISTER) {
+    const auto ptr = static_cast<BluetoothCallerPtr>(nullptr);
+    bluetooth_caller_unregister_listener(ptr);
+}
+
+TEST(BT_CALLBACK_TEST, REGISTER_UNREGISTER_REGISTER) {
+    const auto prt1 =
+        bluetooth_caller_register_listener([](const bool is_on) { EXPECT_TRUE(is_on == true || is_on == false); });
+    bluetooth_caller_unregister_listener(prt1);
+    const auto prt2 =
+        bluetooth_caller_register_listener([](const bool is_on) { EXPECT_TRUE(is_on == true || is_on == false); });
+    bluetooth_caller_unregister_listener(prt2);
 }

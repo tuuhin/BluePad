@@ -16,17 +16,16 @@ import org.koin.dsl.koinConfiguration
 @OptIn(KoinExperimentalAPI::class)
 class BluePadApp : Application(), KoinStartup {
 
-	override fun onCreate() {
-		super.onCreate()
-		if (BuildConfig.DEBUG)
-			Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.SourceInformation)
-		else Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.Auto)
-	}
+    override fun onCreate() {
+        super.onCreate()
+        if (BuildConfig.DEBUG)
+            Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.SourceInformation)
+        else Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.Auto)
+    }
 
-	override fun onKoinStartup(): KoinConfiguration = koinConfiguration {
-		androidContext(this@BluePadApp)
-		androidLogger()
-		modules(createPlatformModule(), commonAppModule, viewModelModule)
-	}
-
+    override fun onKoinStartup(): KoinConfiguration = koinConfiguration {
+        androidLogger()
+        androidContext(this@BluePadApp)
+        modules(createPlatformModule(), commonAppModule, viewModelModule)
+    }
 }

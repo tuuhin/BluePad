@@ -1,8 +1,8 @@
 package com.sam.bluepad.presentation.navigation
 
 import androidx.navigation3.runtime.NavKey
-import com.sam.bluepad.presentation.navigation.nav_graph.AssociatedNavGraph
 import com.sam.bluepad.presentation.navigation.nav_graph.RootNavGraph
+import com.sam.bluepad.presentation.navigation.nav_graph.RootTabLayoutNavGraph
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 
@@ -15,8 +15,8 @@ object NavigationSerializers {
                 RootNavGraph.AddOrUpdateRoute.serializer(),
             )
             subclass(
-                RootNavGraph.AssociatedNavGraphRoute::class,
-                RootNavGraph.AssociatedNavGraphRoute.serializer(),
+                RootNavGraph.TabLayoutRoute::class,
+                RootNavGraph.TabLayoutRoute.serializer(),
             )
             subclass(
                 RootNavGraph.AdvertiseDeviceRoute::class,
@@ -49,19 +49,19 @@ object NavigationSerializers {
         }
     }
 
-    fun associatedNavGraphSerializer() = SerializersModule {
+    fun rootTabLayoutSerializer() = SerializersModule {
         polymorphic(NavKey::class) {
             subclass(
-                AssociatedNavGraph.ListRoute::class,
-                AssociatedNavGraph.ListRoute.serializer(),
+                RootTabLayoutNavGraph.ListRoute::class,
+                RootTabLayoutNavGraph.ListRoute.serializer(),
             )
             subclass(
-                AssociatedNavGraph.SettingsRoute::class,
-                AssociatedNavGraph.SettingsRoute.serializer(),
+                RootTabLayoutNavGraph.SettingsRoute::class,
+                RootTabLayoutNavGraph.SettingsRoute.serializer(),
             )
             subclass(
-                AssociatedNavGraph.DeviceRoute::class,
-                AssociatedNavGraph.DeviceRoute.serializer(),
+                RootTabLayoutNavGraph.DeviceRoute::class,
+                RootTabLayoutNavGraph.DeviceRoute.serializer(),
             )
         }
     }

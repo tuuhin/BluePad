@@ -1,15 +1,18 @@
 package com.sam.bluepad.presentation.feature_sketches.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -29,6 +32,8 @@ import com.sam.bluepad.presentation.feature_sketches.composables.SketchesListTop
 import com.sam.bluepad.presentation.feature_sketches.events.SketchScreenEvent
 import com.sam.bluepad.presentation.utils.LocalSnackBarState
 import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
+import com.sam.bluepad.presentation.utils.transitions.SharedElementTransKeys
+import com.sam.bluepad.presentation.utils.transitions.sharedBoundsWrapper
 import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.action_create_sketch
 import com.sam.bluepad.resources.ic_add
@@ -40,82 +45,89 @@ import org.jetbrains.compose.resources.stringResource
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SketchesListScreen(
-	sketches: ImmutableList<SketchModel>,
-	onEvent: (SketchScreenEvent) -> Unit,
-	modifier: Modifier = Modifier,
-	isLoading: Boolean = false,
-	showDeleteDialog: Boolean = false,
-	navigation: @Composable () -> Unit = {},
-	onNavigateToSketch: (SketchModel?) -> Unit = {},
-	onNavigateToReceiveSync: () -> Unit = {},
+    sketches: ImmutableList<SketchModel>,
+    onEvent: (SketchScreenEvent) -> Unit,
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
+    showDeleteDialog: Boolean = false,
+    navigation: @Composable () -> Unit = {},
+    onNavigateToSketch: (SketchModel?) -> Unit = {},
+    onNavigateToReceiveSync: () -> Unit = {},
 ) {
-	val topBarScrollBehaviour = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-	val snackBarHostState = LocalSnackBarState.current
-	val windowSize = LocalWindowSizeInfo.current
+    val topBarScrollBehaviour = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val snackBarHostState = LocalSnackBarState.current
+    val windowSize = LocalWindowSizeInfo.current
 
-	DeleteSketchDialog(
-		showDialog = showDeleteDialog,
-		onCancel = { onEvent(SketchScreenEvent.OnUnselectSketchToDelete) },
-		onConfirm = { onEvent(SketchScreenEvent.OnDeleteSketchConfirm) },
-	)
+    DeleteSketchDialog(
+        showDialog = showDeleteDialog,
+        onCancel = { onEvent(SketchScreenEvent.OnUnselectSketchToDelete) },
+        onConfirm = { onEvent(SketchScreenEvent.OnDeleteSketchConfirm) },
+    )
 
-	Scaffold(
-		topBar = {
-			SketchesListTopAppBar(
-				topBarScrollBehaviour = topBarScrollBehaviour,
-				navigation = navigation,
-				onReceiveData = onNavigateToReceiveSync
-			)
-		},
-		floatingActionButton = {
-			AnimatedVisibility(
-				visible = !isLoading && sketches.isNotEmpty(),
-				enter = slideInVertically(MaterialTheme.motionScheme.slowEffectsSpec()) { height -> height } + fadeIn(),
-				exit = slideOutVertically(MaterialTheme.motionScheme.slowEffectsSpec()) { height -> height } + fadeOut()
-			) {
-				ExtendedFloatingActionButton(
-					onClick = { onNavigateToSketch(null) },
-					shape = MaterialTheme.shapes.large,
-					text = { Text(text = stringResource(Res.string.action_create_sketch)) },
-					icon = {
-						Icon(
-							painter = painterResource(Res.drawable.ic_add),
-							contentDescription = "Add"
-						)
-					},
-					expanded = windowSize.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
-				)
-			}
-		},
-		snackbarHost = { SnackbarHost(snackBarHostState) },
-		modifier = modifier.nestedScroll(topBarScrollBehaviour.nestedScrollConnection)
-	) { padding ->
-		ListContentLoadingWrapper(
-			content = sketches,
-			isLoading = isLoading,
-			modifier = Modifier.padding(padding),
-			onEmpty = {
-				EmptySketchesList(
-					onCreateNew = { onNavigateToSketch(null) },
-					modifier = Modifier.fillMaxSize()
-				)
-			},
-			onItems = { sketches ->
-				SketchesListContent(
-					sketches = sketches,
-					onSelectSketch = onNavigateToSketch,
-					onDeleteSketch = { sketch ->
-						onEvent(SketchScreenEvent.OnSelectSketchToDelete(sketch))
-					},
-					onCopySketch = { sketch -> onEvent(SketchScreenEvent.OnCopySketch(sketch)) },
-					onShareSketch = { sketch -> onEvent(SketchScreenEvent.OnShareSketch(sketch)) },
-					modifier = Modifier.fillMaxSize(),
-					contentPadding = PaddingValues(
-						horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
-						vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING
-					)
-				)
-			},
-		)
-	}
+    Scaffold(
+        topBar = {
+            SketchesListTopAppBar(
+                topBarScrollBehaviour = topBarScrollBehaviour,
+                navigation = navigation,
+                onReceiveData = onNavigateToReceiveSync,
+            )
+        },
+        floatingActionButton = {
+            AnimatedVisibility(
+                visible = !isLoading && sketches.isNotEmpty(),
+                enter = slideInVertically(MaterialTheme.motionScheme.slowEffectsSpec()) { height -> height } + fadeIn(),
+                exit = slideOutVertically(MaterialTheme.motionScheme.slowEffectsSpec()) { height -> height } + fadeOut(),
+            ) {
+                ExtendedFloatingActionButton(
+                    onClick = { onNavigateToSketch(null) },
+                    shape = FloatingActionButtonDefaults.largeExtendedFabShape,
+                    text = { Text(text = stringResource(Res.string.action_create_sketch)) },
+                    icon = {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_add),
+                            contentDescription = "Add",
+                        )
+                    },
+                    expanded = windowSize.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND),
+                    modifier = Modifier.sharedBoundsWrapper(
+                        key = SharedElementTransKeys.SHARED_BOUNDS_CREATE_NEW_SKETCH,
+                        resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                        placeHolderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+                        clipShape = FloatingActionButtonDefaults.largeExtendedFabShape,
+                    ),
+                )
+            }
+        },
+        snackbarHost = { SnackbarHost(snackBarHostState) },
+        contentWindowInsets = WindowInsets(),
+        modifier = modifier.nestedScroll(topBarScrollBehaviour.nestedScrollConnection),
+    ) { padding ->
+        ListContentLoadingWrapper(
+            content = sketches,
+            isLoading = isLoading,
+            modifier = Modifier.fillMaxSize().padding(padding),
+            onEmpty = {
+                EmptySketchesList(
+                    onCreateNew = { onNavigateToSketch(null) },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            },
+            onItems = { sketches ->
+                SketchesListContent(
+                    sketches = sketches,
+                    onSelectSketch = onNavigateToSketch,
+                    onDeleteSketch = { sketch ->
+                        onEvent(SketchScreenEvent.OnSelectSketchToDelete(sketch))
+                    },
+                    onCopySketch = { sketch -> onEvent(SketchScreenEvent.OnCopySketch(sketch)) },
+                    onShareSketch = { sketch -> onEvent(SketchScreenEvent.OnShareSketch(sketch)) },
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        horizontal = Dimensions.SCAFFOLD_HORIZONAL_PADDING,
+                        vertical = Dimensions.SCAFFOLD_VERTICAL_PADDING,
+                    ),
+                )
+            },
+        )
+    }
 }

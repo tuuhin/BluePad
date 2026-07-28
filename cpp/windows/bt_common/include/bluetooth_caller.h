@@ -24,6 +24,7 @@ public:
 
     IAsyncAction register_bt_listener(const std::function<void(bool)>& callback);
     void unregister_bt_listener();
+    static IAsyncOperation<int32_t> request_bluetooth_enable();
 };
 
 #endif

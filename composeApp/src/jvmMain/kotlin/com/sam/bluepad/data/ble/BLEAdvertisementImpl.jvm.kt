@@ -56,13 +56,13 @@ actual class BLEAdvertisementImpl(
 
     override suspend fun startAdvertising(type: BLEConnectionType): Result<Unit> {
 
-        if (!PlatformBTInfoProvider.isBTActive)
+        if (!PlatformBTInfoProvider.isBTActive())
             return Result.failure(BluetoothNotEnabledException())
 
-        if (!PlatformBTInfoProvider.isLEConnectionAvailable)
+        if (!PlatformBTInfoProvider.isLEConnectionAvailable())
             return Result.failure(BLENotSupportedException())
 
-        if (!PlatformBTInfoProvider.isPeripheralRoleSupported)
+        if (!PlatformBTInfoProvider.isPeripheralRoleSupported())
             return Result.failure(BLEAdvertiseUnsupportedException())
 
         return withContext(Dispatchers.IO) {
@@ -113,19 +113,34 @@ actual class BLEAdvertisementImpl(
     }
 
     override fun stopAdvertising() {
-        _advertiser.stop()
-        callback.setRunning(false)
-        Logger.i(tag = TAG) { "ADVERTISEMENT STOPPED" }
+        try {
+            Logger.i(tag = TAG) { "STOPPING NATIVE ADVERTISEMENTS" }
+            _advertiser.stop()
+        } catch (t: Throwable) {
+            Logger.e(tag = TAG, throwable = t) { "ERROR IN STOPPING ADVERTISEMENTS" }
+        } finally {
+            callback.setRunning(false)
+            Logger.i(tag = TAG) { "ADVERTISEMENT STOPPED" }
+        }
     }
 
     override fun cleanUp() {
+        Logger.i(tag = TAG) { "STARTING RESOURCE CLEANUP" }
+        callback.setNotifyCharacteristicsChanged { _, _, _ -> false }
         if (_scope.isActive) {
             Logger.i(tag = TAG) { "CLEARING UP THE SCOPE" }
             _scope.cancel()
         }
+
+        stopAdvertising()
         callback.cleanUp()
-        Logger.i(tag = TAG) { "STOPPING GATT SERVER AND CLEANING UP RESOURCES" }
-        _advertiser.onDestroy()
-        _advertiser.close()
+
+        Logger.d(tag = TAG) { "DESTROYING ADVERTISER NATIVE REFERENCE" }
+        try {
+            _advertiser.onDestroy()
+            _advertiser.close()
+        } catch (e: Exception) {
+            Logger.e(tag = TAG, throwable = e) { "UNKOWN EXCEPTION OCCURED" }
+        }
     }
 }

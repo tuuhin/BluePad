@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -82,7 +81,6 @@ fun ConnectDeviceDialogContent(
 				color = textContentColor,
 				textAlign = TextAlign.Center
 			)
-			HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 			ConnectionStateContent(
 				connectionState = connectionState,
 				peerData = connectedPeerData,
@@ -104,7 +102,6 @@ fun ConnectDeviceDialogContent(
 					)
 				}
 			}
-			HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 			ConnectDeviceDialogActions(
 				isConnected = connectionState == BLEConnectionState.CONNECTED,
 				isDisconnected = connectionState == BLEConnectionState.DISCONNECTED,

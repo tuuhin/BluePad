@@ -28,7 +28,7 @@ BT_COMMON_API bool ble_is_peripheral_role_supported();
 
 // functions to check the pairing capabilities
 BT_COMMON_API enum bt_bond_state is_device_bonded(const char* device_address);
-BT_COMMON_API enum bt_bond_response request_bond(const char* device_address, uint32_t timeout_in_millis);
+BT_COMMON_API enum bt_request_enable_status request_bluetooth_enable();
 
 // callbacks to register and unregister a listener
 BT_COMMON_API BluetoothCallerPtr bluetooth_caller_register_listener(BluetoothStatusCallback callback);

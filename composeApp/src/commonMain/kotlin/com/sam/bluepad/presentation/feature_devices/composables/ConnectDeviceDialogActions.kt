@@ -20,45 +20,45 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ConnectDeviceDialogActions(
-	onDisconnect: () -> Unit,
-	onSaveDevice: () -> Unit,
-	onRetryConnection: () -> Unit,
-	modifier: Modifier = Modifier,
-	hasPeerData: Boolean = false,
-	isConnected: Boolean = false,
-	isDisconnected: Boolean = false,
+    onDisconnect: () -> Unit,
+    onSaveDevice: () -> Unit,
+    onRetryConnection: () -> Unit,
+    modifier: Modifier = Modifier,
+    hasPeerData: Boolean = false,
+    isConnected: Boolean = false,
+    isDisconnected: Boolean = false,
 ) {
-	Row(
-		modifier = modifier,
-		horizontalArrangement = Arrangement.spacedBy(Dimensions.DIALOG_ACTIONS_SPACING),
-		verticalAlignment = Alignment.CenterVertically
-	) {
-		TextButton(
-			onClick = onDisconnect,
-			enabled = isConnected,
-			colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-		) {
-			Text(
-				text = stringResource(Res.string.dialog_action_disconnect),
-				style = MaterialTheme.typography.labelMediumEmphasized
-			)
-		}
-		Button(
-			onClick = {
-				if (hasPeerData) onSaveDevice()
-				else if (isDisconnected) onRetryConnection()
-			},
-			enabled = hasPeerData || isDisconnected,
-			colors = ButtonDefaults.buttonColors(
-				containerColor = MaterialTheme.colorScheme.secondaryContainer,
-				contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-			),
-		) {
-			when {
-				hasPeerData -> Text(text = stringResource(Res.string.dialog_action_add_device))
-				isDisconnected -> Text(text = stringResource(Res.string.external_device_conn_retry_connection))
-				else -> Text(text = stringResource(Res.string.external_device_conn_state_connecting))
-			}
-		}
-	}
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(Dimensions.DIALOG_ACTIONS_SPACING),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(
+            onClick = onDisconnect,
+            enabled = isConnected,
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+        ) {
+            Text(
+                text = stringResource(Res.string.dialog_action_disconnect),
+                style = MaterialTheme.typography.labelMediumEmphasized,
+            )
+        }
+        Button(
+            onClick = {
+                if (hasPeerData) onSaveDevice()
+                else if (isDisconnected) onRetryConnection()
+            },
+            enabled = hasPeerData || isDisconnected,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary,
+            ),
+        ) {
+            when {
+                hasPeerData -> Text(text = stringResource(Res.string.dialog_action_add_device))
+                isDisconnected -> Text(text = stringResource(Res.string.external_device_conn_retry_connection))
+                else -> Text(text = stringResource(Res.string.external_device_conn_state_connecting))
+            }
+        }
+    }
 }

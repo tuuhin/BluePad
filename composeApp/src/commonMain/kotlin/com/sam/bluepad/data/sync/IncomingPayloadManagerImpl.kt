@@ -69,9 +69,9 @@ class IncomingPayloadManagerImpl private constructor(
             Logger.w(tag = TAG) { "CANNOT PROCESS ANY DATA" }
             return Result.failure(EmptyPayloadException())
         }
-        val decoded = protoBuf.decodeFromByteArray<SyncPayloadSequence>(data)
 
         return try {
+            val decoded = protoBuf.decodeFromByteArray<SyncPayloadSequence>(data)
             Result.success(handleDataProcessing(sessionId, decoded))
         } catch (e: Exception) {
             if (e is CancellationException) throw e

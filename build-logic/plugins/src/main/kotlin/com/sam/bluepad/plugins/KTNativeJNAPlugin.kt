@@ -26,34 +26,40 @@ class KTNativeJNAPlugin : Plugin<Project> {
     }
 
     private fun Project.configureKotlinMultiplatform() {
-        val os = OperatingSystem.current()
-        if (!os.isWindows) return
+        val kmpExt = extensions.getByType<KotlinMultiplatformExtension>()
 
-        afterEvaluate {
-            val kotlinMultiplatformExtension = extensions.getByType<KotlinMultiplatformExtension>()
-            val nativeTarget = kotlinMultiplatformExtension.targets
-                .filterIsInstance<KotlinNativeTarget>()
-                .firstOrNull() ?: return@afterEvaluate
+        kmpExt.targets.whenObjectAdded {
+            if (this !is KotlinNativeTarget) return@whenObjectAdded
+            val os = OperatingSystem.current()
+            when {
+                os.isWindows -> configureWinNativeTask(this)
+            }
+        }
+    }
 
-            nativeTarget.binaries.all {
-                val buildDir = layout.buildDirectory
-                val libDebugPath = buildDir.dir("cmake/lib/Debug").get().asFile.absolutePath
-                val libReleasePath = buildDir.dir("cmake/lib/Release").get().asFile.absolutePath
+    private fun Project.configureWinNativeTask(nativeTarget: KotlinNativeTarget) {
+        nativeTarget.binaries.all {
+            val buildDir = layout.buildDirectory
+            val libDebugPath = buildDir.dir("cmake/lib/Debug").get().asFile.absolutePath
+            val libReleasePath = buildDir.dir("cmake/lib/Release").get().asFile.absolutePath
 
-                linkerOpts("-L$libReleasePath", "-L$libDebugPath")
+            linkerOpts("-L$libReleasePath", "-L$libDebugPath")
 
-                val taskName = "copyTo${name.replaceFirstChar(Char::uppercase)}"
-                val copyDllToLinkDir = tasks.register<Copy>(taskName) {
-                    group = "kne"
-                    description = "Copies secondary dll files to shared bin directory"
-                    duplicatesStrategy = DuplicatesStrategy.INCLUDE
-                    from(buildDir.dir("cmake/bin/Debug"))
-                    from(buildDir.dir("cmake/bin/Release"))
-                    include("*.dll")
-                    into(linkTaskProvider.flatMap { it.destinationDirectory })
-                    dependsOn("cmakeBuild")
-                }
-                linkTaskProvider.configure { finalizedBy(copyDllToLinkDir) }
+
+            val taskName = "copyTo${name.replaceFirstChar(Char::uppercase)}"
+            val copyDllToLinkDir = tasks.register<Copy>(taskName) {
+                group = "kne"
+                description = "Copies secondary dll files to shared bin directory"
+                duplicatesStrategy = DuplicatesStrategy.INCLUDE
+                from(buildDir.dir("cmake/bin/Debug"))
+                from(buildDir.dir("cmake/bin/Release"))
+                include("*.dll")
+                into(linkTaskProvider.flatMap { it.destinationDirectory })
+                dependsOn("cmakeBuild")
+            }
+            linkTaskProvider.configure {
+                dependsOn("cmakeBuild")
+                finalizedBy(copyDllToLinkDir)
             }
         }
     }

@@ -76,11 +76,13 @@ fun SyncReceiverScreenContent(
             val isReceiverRunning = screenState.isReceiverRunning
 
             when {
+                screenState.syncPhase is SyncUIState.Failed ->
+                    ReceiverScreenState.SyncFailed(screenState.syncPhase.message)
+
                 isReceiverRunning && foreignDevice != null && currentDevice != null ->
                     ReceiverScreenState.ContentSyncing(foreignDevice, currentDevice)
 
                 isReceiverRunning -> ReceiverScreenState.ScanRunning
-                screenState.syncPhase is SyncUIState.Failed -> ReceiverScreenState.SyncFailed(screenState.syncPhase.message)
                 else -> ReceiverScreenState.ScannerNotStarted
             }
         }

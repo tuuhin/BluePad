@@ -11,18 +11,22 @@ private const val TAG = "JVM_KEY_ENCRYPTION_MANAGER"
 
 actual class KeyEncryptionManagerImpl : KeyEncryptionManager {
 
-    private val encryptionManager by lazy { PlatformEncryptionManager() }
 
     override suspend fun encryptKey(key: ByteArray): KeyEncryptionResult {
         return withContext(Dispatchers.Default) {
-            val cipherText = encryptionManager.encryptData(key)
-            KeyEncryptionResult(cipherText, encryptedSize = cipherText.size)
+            PlatformEncryptionManager().use { encryptionManager ->
+                val cipherText = encryptionManager.encryptData(key)
+                KeyEncryptionResult(cipherText, encryptedSize = cipherText.size)
+
+            }
         }
     }
 
     override suspend fun decrypt(key: ByteArray, iv: ByteArray): ByteArray {
         return withContext(Dispatchers.Default) {
-            encryptionManager.decryptData(key)
+            PlatformEncryptionManager().use { encryptionManager ->
+                encryptionManager.decryptData(key)
+            }
         }
     }
 
@@ -30,8 +34,4 @@ actual class KeyEncryptionManagerImpl : KeyEncryptionManager {
         Logger.d(tag = TAG) { "KEY IS HANDLED BY THE OS ITSELF NO NEED TO HANDLE IT" }
     }
 
-    override fun close() {
-        Logger.d(tag = TAG) { "CLOSING ENCRYPTION MANAGER"}
-        encryptionManager.close()
-    }
 }
