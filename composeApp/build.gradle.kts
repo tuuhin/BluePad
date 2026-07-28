@@ -12,6 +12,7 @@ plugins {
     alias(libs.plugins.build.konfig)
     alias(libs.plugins.wire.plugin)
     alias(libs.plugins.koin.compiler)
+    alias(libs.plugins.dx.code.quality)
 }
 
 kotlin {

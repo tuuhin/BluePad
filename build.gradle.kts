@@ -15,6 +15,8 @@ plugins {
     // quality of life plugins
     alias(libs.plugins.lighthouse)
     alias(libs.plugins.catelog.update)
+    alias(libs.plugins.spotless) apply false
+    alias(libs.plugins.detekt) apply false
 }
 
 dependencyLocking {

@@ -7,6 +7,8 @@ group = "com.sam.bluepad.plugins"
 dependencies {
     compileOnly(libs.kotlin.gradlePlugin)
     compileOnly(libs.nucleus.nna.gradlePlugin)
+    compileOnly(libs.detekt.gradlePlugin)
+    compileOnly(libs.spotless.gradlePlugin)
 }
 
 gradlePlugin {
@@ -18,6 +20,10 @@ gradlePlugin {
         create("ktDistributableExt") {
             id = "com.sam.bluepad.nucleus.buildExt"
             implementationClass = "com.sam.bluepad.plugins.KTNucleusPackagingExtPlugin"
+        }
+        create("ktCodeQuality") {
+            id = "com.sam.bluepad.dx.quality"
+            implementationClass = "com.sam.bluepad.plugins.KTCodeQualityPlugin"
         }
     }
 }

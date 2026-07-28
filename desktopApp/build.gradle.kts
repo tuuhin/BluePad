@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.composeHotReload)
     alias(libs.plugins.nucleus.framework)
     alias(libs.plugins.nucleus.build.ext)
+    alias(libs.plugins.dx.code.quality)
 }
 
 val osName: OperatingSystem = OperatingSystem.current()
