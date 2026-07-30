@@ -1,6 +1,7 @@
 #ifndef LINUX_BLE_BLE_ADVERTISE_H
 #define LINUX_BLE_BLE_ADVERTISE_H
 
+#include <application.h>
 #include <glib.h>
 #include <memory>
 #include <mutex>
@@ -10,27 +11,34 @@
 
 #include "ble_advertise_c.h"
 
+#include <thread>
+
 struct BLERequestContext {
-    struct Read {
+
+    struct ReadCharacteristics {
         std::string service_uuid;
         std::string char_uuid;
     };
 
-    struct Write {
+    struct WriteCharacteristics {
         std::string service_uuid;
         std::string char_uuid;
         std::vector<uint8_t> value;
     };
 
-    std::variant<Read, Write> data;
+    std::variant<ReadCharacteristics, WriteCharacteristics> data;
+
     const Application* app_ref = nullptr;
     bool completed             = false;
 
     BLERequestContext(const Application* app, std::string service_uuid, std::string char_uuid)
-        : data(Read{std::move(service_uuid), std::move(char_uuid)}), app_ref(app) {}
+        : data(ReadCharacteristics{.service_uuid = std::move(service_uuid), .char_uuid = std::move(char_uuid)}),
+          app_ref(app) {}
 
     BLERequestContext(const Application* app, std::string service_uuid, std::string char_uuid, std::vector<uint8_t> val)
-        : data(Write{std::move(service_uuid), std::move(char_uuid), std::move(val)}), app_ref(app) {}
+        : data(WriteCharacteristics{
+              .service_uuid = std::move(service_uuid), .char_uuid = std::move(char_uuid), .value = std::move(val)}),
+          app_ref(app) {}
 
     void complete() {
         if (completed) return;
@@ -76,17 +84,16 @@ private:
     mutable std::recursive_mutex m_mutex;
     bool m_is_advertising = false;
 
-    static const char* on_char_read_cb(const Application* app, const char* address, const char* service_uuid,
-                                       const char* char_uuid, guint16 mtu, guint16 offset);
-    static const char* on_char_write_cb(const Application* app, const char* address, const char* service_uuid,
-                                        const char* char_uuid, GByteArray* byteArray, guint16 mtu, guint16 offset);
+    // need a threaded main loop for the advertiser to run
+    GMainLoop* m_main_loop = nullptr;
+    std::thread m_glib_thread;
 
-    static const char* on_desc_read_cb(const Application* application, const char* address, const char* service_uuid,
-                                       const char* char_uuid, const char* desc_uuid);
-    static const char* on_desc_write_cb(const Application* application, const char* address, const char* service_uuid,
-                                        const char* char_uuid, const char* desc_uuid, const GByteArray* byteArray);
-    static void on_char_updated(const Application* application, const char* service_uuid, const char* char_uuid,
-                                GByteArray* byteArray);
+    // flags
+    bool m_is_secondary_channel_supported = false;
+    uint8_t max_advertising_length         = 31;
+
+    static ble_advertiser* s_instance;
+    static std::mutex s_instance_mutex;
 };
 
 #endif

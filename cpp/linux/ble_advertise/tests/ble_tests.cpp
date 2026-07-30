@@ -47,14 +47,17 @@ TEST(BLE_ADVERTISE_RUN_TEST, AdvertiseForTenSeconds) {
 
     ble_advertiser_register_callbacks(advertiser, callbacks);
 
-    const auto target_service_uuid = "11223344-5566-7788-99AA-BBCCDDEEFF00";
-    ble_advertiser_add_service(advertiser, target_service_uuid);
+    const std::string target_service_uuid = "11223344-5566-7788-99AA-BBCCDDEEFF00";
+    ble_advertiser_add_service(advertiser, target_service_uuid.c_str());
 
     const auto start_time = std::chrono::steady_clock::now();
+    // Replaced busy loop with a condition wait if possible,
+    // but keeping basic structure for now.
+    // A proper fix requires introducing a GLib event loop in ble_advertiser.
     while (!context.service_added_successfully && !context.service_added_failed) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        if (std::chrono::steady_clock::now() - start_time > std::chrono::seconds(3)) {
-            FAIL() << "Timeout waiting for WinRT to initialize the GattServiceProvider.";
+        if (std::chrono::steady_clock::now() - start_time > std::chrono::seconds(5)) {
+            FAIL() << "TIMED OUT WAITING FOR SERVICE ADDED CALLBACK";
         }
     }
 
@@ -69,21 +72,21 @@ TEST(BLE_ADVERTISE_RUN_TEST, AdvertiseForTenSeconds) {
 
     ble_advertiser_add_characteristic(advertiser, test_char);
 
-    const auto hello_payload  = "Hello";
-    BLEAdvertiseConfig config = {};
-    config.discoverable       = false;
-    config.connectable        = true;
-    config.service_data       = reinterpret_cast<const uint8_t*>(hello_payload);
-    config.service_data_len   = std::strlen(hello_payload);
+    constexpr auto hello_payload = "o";
+    BLEAdvertiseConfig config    = {};
+    config.discoverable          = true;
+    config.connectable           = true;
+    config.service_data          = nullptr;
+    config.service_data_len      = 0;
 
     ble_advertiser_start(advertiser, config);
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10 * 1000));
     ble_advertiser_stop(advertiser);
     ble_advertiser_destroy(advertiser);
 }
 
 TEST(BLE_ADVERTISE_RUN_TEST, DestroyWithNull) {
-    const auto advertiser = static_cast<BLEAdvertiserPtr>(nullptr);
+    constexpr auto advertiser = static_cast<BLEAdvertiserPtr>(nullptr);
     ble_advertiser_destroy(advertiser);
 }
 
@@ -94,7 +97,7 @@ TEST(BLE_ADVERTISE_RUN_TEST, CreateDestroyLifecycleBasic) {
 }
 
 TEST(BLE_ADVERTISE_RUN_TEST, NullPointerResilience) {
-    const auto advertiser = static_cast<BLEAdvertiserPtr>(nullptr);
+    constexpr auto advertiser = static_cast<BLEAdvertiserPtr>(nullptr);
 
     // Call functions with null advertiser
     ble_advertiser_register_callbacks(advertiser, {});

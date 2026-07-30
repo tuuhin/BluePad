@@ -80,10 +80,11 @@ target_link_options(ble_advertise_tests PRIVATE -fsanitize=address)
 target_link_libraries(ble_advertise_tests
         PRIVATE ble_advertise
         PRIVATE GTest::gtest_main
-        PRIVATE -fsanitize=address
 )
 set_target_properties(ble_advertise_tests PROPERTIES
         BUILD_RPATH "${CMAKE_BINARY_DIR}/lib"
 )
 include(GoogleTest)
-gtest_discover_tests(ble_advertise_tests)
+if (NOT CMAKE_CROSSCOMPILING)
+    gtest_discover_tests(ble_advertise_tests)
+endif ()

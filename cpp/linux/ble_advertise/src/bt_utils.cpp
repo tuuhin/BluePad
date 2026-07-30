@@ -9,6 +9,7 @@
 
 #include "bt_utils.h"
 
+#include <algorithm>
 #include <charconv>
 
 #ifndef NDEBUG
@@ -78,6 +79,101 @@ uint64_t utils::parse_mac_address(const std::string& mac_str) {
         result = (result << 8) | byte_val;
     }
     return result;
+}
+
+std::string utils::to_lower_uuid(const char* uuid) {
+    if (!uuid) return "";
+    std::string str(uuid);
+    std::ranges::transform(str, str.begin(), [](const unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return str;
+}
+
+bool utils::is_secondary_channel_supported(GDBusConnection* dbus_conn, Adapter* adapter) {
+    if (!dbus_conn || !adapter) return false;
+
+    const char* adapter_path = binc_adapter_get_path(adapter);
+
+    GError* error = nullptr;
+    GVariant* result =
+        g_dbus_connection_call_sync(dbus_conn, "org.bluez", adapter_path, "org.freedesktop.DBus.Properties", "Get",
+                                    g_variant_new("(ss)", "org.bluez.LEAdvertisingManager1", "SupportedCapabilities"),
+                                    G_VARIANT_TYPE("(v)"), G_DBUS_CALL_FLAGS_NONE, -1, nullptr, &error);
+
+    if (error) {
+        g_error_free(error);
+        return false;
+    }
+
+    if (result == nullptr) return false;
+
+    bool supports_secondary = false;
+    GVariant* inner_val = nullptr;
+    g_variant_get(result, "(v)", &inner_val);
+
+    if (inner_val == nullptr) {
+        g_variant_unref(result);
+        return false;
+    }
+
+    GVariantIter iter;
+    const char* key;
+    GVariant* val;
+    g_variant_iter_init(&iter, inner_val);
+    while (g_variant_iter_loop(&iter, "{sv}", &key, &val)) {
+        if (std::string(key) == "SecondaryChannels") {
+            supports_secondary = true;
+            break;
+        }
+    }
+    g_variant_unref(inner_val);
+    g_variant_unref(result);
+
+    return supports_secondary;
+}
+
+uint8_t utils::get_max_adv_length(GDBusConnection* dbus_conn, Adapter* adapter) {
+    if (!dbus_conn || !adapter) return 31;
+
+    const char* adapter_path = binc_adapter_get_path(adapter);
+    GError* error            = nullptr;
+
+    GVariant* result =
+        g_dbus_connection_call_sync(dbus_conn, "org.bluez", adapter_path, "org.freedesktop.DBus.Properties", "Get",
+                                    g_variant_new("(ss)", "org.bluez.LEAdvertisingManager1", "SupportedCapabilities"),
+                                    G_VARIANT_TYPE("(v)"), G_DBUS_CALL_FLAGS_NONE, -1, nullptr, &error);
+
+    if (error) {
+        g_error_free(error);
+        return 31;
+    }
+
+    if (result == nullptr) return 31;
+
+    uint8_t max_len       = 31;
+    GVariant* variant_val = nullptr;
+    g_variant_get(result, "(v)", &variant_val);
+
+    if (variant_val == nullptr) {
+        g_variant_unref(result);
+        return 31;
+    }
+
+    GVariantIter iter;
+    const char* key = nullptr;
+    GVariant* value = nullptr;
+
+    g_variant_iter_init(&iter, variant_val);
+    while (g_variant_iter_loop(&iter, "{sv}", &key, &value)) {
+        if (g_strcmp0(key, "MaxAdvLen") == 0) {
+            if (g_variant_is_of_type(value, G_VARIANT_TYPE_BYTE)) {
+                max_len = g_variant_get_byte(value);
+            }
+            break;
+        }
+    }
+    g_variant_unref(variant_val);
+    g_variant_unref(result);
+    return max_len;
 }
 
 void utils::show_stacktrace() {

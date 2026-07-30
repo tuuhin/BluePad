@@ -11,10 +11,13 @@ namespace utils {
 void init_logger();
 uint64_t parse_mac_address(const std::string& mac_str);
 void show_stacktrace();
+std::string to_lower_uuid(const char* uuid);
+bool is_secondary_channel_supported(GDBusConnection* dbus_conn, Adapter* adapter);
+uint8_t get_max_adv_length(GDBusConnection* dbus_conn, Adapter* adapter);
 } // namespace utils
 
 #ifndef LINUX_LOG
-#define LINUX_LOG(msg) PLOG_DEBUG << " [" << "LINUX_BT_COMMON" << "] " << msg
+#define LINUX_LOG(msg) PLOG_DEBUG << " [" << "LINUX_BLE_CENTRAL" << "] " << msg
 #endif
 
 #endif

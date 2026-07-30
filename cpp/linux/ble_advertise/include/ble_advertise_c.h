@@ -23,8 +23,7 @@ extern "C" {
 typedef void* BLEAdvertiserPtr;
 typedef void* BLERequestHandle;
 
-typedef struct
-{
+typedef struct {
     bool discoverable;
     bool connectable;
     const uint8_t* service_data;
@@ -124,8 +123,7 @@ typedef void (*OnIndicationResultCallback)(
     // data pointer
     void* user_data);
 
-typedef struct
-{
+typedef struct {
     void* user_data;
     OnServiceAddedCallback on_service_added;
     OnServiceStatusChangeCallback on_service_status_change;
@@ -145,8 +143,8 @@ BT_ADVERTISE_API void ble_advertiser_start(BLEAdvertiserPtr advertiser, BLEAdver
 BT_ADVERTISE_API void ble_advertiser_stop(BLEAdvertiserPtr advertiser);
 
 BT_ADVERTISE_API void ble_advertiser_add_service(BLEAdvertiserPtr advertiser, const char* service_uuid);
-inline BT_ADVERTISE_API void ble_advertiser_add_characteristic(BLEAdvertiserPtr advertiser,
-                                                               ble_characteristics characteristics);
+BT_ADVERTISE_API void ble_advertiser_add_characteristic(BLEAdvertiserPtr advertiser,
+                                                        ble_characteristics characteristics);
 BT_ADVERTISE_API void ble_advertiser_add_descriptor(BLEAdvertiserPtr advertiser, const char* characteristic_uuid,
                                                     const char* descriptor_uuid);
 

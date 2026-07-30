@@ -4,80 +4,64 @@
 #include "ble_advertiser.h"
 #include "bt_utils.h"
 
+using AdvertiserSharedPtr = std::shared_ptr<ble_advertiser>;
+static ble_advertiser* get_instance(BLEAdvertiserPtr handle) noexcept {
+    if (!handle) return nullptr;
+    const auto* shared_handle = static_cast<AdvertiserSharedPtr*>(handle);
+    return (shared_handle && *shared_handle) ? shared_handle->get() : nullptr;
+}
+
 extern "C" {
 BLEAdvertiserPtr ble_advertiser_create() {
     utils::init_logger();
-    return new std::shared_ptr(std::make_shared<ble_advertiser>());
+    auto instance = std::make_shared<ble_advertiser>();
+    return new AdvertiserSharedPtr(std::move(instance));
 }
 
 void ble_advertiser_destroy(BLEAdvertiserPtr advertiser) {
     if (advertiser == nullptr) return;
-    delete static_cast<std::shared_ptr<ble_advertiser>*>(advertiser);
+    delete static_cast<AdvertiserSharedPtr*>(advertiser);
 }
 
 void ble_advertiser_register_callbacks(BLEAdvertiserPtr advertiser, BLEAdvertiserCallbacks callbacks) {
-    auto* advertiser_ptr = static_cast<std::shared_ptr<ble_advertiser>*>(advertiser);
-    if (!advertiser_ptr || !*advertiser_ptr) return;
-    auto* ctx = advertiser_ptr->get();
-    if (!ctx) return;
+    auto* ctx = get_instance(advertiser);
     ctx->register_callbacks(callbacks);
 }
 
 int32_t ble_advertiser_get_status(BLEAdvertiserPtr advertiser) {
-    const auto* advertiser_ptr = static_cast<std::shared_ptr<ble_advertiser>*>(advertiser);
-    if (!advertiser_ptr || !*advertiser_ptr) return -1;
-    const auto* ctx = advertiser_ptr->get();
-    if (!ctx) return -1;
+    const auto* ctx = get_instance(advertiser);
     return ctx->get_status();
 }
 
 void ble_advertiser_start(BLEAdvertiserPtr advertiser, BLEAdvertiseConfig config) {
-    const auto* advertiser_ptr = static_cast<std::shared_ptr<ble_advertiser>*>(advertiser);
-    if (!advertiser_ptr || !*advertiser_ptr) return;
-    const auto* ctx = advertiser_ptr->get();
-    if (!ctx) return;
+    auto* ctx = get_instance(advertiser);
     ctx->start(config);
 }
 
 void ble_advertiser_stop(BLEAdvertiserPtr advertiser) {
-    const auto* advertiser_ptr = static_cast<std::shared_ptr<ble_advertiser>*>(advertiser);
-    if (!advertiser_ptr || !*advertiser_ptr) return;
-    const auto* ctx = advertiser_ptr->get();
-    if (!ctx) return;
+    auto* ctx = get_instance(advertiser);
     ctx->stop();
 }
 
 void ble_advertiser_add_service(BLEAdvertiserPtr advertiser, const char* service_uuid) {
-    auto* advertiser_ptr = static_cast<std::shared_ptr<ble_advertiser>*>(advertiser);
-    if (!advertiser_ptr || !*advertiser_ptr) return;
-    auto* ctx = advertiser_ptr->get();
-    if (!ctx) return;
+    auto* ctx = get_instance(advertiser);
     ctx->add_service(service_uuid);
 }
 
 void ble_advertiser_add_characteristic(BLEAdvertiserPtr advertiser, ble_characteristics characteristics) {
-    auto* advertiser_ptr = static_cast<std::shared_ptr<ble_advertiser>*>(advertiser);
-    if (!advertiser_ptr || !*advertiser_ptr) return;
-    auto* ctx = advertiser_ptr->get();
-    if (!ctx) return;
+    const auto* ctx = get_instance(advertiser);
     ctx->add_characteristic(characteristics);
 }
 
 void ble_advertiser_add_descriptor(BLEAdvertiserPtr advertiser, const char* characteristic_uuid,
                                    const char* descriptor_uuid) {
-    auto* advertiser_ptr = static_cast<std::shared_ptr<ble_advertiser>*>(advertiser);
-    if (!advertiser_ptr || !*advertiser_ptr) return;
-    auto* ctx = advertiser_ptr->get();
-    if (!ctx) return;
+    const auto* ctx = get_instance(advertiser);
     ctx->add_descriptor(characteristic_uuid, descriptor_uuid);
 }
 
 bool ble_advertiser_send_notification(BLEAdvertiserPtr advertiser, const char* device_address,
                                       const char* characteristic_uuid, const uint8_t* value, size_t value_len) {
-    auto* advertiser_ptr = static_cast<std::shared_ptr<ble_advertiser>*>(advertiser);
-    if (!advertiser_ptr || !*advertiser_ptr) return false;
-    auto* ctx = advertiser_ptr->get();
-    if (ctx == nullptr) return false;
+    const auto* ctx = get_instance(advertiser);
     return ctx->send_notification(device_address, characteristic_uuid, value, value_len);
 }
 
