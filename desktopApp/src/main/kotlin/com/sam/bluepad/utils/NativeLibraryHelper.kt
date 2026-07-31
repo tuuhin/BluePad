@@ -5,7 +5,7 @@ import dev.nucleusframework.core.runtime.Platform
 
 internal fun setupNativeLibraries() {
 
-    if (Platform.Current == Platform.Windows) return
+    if (Platform.Current != Platform.Windows) return
 
     val thLocal = ThreadLocal.withInitial {
         System.loadLibrary("bt_common")

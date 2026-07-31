@@ -1,6 +1,7 @@
 package com.sam.bluepad.utils
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.MaterialTheme
@@ -11,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
+import com.sam.bluepad.toast.MacOSXNativeToastView
 import com.sam.bluepad.toast.ToastController
 import com.sam.bluepad.toast.ToastControllerImpl
 import com.sam.bluepad.toast.WindowsNativeToastView
@@ -22,21 +24,27 @@ import dev.nucleusframework.window.tao.NativeView
 internal fun NativeToastProvider(
     controller: ToastController,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
+    content: @Composable BoxScope.() -> Unit,
 ) {
     val taoWindow = LocalTaoWindow.current
     val surfaceColor = MaterialTheme.colorScheme.primaryContainer
 
     val factoryContent = remember(taoWindow) {
-        if (Platform.Current == Platform.Windows) {
-            WindowsNativeToastView(taoWindow?.nativeHandle ?: 0L)
-        } else throw IllegalArgumentException("Invalid target")
+        when (Platform.Current) {
+            Platform.Windows -> WindowsNativeToastView(taoWindow?.nativeHandle ?: 0L)
+            Platform.MacOS -> MacOSXNativeToastView()
+            else -> throw IllegalArgumentException("Invalid target")
+        }
     }
 
     LaunchedEffect(controller, factoryContent) {
         if (controller is ToastControllerImpl) {
             controller.showRequests.collect { text ->
-                factoryContent.show(text)
+                when (factoryContent) {
+                    is WindowsNativeToastView -> factoryContent.show(text)
+                    is MacOSXNativeToastView -> factoryContent.show(text)
+                    else -> {}
+                }
             }
         }
     }
