@@ -1,11 +1,11 @@
 package com.sam.bluepad.utils
 
 import co.touchlab.kermit.Logger
+import dev.nucleusframework.core.runtime.Platform
 
 internal fun setupNativeLibraries() {
-    val osName = System.getProperty("os.name")
 
-    if (!osName.startsWith("win", true)) return
+    if (Platform.Current == Platform.Windows) return
 
     val thLocal = ThreadLocal.withInitial {
         System.loadLibrary("bt_common")

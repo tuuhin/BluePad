@@ -1,10 +1,12 @@
 package com.sam.bluepad
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composer
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.tooling.ComposeStackTraceMode
+import androidx.compose.ui.Modifier
 import co.touchlab.kermit.CommonWriter
 import co.touchlab.kermit.Logger
 import co.touchlab.kermit.Severity
@@ -17,6 +19,8 @@ import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.settings.models.AppFontOption
 import com.sam.bluepad.presentation.feature_settings.SettingsViewmodel
 import com.sam.bluepad.theme.BluePadTheme
+import com.sam.bluepad.toast.rememberToastController
+import com.sam.bluepad.utils.NativeToastProvider
 import com.sam.bluepad.utils.TimestampMessageWriter
 import com.sam.bluepad.utils.setupNativeLibraries
 import dev.nucleusframework.application.nucleusApplication
@@ -62,11 +66,15 @@ fun main(args: Array<String>) = nucleusApplication(
 
         // APPLICATION CODE
         BluePadTheme(
-            dynamicColor = userSettings.appSettings.useDynamicColor,
+            dynamicColor = false,
             useSystemFonts = userSettings.appSettings.fontOption == AppFontOption.SYSTEM,
         ) {
+            val controller = rememberToastController()
+
             NucleusWindowWrapper {
-                App()
+                NativeToastProvider(controller = controller) {
+                    App(modifier = Modifier.fillMaxSize())
+                }
             }
         }
     }
