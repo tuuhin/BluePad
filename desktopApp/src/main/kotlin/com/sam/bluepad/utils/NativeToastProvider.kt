@@ -27,7 +27,7 @@ internal fun NativeToastProvider(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val taoWindow = LocalTaoWindow.current
-    val surfaceColor = MaterialTheme.colorScheme.primaryContainer
+    val surfaceColor = MaterialTheme.colorScheme.surfaceContainerHighest
 
     val factoryContent = remember(taoWindow) {
         when (Platform.Current) {
@@ -64,7 +64,7 @@ internal fun NativeToastProvider(
             cornerRadius = 12.dp,
             modifier = Modifier.align(Alignment.BottomCenter)
                 .offset(y = ((-20).dp))
-                .sizeIn(minWidth = 180.dp, minHeight = 32.dp),
+                .sizeIn(minWidth = 120.dp, minHeight = 40.dp),
         )
     }
 }

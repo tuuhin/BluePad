@@ -9,7 +9,19 @@ kotlin {
 
     val os = org.gradle.internal.os.OperatingSystem.current()
     when {
-        os.isWindows -> mingwX64()
+        os.isWindows -> mingwX64 {
+            compilations.getByName("main") {
+                cinterops.create("uiAnimations") {
+                    definitionFile = project.file("src/nativeInterop/cinterops/window_uianimations.def")
+                    packageName = "com.sam.bluepad.common_utils"
+                }
+                cinterops.create("toastState") {
+                    definitionFile = project.file("src/nativeInterop/cinterops/toast_state.def")
+                    packageName = "com.sam.bluepad.common_utils"
+                }
+            }
+        }
+
         os.isMacOsX -> macosArm64()
         os.isLinux -> linuxX64()
         else -> throw GradleException("Invalid Desktop target")
@@ -20,6 +32,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kermit)
+            implementation(libs.kotlinx.datetime)
         }
         jvmTest.dependencies {
             implementation(libs.kotlin.test)

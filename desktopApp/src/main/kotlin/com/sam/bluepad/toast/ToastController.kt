@@ -5,24 +5,26 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 @Stable
 interface ToastController {
-    fun showToast(text: String)
+    suspend fun showToast(text: String)
 }
 
 class ToastControllerImpl : ToastController {
-    internal val showRequests = MutableSharedFlow<String>(
+
+    private val _showRequests = MutableSharedFlow<String>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
-    override fun showToast(text: String) {
-        showRequests.tryEmit(text)
+    val showRequests = _showRequests.asSharedFlow()
+
+    override suspend fun showToast(text: String) {
+        _showRequests.emit(text)
     }
 }
 
 @Composable
-fun rememberToastController(): ToastController {
-    return remember { ToastControllerImpl() }
-}
+fun rememberToastController(): ToastController = remember { ToastControllerImpl() }
