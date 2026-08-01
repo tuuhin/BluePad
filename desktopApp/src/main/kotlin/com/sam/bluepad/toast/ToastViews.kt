@@ -24,11 +24,11 @@ internal class WindowsNativeToastView(private val parent: Long) : NucleusPlatfor
     fun show(text: String) = instance.show(hwndHandle, text = text, 200, 1500, 200)
 }
 
-internal class MacOSXNativeToastView : NucleusPlatformView.NsView {
+internal class MacOSXNativeToastView(val parent: Long) : NucleusPlatformView.NsView {
 
     private val instance = NativeToastViewImpl()
 
-    override val nsViewHandle: Long by lazy { instance.createView(0L) }
+    override val nsViewHandle: Long by lazy { instance.createView(parent) }
 
     override fun setBounds(xPx: Int, yPx: Int, widthPx: Int, heightPx: Int) =
         instance.setBounds(nsViewHandle, xPx, yPx, widthPx, heightPx)

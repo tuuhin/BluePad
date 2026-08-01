@@ -30,9 +30,10 @@ internal fun NativeToastProvider(
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainerHighest
 
     val factoryContent = remember(taoWindow) {
+        val parentHandle = taoWindow?.nativeHandle ?: 0L
         when (Platform.Current) {
-            Platform.Windows -> WindowsNativeToastView(taoWindow?.nativeHandle ?: 0L)
-            Platform.MacOS -> MacOSXNativeToastView()
+            Platform.Windows -> WindowsNativeToastView(parentHandle)
+            Platform.MacOS -> MacOSXNativeToastView(parentHandle)
             else -> throw IllegalArgumentException("Invalid target")
         }
     }
@@ -64,7 +65,7 @@ internal fun NativeToastProvider(
             cornerRadius = 12.dp,
             modifier = Modifier.align(Alignment.BottomCenter)
                 .offset(y = ((-20).dp))
-                .sizeIn(minWidth = 120.dp, minHeight = 40.dp),
+                .sizeIn(minWidth = 180.dp, minHeight = 40.dp),
         )
     }
 }

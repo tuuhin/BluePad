@@ -13,7 +13,6 @@ import kotlinx.cinterop.objcPtr
 import kotlinx.cinterop.objc_retain
 import kotlinx.cinterop.readValue
 import kotlinx.cinterop.toCPointer
-import kotlinx.cinterop.useContents
 import kotlinx.cinterop.usePinned
 import platform.AppKit.NSAnimationContext
 import platform.AppKit.NSBackingStoreBuffered
@@ -31,11 +30,11 @@ import platform.AppKit.NSVisualEffectState
 import platform.AppKit.NSVisualEffectView
 import platform.AppKit.NSWindow
 import platform.AppKit.NSWindowStyleMaskBorderless
-import platform.AppKit.intrinsicContentSize
 import platform.Foundation.NSClassFromString
 import platform.Foundation.NSRect
 import platform.Foundation.NSTimer
 import platform.Foundation.NSZeroRect
+import platform.Foundation.className
 import platform.darwin.dispatch_async
 import platform.darwin.dispatch_get_main_queue
 import platform.objc.OBJC_ASSOCIATION_RETAIN_NONATOMIC
@@ -47,7 +46,12 @@ import platform.posix.intptr_tVar
 actual class NativeToastViewImpl : INativeToastView {
 
     actual override fun createView(parentHandle: Long): Long {
-        _logger.d { "CREATE CALLED ON MACOS" }
+
+        _logger.d { "CREATE CALLED ON MACOS WITH PARENT HANDLE:$parentHandle" }
+        val parentView = parentHandle.toNSView() ?: return -1L
+        val parentWindow = parentView.window ?: return 1L
+
+        _logger.d { "BACKEND WINDOW ACQUIRED: $parentWindow" }
 
         val window = NSWindow(
             contentRect = NSZeroRect.readValue(),
@@ -64,12 +68,12 @@ actual class NativeToastViewImpl : INativeToastView {
         }
 
         _logger.d { "WINDOW CREATED : $window" }
-
-        window.orderOut(null)
-
+        val rootView = NSView(NSZeroRect.readValue()).apply {
+            wantsLayer = false
+        }
         val backdrop: NSView = if (NSClassFromString("NSGlassEffectView") != null) {
             _logger.d { "USING NSGlassEffectView" }
-            NSGlassEffectView(frame = NSZeroRect.readValue()).apply {
+            NSGlassEffectView(NSZeroRect.readValue()).apply {
                 cornerRadius = 12.0
                 tintColor = null
             }
@@ -87,6 +91,9 @@ actual class NativeToastViewImpl : INativeToastView {
             }
         }
 
+        rootView.addSubview(backdrop)
+        window.contentView = rootView
+        window.orderOut(null)
         _logger.d { "BACKDROP CREATED : ${backdrop::class.simpleName}" }
 
         val label = NSTextField(frame = NSZeroRect.readValue()).apply {
@@ -100,17 +107,10 @@ actual class NativeToastViewImpl : INativeToastView {
             font = NSFont.systemFontOfSize(13.0)
         }
 
-        _logger.d { "TEXT LABEL CREATED" }
+        if (backdrop is NSGlassEffectView) backdrop.contentView = label
+        else backdrop.addSubview(label)
 
-        if (backdrop is NSGlassEffectView) {
-            backdrop.contentView = label
-            _logger.d { "LABEL ATTACHED TO NSGlassEffectView.contentView" }
-        } else {
-            backdrop.addSubview(label)
-            _logger.d { "LABEL ADDED AS SUBVIEW" }
-        }
-
-        WINDOW_KEY.usePinned { pinned ->
+        CURRENT_WINDOW_KEY.usePinned { pinned ->
             objc_setAssociatedObject(
                 `object` = backdrop,
                 key = pinned.addressOf(0),
@@ -118,11 +118,13 @@ actual class NativeToastViewImpl : INativeToastView {
                 policy = OBJC_ASSOCIATION_RETAIN_NONATOMIC,
             )
         }
-        _logger.d { "WINDOW ASSOCIATED WITH BACKDROP VIEW" }
 
         val rawPtr = backdrop.objcPtr()
         objc_retain(rawPtr)
+
         _logger.d { "RETURNING BACKDROP HANDLE = ${rawPtr.toLong()}" }
+        _logger.d { "WINDOW CONTENT VIEW AFTER SET = ${window.contentView}" }
+
         return rawPtr.toLong()
     }
 
@@ -133,21 +135,26 @@ actual class NativeToastViewImpl : INativeToastView {
             _logger.e { "FAILED TO CONVERT HANDLE TO NSView" }
             return
         }
-        _logger.d { "NSView RESOLVED : $view" }
 
-        val window = WINDOW_KEY.usePinned { pinned ->
+        _logger.d { "NSVIEW RESOLVED : $view" }
+
+        val window = CURRENT_WINDOW_KEY.usePinned { pinned ->
             objc_getAssociatedObject(view, pinned.addressOf(0)) as? NSWindow
         }
 
-        if (window == null) _logger.w { "NO ASSOCIATED WINDOW FOUND" }
-        else {
+        if (window == null) {
+            _logger.w { "NO ASSOCIATED WINDOW FOUND" }
+        } else {
+
             window.orderOut(null)
             window.contentView = null
             window.close()
             _logger.d { "WINDOW CLOSED" }
         }
 
+        _logger.d { "REMOVING BACKDROP FROM SUPER VIEW" }
         view.removeFromSuperview()
+
         _logger.d { "DESTROY VIEW COMPLETED" }
     }
 
@@ -161,7 +168,7 @@ actual class NativeToastViewImpl : INativeToastView {
         }
         _logger.d { "BACKDROP VIEW RESOLVED : $backdrop" }
 
-        val window = WINDOW_KEY.usePinned { pinned ->
+        val window = CURRENT_WINDOW_KEY.usePinned { pinned ->
             objc_getAssociatedObject(backdrop, pinned.addressOf(0)) as? NSWindow
         } ?: run {
             _logger.e { "FAILED TO RESOLVE ASSOCIATED WINDOW" }
@@ -179,7 +186,12 @@ actual class NativeToastViewImpl : INativeToastView {
         backdrop.setFrame(frame)
         _logger.d { "BACKDROP FRAME UPDATED" }
 
-        window.setFrame(frameRect = frame, display = true, animate = false)
+        window.setFrame(frameRect = frame, display = false, animate = false)
+
+        if (window.alphaValue == 0.0) {
+            window.orderOut(null)
+            _logger.d { "WINDOW ORDERED OUT (HIDDEN FROM START/BOUNDS UPDATE)" }
+        }
 
         _logger.d { "WINDOW FRAME UPDATED (${width}x${height})" }
 
@@ -192,12 +204,14 @@ actual class NativeToastViewImpl : INativeToastView {
             _logger.w { "TEXT LABEL NOT FOUND" }
             return
         }
-        val labelHeight = label.intrinsicContentSize.useContents { height }
+        val font = label.font ?: NSFont.systemFontOfSize(13.0)
+        val labelHeight = font.ascender - font.descender + font.leading
+
         val labelFrame = cValue<NSRect> {
             origin.x = 8.0
             origin.y = (height - labelHeight) / 2.0
             size.width = width - 16.0
-            size.height = labelHeight.toDouble()
+            size.height = labelHeight
         }
 
 
@@ -213,36 +227,22 @@ actual class NativeToastViewImpl : INativeToastView {
             return
         }
 
-        val window = WINDOW_KEY.usePinned { pinned ->
-            objc_getAssociatedObject(backdrop, pinned.addressOf(0)) as? NSWindow
-        } ?: run {
-            _logger.e { "FAILED TO RESOLVE ASSOCIATED WINDOW" }
-            return
-        }
+        val objClass = backdrop.className
+        val classNAme = NSClassFromString(objClass)
+        _logger.d { "UPDATED VIEW:$classNAme CORNER RADIUS" }
 
-        val contentView = window.contentView ?: run {
-            _logger.e { "WINDOW HAS NO CONTENT VIEW" }
-            return
-        }
-
-        when (contentView) {
-            is NSGlassEffectView -> {
-                contentView.cornerRadius = radius.toDouble()
-                _logger.d { "UPDATED NSGlassEffectView CORNER RADIUS" }
-            }
-
+        when (backdrop) {
+            is NSGlassEffectView -> backdrop.cornerRadius = radius.toDouble()
             is NSVisualEffectView -> {
-                contentView.wantsLayer = true
-                contentView.layer?.masksToBounds = true
-                contentView.layer?.cornerRadius = radius.toDouble()
-                _logger.d { "UPDATED NSVisualEffectView CORNER RADIUS" }
+                backdrop.wantsLayer = true
+                backdrop.layer?.masksToBounds = true
+                backdrop.layer?.cornerRadius = radius.toDouble()
             }
 
             else -> {
-                contentView.wantsLayer = true
-                contentView.layer?.masksToBounds = true
-                contentView.layer?.cornerRadius = radius.toDouble()
-                _logger.w { "UNKNOWN CONTENT VIEW TYPE - USING CALayer" }
+                backdrop.wantsLayer = true
+                backdrop.layer?.masksToBounds = true
+                backdrop.layer?.cornerRadius = radius.toDouble()
             }
         }
     }
@@ -255,7 +255,7 @@ actual class NativeToastViewImpl : INativeToastView {
             return
         }
 
-        val window = WINDOW_KEY.usePinned { pinned ->
+        val window = CURRENT_WINDOW_KEY.usePinned { pinned ->
             objc_getAssociatedObject(backdrop, pinned.addressOf(0)) as? NSWindow
         } ?: run {
             _logger.e { "FAILED TO RESOLVE ASSOCIATED WINDOW" }
@@ -263,7 +263,7 @@ actual class NativeToastViewImpl : INativeToastView {
         }
 
         val contentView = window.contentView ?: run {
-            _logger.e { "WINDOW HAS NO CONTENT VIEW" }
+            _logger.e { "WINDOW HAS NO CONTENT VIEW SET COLOR" }
             return
         }
 
@@ -299,18 +299,20 @@ actual class NativeToastViewImpl : INativeToastView {
     }
 
     actual override fun show(
-        viewHandle: Long, text: String,
-        fadeInMs: Int, holdMs: Int,
+        viewHandle: Long,
+        text: String,
+        fadeInMs: Int,
+        holdMs: Int,
         fadeOutMs: Int
     ) = dispatchOnMain {
-        _logger.d { "SHOW CALLED : text=\"$text\" fadeIn=${fadeInMs}ms hold=${holdMs}ms fadeOut=${fadeOutMs}ms" }
+        _logger.d { "SHOW CALLED : text=$text fadeIn=${fadeInMs}ms hold=${holdMs}ms fadeOut=${fadeOutMs}ms" }
 
         val backdrop = viewHandle.toNSView() ?: run {
-            _logger.e { "FAILED TO RESOLVE NSView FROM HANDLE" }
+            _logger.e { "FAILED TO RESOLVE NSVIEW FROM HANDLE" }
             return@dispatchOnMain
         }
 
-        val window = WINDOW_KEY.usePinned { pinned ->
+        val window = CURRENT_WINDOW_KEY.usePinned { pinned ->
             objc_getAssociatedObject(backdrop, pinned.addressOf(0)) as? NSWindow
         } ?: run {
             _logger.e { "FAILED TO RESOLVE ASSOCIATED WINDOW" }
@@ -326,13 +328,21 @@ actual class NativeToastViewImpl : INativeToastView {
         }
 
         label.stringValue = text
+        _logger.d { "TEXT UPDATED" }
+
 
         animationGeneration++
         val generation = animationGeneration
 
-        // Reset state.
+        hideTimer?.invalidate()
+        hideTimer = null
+
         window.alphaValue = 0.0
         window.orderFrontRegardless()
+
+        _logger.d { "WINDOW ORDERED TO FRONT" }
+
+        backdrop.playPopIn(fadeInMs)
 
         NSAnimationContext.runAnimationGroup(
             changes = { context ->
@@ -342,15 +352,25 @@ actual class NativeToastViewImpl : INativeToastView {
                 window.animator().alphaValue = 1.0
             },
             completionHandler = {
+
                 if (generation != animationGeneration) {
                     _logger.d { "FADE-IN INVALIDATED BY NEWER TOAST" }
                     return@runAnimationGroup
                 }
-                hideTimer = NSTimer.scheduledTimerWithTimeInterval(holdMs / 1000.0, false) {
+
+                _logger.d { "FADE-IN COMPLETED" }
+
+                hideTimer = NSTimer.scheduledTimerWithTimeInterval(
+                    holdMs / 1000.0,
+                    false,
+                ) {
+
                     if (generation != animationGeneration) {
                         _logger.d { "FADE-OUT CANCELLED BY NEWER TOAST" }
                         return@scheduledTimerWithTimeInterval
                     }
+
+                    _logger.d { "STARTING FADE-OUT" }
 
                     NSAnimationContext.runAnimationGroup(
                         changes = { context ->
@@ -360,7 +380,9 @@ actual class NativeToastViewImpl : INativeToastView {
                             window.animator().alphaValue = 0.0
                         },
                         completionHandler = {
+
                             _logger.d { "FADE-OUT COMPLETED" }
+
                             if (generation != animationGeneration) {
                                 _logger.d { "COMPLETION INVALIDATED" }
                                 return@runAnimationGroup
@@ -388,7 +410,7 @@ actual class NativeToastViewImpl : INativeToastView {
                 override val logWriterList: List<LogWriter>
                     get() = listOf(NSLogWriter())
             },
-            tag = "MACOS_NATIVE_WINDOW",
+            tag = "NATIVE_WINDOW",
         )
 
         private fun Long.toNSView(): NSView? {
@@ -405,7 +427,7 @@ actual class NativeToastViewImpl : INativeToastView {
         private var hideTimer: NSTimer? = null
         private var animationGeneration = 0L
 
-        private val WINDOW_KEY = byteArrayOf(0)
+        private val CURRENT_WINDOW_KEY = byteArrayOf(0)
     }
 
 }
