@@ -1,7 +1,9 @@
-package com.sam.bluepad.toast
+package com.sam.bluepad.utils
 
 import com.sam.bluepad.platform.common_utils.NativeToastViewImpl
 import dev.nucleusframework.window.tao.NucleusPlatformView
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class WindowsNativeToastView(private val parent: Long) : NucleusPlatformView.HWnd {
 
@@ -21,7 +23,18 @@ internal class WindowsNativeToastView(private val parent: Long) : NucleusPlatfor
 
     fun setBackground(color: Int) = instance.setBackgroundColor(viewHandle = hwndHandle, color = color)
 
-    fun show(text: String) = instance.show(hwndHandle, text = text, 200, 1500, 200)
+    fun show(
+        text: String,
+        fadeInDuration: Duration = 200.milliseconds,
+        holdDuration: Duration = 1200.milliseconds,
+        fadeoutMs: Duration = 200.milliseconds
+    ) = instance.show(
+        viewHandle = hwndHandle,
+        text = text,
+        fadeInMs = fadeInDuration.inWholeMilliseconds.toInt(),
+        holdMs = holdDuration.inWholeMilliseconds.toInt(),
+        fadeOutMs = fadeoutMs.inWholeMilliseconds.toInt(),
+    )
 }
 
 internal class MacOSXNativeToastView(val parent: Long) : NucleusPlatformView.NsView {
@@ -40,5 +53,16 @@ internal class MacOSXNativeToastView(val parent: Long) : NucleusPlatformView.NsV
         instance.close()
     }
 
-    fun show(text: String) = instance.show(nsViewHandle, text = text, 200, 1500, 200)
+    fun show(
+        text: String,
+        fadeInDuration: Duration = 200.milliseconds,
+        holdDuration: Duration = 1200.milliseconds,
+        fadeoutMs: Duration = 200.milliseconds
+    ) = instance.show(
+        viewHandle = nsViewHandle,
+        text = text,
+        fadeInMs = fadeInDuration.inWholeMilliseconds.toInt(),
+        holdMs = holdDuration.inWholeMilliseconds.toInt(),
+        fadeOutMs = fadeoutMs.inWholeMilliseconds.toInt(),
+    )
 }
