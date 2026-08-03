@@ -11,16 +11,16 @@ import co.touchlab.kermit.CommonWriter
 import co.touchlab.kermit.Logger
 import co.touchlab.kermit.Severity
 import co.touchlab.kermit.koin.KermitKoinLogger
-import com.sam.bluepad.composables.NucleusWindowWrapper
+import com.sam.bluepad.composables.NativeToastProvider
+import com.sam.bluepad.composables.NucleusDesktopAppContent
 import com.sam.bluepad.di.commonAppModule
 import com.sam.bluepad.di.createPlatformModule
 import com.sam.bluepad.di.viewModelModule
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.settings.models.AppFontOption
+import com.sam.bluepad.presentation.commons.ToastController
 import com.sam.bluepad.presentation.feature_settings.SettingsViewmodel
 import com.sam.bluepad.theme.BluePadTheme
-import com.sam.bluepad.toast.rememberToastController
-import com.sam.bluepad.utils.NativeToastProvider
 import com.sam.bluepad.utils.TimestampMessageWriter
 import com.sam.bluepad.utils.setupNativeLibraries
 import dev.nucleusframework.application.nucleusApplication
@@ -64,15 +64,15 @@ fun main(args: Array<String>) = nucleusApplication(
         val settingsProvider = koinInject<SettingsViewmodel>()
         val userSettings by settingsProvider.state.collectAsState()
 
+        val toastController = koinInject<ToastController>()
+
         // APPLICATION CODE
         BluePadTheme(
-            dynamicColor = false,
+            dynamicColor = userSettings.appSettings.useDynamicColor,
             useSystemFonts = userSettings.appSettings.fontOption == AppFontOption.SYSTEM,
         ) {
-            val controller = rememberToastController()
-
-            NucleusWindowWrapper {
-                NativeToastProvider(controller = controller) {
+            NucleusDesktopAppContent {
+                NativeToastProvider(controller = toastController) {
                     App(modifier = Modifier.fillMaxSize())
                 }
             }
