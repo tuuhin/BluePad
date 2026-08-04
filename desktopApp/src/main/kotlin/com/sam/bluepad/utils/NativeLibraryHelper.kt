@@ -10,6 +10,7 @@ internal fun setupNativeLibraries() {
     val thLocal = ThreadLocal.withInitial {
         System.loadLibrary("bt_common")
         System.loadLibrary("ble_advertise")
+        System.loadLibrary("share_sheet")
     }
 
     try {

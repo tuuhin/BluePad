@@ -105,6 +105,7 @@ kotlin {
             implementation(projects.jvmCore.bleAdvertise)
             implementation(projects.jvmCore.cryptoBridge)
             implementation(projects.jvmCore.commonUtility)
+            implementation(projects.jvmCore.shareSheet)
             // color
             implementation(libs.nucleus.system.accent)
         }

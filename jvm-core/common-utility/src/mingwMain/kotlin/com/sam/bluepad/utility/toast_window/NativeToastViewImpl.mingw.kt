@@ -147,9 +147,9 @@ actual class NativeToastViewImpl : INativeToastView {
         }
 
         val killTimerResult = KillTimer(hWnd = hWindow, uIDEvent = TIMER_ID.toULong())
-        _logger.d { "DESTROY VIEW SIDE-EFFECT : KillTimer IS_SUCCESSFULLY=${killTimerResult == S_OK}" }
+        _logger.d { "DESTROY VIEW SIDE-EFFECT : KillTimer IS_SUCCESSFULLY=${killTimerResult == 1}" }
         val destroyResult = DestroyWindow(hWnd = hWindow)
-        _logger.i { "DESTROY VIEW SIDE-EFFECT : DestroyWindow SUCCESSFULLY:${destroyResult == S_OK}" }
+        _logger.i { "DESTROY VIEW SIDE-EFFECT : DestroyWindow SUCCESSFULLY:${destroyResult == 1}" }
     }
 
     actual override fun setBounds(viewHandle: Long, x: Int, y: Int, width: Int, height: Int) {
@@ -157,7 +157,7 @@ actual class NativeToastViewImpl : INativeToastView {
 
         val hWindow: HWND = viewHandle.toCPointer() ?: return
         val hideOp = ShowWindow(hWindow, SW_HIDE)
-        _logger.d { "SET WINDOWS HIDDEN :${hideOp == S_OK}" }
+        _logger.d { "SET WINDOWS HIDDEN :${hideOp == 1}" }
 
         SetWindowPos(hWindow, null, x, y, width, height, SWP_NOZORDER.toUInt() or SWP_NOACTIVATE.toUInt())
     }
@@ -186,7 +186,7 @@ actual class NativeToastViewImpl : INativeToastView {
         _logger.v { "SET WINDOWS COLOR ARGB :(a=$alpha,r=$red,g=$green,b=$blue)" }
 
         val hideOp = ShowWindow(hWindow, SW_HIDE)
-        _logger.d { "SET WINDOWS HIDDEN :${hideOp == S_OK}" }
+        _logger.d { "SET WINDOWS HIDDEN :${hideOp == 1}" }
 
         RedrawWindow(hWindow, null, null, RDW_INVALIDATE.toUInt() or RDW_UPDATENOW.toUInt())
     }
