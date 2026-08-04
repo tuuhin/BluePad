@@ -13,6 +13,7 @@ import co.touchlab.kermit.Severity
 import co.touchlab.kermit.koin.KermitKoinLogger
 import com.sam.bluepad.composables.NativeToastProvider
 import com.sam.bluepad.composables.NucleusDesktopAppContent
+import com.sam.bluepad.composables.SetWindowHandleShareSheet
 import com.sam.bluepad.di.commonAppModule
 import com.sam.bluepad.di.createPlatformModule
 import com.sam.bluepad.di.viewModelModule
@@ -64,14 +65,17 @@ fun main(args: Array<String>) = nucleusApplication(
         val settingsProvider = koinInject<SettingsViewmodel>()
         val userSettings by settingsProvider.state.collectAsState()
 
-        val toastController = koinInject<ToastController>()
-
         // APPLICATION CODE
         BluePadTheme(
             dynamicColor = userSettings.appSettings.useDynamicColor,
             useSystemFonts = userSettings.appSettings.fontOption == AppFontOption.SYSTEM,
         ) {
             NucleusDesktopAppContent {
+                // set up the window handle for share sheet
+                SetWindowHandleShareSheet()
+                // set up the toast controller for native toast
+                val toastController = koinInject<ToastController>()
+
                 NativeToastProvider(controller = toastController) {
                     App(modifier = Modifier.fillMaxSize())
                 }

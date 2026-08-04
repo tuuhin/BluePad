@@ -2,6 +2,7 @@ package com.sam.bluepad.composables
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.MaterialTheme
@@ -24,9 +25,9 @@ import dev.nucleusframework.window.tao.NativeView
 
 @Composable
 internal fun NativeToastProvider(
-    modifier: Modifier = Modifier,
     controller: ToastController = rememberToastController(),
     alignment: Alignment = Alignment.BottomCenter,
+    modifier: Modifier = Modifier.fillMaxSize(),
     offset: () -> DpOffset = { DpOffset(x = 0.dp, y = (-10).dp) },
     content: @Composable BoxScope.() -> Unit,
 ) {
