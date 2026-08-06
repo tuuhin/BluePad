@@ -13,3 +13,4 @@ endif ()
 
 add_subdirectory(advertise)
 add_subdirectory(bt_common)
+add_subdirectory(compression)
