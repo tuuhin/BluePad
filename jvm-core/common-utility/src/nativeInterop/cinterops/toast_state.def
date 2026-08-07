@@ -1,0 +1,16 @@
+---
+
+#include <stdint.h>
+
+#pragma pack(push, 1)
+typedef struct {
+    int64_t  animation_ref;   // 8 bytes (Pointer / Handle)
+    uint32_t background_color;// 4 bytes (ARGB / RGBA)
+    uint16_t fade_in_ms;      // 2 bytes (Max 65.5s)
+    uint16_t hold_ms;         // 2 bytes
+    uint16_t fade_out_ms;     // 2 bytes
+    uint16_t elapsed_ms;      // 2 bytes
+    uint8_t  alpha;           // 1 byte  (0-255)
+    uint8_t  phase;           // 1 byte  (Enum ordinal)
+} ToastStateCStruct;          // Total size: 21 bytes (packed)
+#pragma pack(pop)

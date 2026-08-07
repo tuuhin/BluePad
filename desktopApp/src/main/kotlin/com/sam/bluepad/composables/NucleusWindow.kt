@@ -20,7 +20,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-internal fun NucleusApplicationScope.NucleusWindowWrapper(
+internal fun NucleusApplicationScope.NucleusDesktopAppContent(
     minWindowSize: DpSize = DpSize(640.dp, 480.dp),
     content: @Composable () -> Unit
 ) {

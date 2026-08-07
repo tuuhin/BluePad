@@ -28,6 +28,9 @@ import com.sam.bluepad.domain.crypto.KeyEncryptionManager
 import com.sam.bluepad.domain.crypto.files.CryptoFilePathProvider
 import com.sam.bluepad.domain.interactions.CopySketchInteraction
 import com.sam.bluepad.domain.interactions.ShareSketchInteraction
+import com.sam.bluepad.presentation.commons.PlatformToastProvider
+import com.sam.bluepad.presentation.commons.ToastController
+import com.sam.bluepad.presentation.commons.ToastControllerImpl
 import dev.icerock.moko.permissions.PermissionsController
 import org.koin.core.module.Module
 import org.koin.dsl.bind
@@ -69,4 +72,8 @@ actual fun createPlatformModule(): Module = module {
     // crypto
     single<CryptoFilePathProviderImpl>() bind CryptoFilePathProvider::class
     factory<KeyEncryptionManagerImpl>() bind KeyEncryptionManager::class
+
+    // toast controller and toast manager
+    single<ToastControllerImpl>() bind ToastController::class
+    factory<PlatformToastProvider>()
 }

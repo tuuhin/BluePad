@@ -10,11 +10,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
-import io.github.the_best_is_best.toast_kmp.KMPNativeShowToast
-import io.github.the_best_is_best.toast_kmp.KMPNativeToastType
+import com.sam.bluepad.presentation.commons.PlatformToastProvider
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
+import org.koin.compose.koinInject
 
 @Composable
 fun UiEventsHandler(
@@ -24,6 +24,7 @@ fun UiEventsHandler(
 ) {
 
     val lifecyleOwner = LocalLifecycleOwner.current
+    val toastProvider = koinInject<PlatformToastProvider>()
 
     val updatedOnNavigateBack by rememberUpdatedState(newValue = onNavigateBack)
 
@@ -46,10 +47,7 @@ fun UiEventsHandler(
                             }
                         }
 
-                        is UIEvents.ShowToast -> KMPNativeShowToast.show(
-                            msg = event.message,
-                            type = KMPNativeToastType.LONG,
-                        )
+                        is UIEvents.ShowToast -> toastProvider.showToastMessage(event.message)
 
                         is UIEvents.ShowSnackBar -> snackBarState.showSnackbar(
                             message = event.message,
