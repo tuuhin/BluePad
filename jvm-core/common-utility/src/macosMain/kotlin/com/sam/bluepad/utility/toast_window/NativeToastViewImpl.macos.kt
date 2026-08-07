@@ -9,7 +9,6 @@ import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.cValue
 import kotlinx.cinterop.objcPtr
 import kotlinx.cinterop.readValue
-import kotlinx.cinterop.useContents
 import platform.AppKit.NSAnimationContext
 import platform.AppKit.NSColor
 import platform.AppKit.NSFont
@@ -23,6 +22,7 @@ import platform.AppKit.NSVisualEffectBlendingMode
 import platform.AppKit.NSVisualEffectMaterialWindowBackground
 import platform.AppKit.NSVisualEffectState
 import platform.AppKit.NSVisualEffectView
+import platform.AppKit.cell
 import platform.Foundation.NSClassFromString
 import platform.Foundation.NSRect
 import platform.Foundation.NSZeroRect
@@ -33,15 +33,37 @@ import platform.darwin.dispatch_time
 import platform.objc.objc_removeAssociatedObjects
 
 /**
- * Creates a floating borderless toast window using AppKit's glass effect
- * View hierarchy:
+ * macOS implementation of a native toast view using AppKit.
+ *
+ * This class provides a lightweight, platform-native toast component backed by
+ * either [NSGlassEffectView] (preferred) or [NSVisualEffectView] (fallback).
+ * It is designed to be used with the Tao/Nucleus native view system where
+ * lifecycle and layout are controlled externally.
+ *
+ * ---
+ * #### View Hierarchy
  *
  * ```mermaid
- *      RootView (NSView)
- *     └── GlassEffectView (NSGlassEffectView / NSVisualEffectView)
- *         └── LabelContainer (NSView)
- *             └── Label (NSTextField)
+ * NSGlassEffectView / NSVisualEffectView (container)
+ * └── NSTextField (label)
  * ```
+ * ---
+ * #### Visibility Model
+ *
+ * - The view is **hidden by default** (`hidden = true`, `alpha = 0`)
+ * - [show] makes it visible, animates it in, and schedules dismissal
+ * - After fade-out, the view is hidden again
+ * - This avoids initial rendering flashes before first use.
+ *
+ * ---
+ * #### Layout Strategy
+ *
+ * - Manual frame-based layout (no AutoLayout)
+ * - Padding is applied inside the container for label positioning
+ * - NSTextField requires an **explicit height** (no intrinsic sizing)
+ *
+ * Note: NSTextField does not vertically center text by default; small
+ * manual offsets may be applied if needed.
  */
 @OptIn(BetaInteropApi::class)
 actual class NativeToastViewImpl : INativeToastView {
@@ -58,18 +80,18 @@ actual class NativeToastViewImpl : INativeToastView {
 
             alignment = NSTextAlignmentCenter
             lineBreakMode = NSLineBreakByTruncatingTail
+            maximumNumberOfLines = 1
 
             textColor = NSColor.labelColor
             font = NSFont.systemFontOfSize(13.0)
 
             identifier = TOAST_LABEL_IDENTIFIER
-        }
 
-        val labelContainerView = NSView(NSZeroRect.readValue()).apply {
-            wantsLayer = true
-            layer?.masksToBounds = false
-            addSubview(labelView)
-            identifier = TOAST_LABEL_CONTAINER_IDENTIFIER
+            cell?.usesSingleLineMode = true
+            cell?.wraps = false
+            cell?.scrollable = true
+            cell?.lineBreakMode = NSLineBreakByTruncatingTail
+            cell?.alignment = NSTextAlignmentCenter
         }
 
         val containerView: NSView = if (NSClassFromString("NSGlassEffectView") != null) {
@@ -77,8 +99,8 @@ actual class NativeToastViewImpl : INativeToastView {
             NSGlassEffectView(NSZeroRect.readValue()).apply {
                 cornerRadius = 12.0
                 // can update the style based to regular
-                style = NSGlassEffectViewStyle.NSGlassEffectViewStyleClear
-                contentView = labelContainerView
+                style = NSGlassEffectViewStyle.NSGlassEffectViewStyleRegular
+                addSubview(labelView)
                 identifier = TOAST_BACKGROUND_IDENTIFIER
             }
         } else {
@@ -92,20 +114,17 @@ actual class NativeToastViewImpl : INativeToastView {
                 layer?.masksToBounds = true
                 layer?.cornerRadius = 12.0
 
-                addSubview(labelContainerView)
+                addSubview(labelView)
                 identifier = TOAST_BACKGROUND_IDENTIFIER
             }
         }
 
-        val rootView = NSView(frame = NSZeroRect.readValue()).apply {
-            wantsLayer = true
-            identifier = TOAST_ROOT_IDENTIFIER
+        containerView.hidden = true
+        containerView.alphaValue = 0.0
 
-            addSubview(containerView)
-        }
         _logger.d { "WINDOW ORDERED OUT INITIALLY" }
-        saveViewRefs(rootView, containerView, labelContainerView, labelView)
-        val rawPtr = rootView.objcPtr()
+        saveViewRefs(containerView, labelView)
+        val rawPtr = containerView.objcPtr()
         return rawPtr.toLong()
     }
 
@@ -115,29 +134,18 @@ actual class NativeToastViewImpl : INativeToastView {
         val rootView = viewHandle.toNSView() ?: return@dispatchOnMain
         _logger.d { "DESTROYING THE ROOT VIEW" }
 
-        val background = rootView.getBackground()
-        val container = rootView.getContainer()
         val label = rootView.getLabel()
 
         try {
-            background?.layer?.removeAllAnimations()
-            container?.layer?.removeAllAnimations()
-
-            container?.alphaValue = 0.0
-
-            label?.removeFromSuperview()
-            container?.removeFromSuperview()
-            background?.removeFromSuperview()
-
+            rootView.layer?.removeAllAnimations()
+            label?.layer?.removeAllAnimations()
             rootView.removeFromSuperview()
-
             _logger.d { "VIEW HIERARCHY REMOVED" }
         } catch (e: Exception) {
             _logger.e(e) { "ERROR WHILE CLOSING WINDOW" }
         } finally {
             // Clear associated objects FIRST while rootView is active and valid
             objc_removeAssociatedObjects(rootView)
-            rootView.layer?.removeAllAnimations()
             _logger.d { "DESTROY VIEW COMPLETED AND REMOVED ASSOCIATED OBJECTS" }
         }
     }
@@ -146,8 +154,6 @@ actual class NativeToastViewImpl : INativeToastView {
         _logger.d { "SET BOUNDS CALLED : x=$x y=$y width=$width height=$height" }
 
         val rootView = viewHandle.toNSView() ?: return@dispatchOnMain
-        val background = rootView.getBackground() ?: return@dispatchOnMain
-        val container = rootView.getContainer() ?: return@dispatchOnMain
         val label = rootView.getLabel() ?: return@dispatchOnMain
 
         val rootFrame = cValue<NSRect> {
@@ -157,28 +163,16 @@ actual class NativeToastViewImpl : INativeToastView {
             size.height = height.toDouble()
         }
         rootView.setFrame(rootFrame)
-        background.setFrame(rootFrame)
 
-        val paddingH = 16.0
-        val paddingV = 8.0
+        val padding = 6.0
 
-        val containerFrame = cValue<NSRect> {
-            origin.x = paddingH
-            origin.y = paddingV
-            size.width = (width - paddingH * 2).coerceAtLeast(0.0)
-            size.height = (height - paddingV * 2).coerceAtLeast(0.0)
-        }
-        container.setFrame(containerFrame)
         val labelFrame = cValue<NSRect> {
-            origin.x = 0.0
-            origin.y = 0.0
-            size.width = containerFrame.useContents { size.width }
-            size.height = containerFrame.useContents { size.height }
+            origin.x = padding
+            origin.y = padding
+            size.width = width / 2.0 - (padding * 2)
+            size.height = height / 2.0 - (padding * 2)
         }
         label.setFrame(labelFrame)
-
-        rootView.addDebugBorder(NSColor.redColor.colorWithAlphaComponent(.2))
-        container.addDebugBorder(NSColor.greenColor.colorWithAlphaComponent(.2))
         _logger.d { "SET BOUNDS APPLIED SUCCESSFULLY" }
     }
 
@@ -186,13 +180,12 @@ actual class NativeToastViewImpl : INativeToastView {
         _logger.d { "SET CORNER RADIUS CALLED : radius=$radius" }
 
         val rootView = viewHandle.toNSView() ?: return@dispatchOnMain
-        val background = rootView.getBackground() ?: return@dispatchOnMain
 
-        when (background) {
-            is NSGlassEffectView -> background.cornerRadius = radius.toDouble()
+        when (rootView) {
+            is NSGlassEffectView -> rootView.cornerRadius = radius.toDouble()
             else -> {
-                background.wantsLayer = true
-                background.layer?.apply {
+                rootView.wantsLayer = true
+                rootView.layer?.apply {
                     cornerRadius = radius.toDouble()
                     masksToBounds = true
                 }
@@ -206,7 +199,6 @@ actual class NativeToastViewImpl : INativeToastView {
         _logger.d { "SET BACKGROUND COLOR CALLED : 0x${color.toUInt().toString(16)}" }
 
         val rootView = viewHandle.toNSView() ?: return@dispatchOnMain
-        val background = rootView.getBackground() ?: return@dispatchOnMain
 
         val a = ((color shr 24) and 0xFF) / 255.0
         val r = ((color shr 16) and 0xFF) / 255.0
@@ -215,11 +207,11 @@ actual class NativeToastViewImpl : INativeToastView {
 
         val nsColor = NSColor.colorWithSRGBRed(r, g, b, a)
 
-        when (background) {
+        when (rootView) {
             is NSGlassEffectView -> _logger.d { "NO COLOR FOR GLASS EFFECT VIEW" }
             else -> {
-                background.wantsLayer = true
-                background.layer?.backgroundColor = if (a > 0.0) nsColor.CGColor else null
+                rootView.wantsLayer = true
+                rootView.layer?.backgroundColor = if (a > 0.0) nsColor.CGColor else null
             }
         }
         _logger.d { "BACKGROUND COLOR APPLIED" }
@@ -236,32 +228,32 @@ actual class NativeToastViewImpl : INativeToastView {
         _logger.d { "SHOW CALLED : text=$text fadeIn=${fadeInMs}ms hold=${holdMs}ms fadeOut=${fadeOutMs}ms" }
 
         val rootView = viewHandle.toNSView() ?: return@dispatchOnMain
-        val background = rootView.getBackground() ?: return@dispatchOnMain
-        val container = rootView.getContainer() ?: return@dispatchOnMain
         val label = rootView.getLabel() ?: return@dispatchOnMain
 
         val generation = ++animationGeneration
 
-        background.layer?.removeAllAnimations()
-        container.layer?.removeAllAnimations()
-
-        container.alphaValue = 0.0
         label.stringValue = text
 
+        rootView.removeToastAnimations()
+        rootView.layer?.removeAllAnimations()
+
+        rootView.hidden = false
+        rootView.alphaValue = 0.0
+
         _logger.d { "WINDOW ORDERED TO FRONT" }
+        rootView.playPopIn(fadeInMs)
 
         NSAnimationContext.runAnimationGroup(
             changes = { context ->
                 context?.duration = fadeInMs / 1000.0
                 context?.allowsImplicitAnimation = true
-                container.animator().alphaValue = 1.0
+                rootView.animator().alphaValue = 1.0
             },
             completionHandler = {
                 if (generation != animationGeneration) {
                     _logger.d { "FADE-IN INVALIDATED" }
                     return@runAnimationGroup
                 }
-                background.playPopIn()
 
                 val delayNs = holdMs * 1_000_000L
 
@@ -274,21 +266,22 @@ actual class NativeToastViewImpl : INativeToastView {
                         return@dispatch_after
                     }
 
+                    rootView.playPopOut(fadeOutMs)
                     _logger.d { "STARTING FADE-OUT" }
                     NSAnimationContext.runAnimationGroup(
                         changes = { context ->
                             context?.duration = fadeOutMs / 1000.0
                             context?.allowsImplicitAnimation = true
-                            container.animator().alphaValue = 0.0
+                            rootView.animator().alphaValue = 0.0
                         },
                         completionHandler = {
                             if (generation != animationGeneration) {
                                 _logger.d { "COMPLETION INVALIDATED" }
                                 return@runAnimationGroup
                             }
-                            background.playPopOut()
-                            container.alphaValue = 0.0
                             _logger.d { "TOAST HIDDEN" }
+                            rootView.hidden = true
+                            rootView.removeToastAnimations()
                         },
                     )
                 }
@@ -308,9 +301,7 @@ actual class NativeToastViewImpl : INativeToastView {
 
         private var animationGeneration = 0L
 
-        private const val TOAST_ROOT_IDENTIFIER = "toast_root_identifier"
         private const val TOAST_BACKGROUND_IDENTIFIER = "toast_background_indentifier"
-        private const val TOAST_LABEL_CONTAINER_IDENTIFIER = "toast_lable_container_identifier"
         private const val TOAST_LABEL_IDENTIFIER = "toast_label_indentifier"
     }
 

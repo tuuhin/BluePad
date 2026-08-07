@@ -1,9 +1,7 @@
 package com.sam.bluepad.utility.toast_window
 
 import kotlinx.cinterop.readValue
-import kotlinx.cinterop.useContents
 import platform.AppKit.NSView
-import platform.CoreGraphics.CGPointMake
 import platform.Foundation.NSValue
 import platform.QuartzCore.CASpringAnimation
 import platform.QuartzCore.CATransform3DIdentity
@@ -15,26 +13,18 @@ internal fun NSView.playPopIn(durationMs: Int = 200) {
     wantsLayer = true
     val layer = layer ?: return
 
-    val bounds = layer.bounds.useContents { this }
-    layer.anchorPoint = CGPointMake(0.5, 0.5)
-    layer.position = CGPointMake(
-        bounds.size.width / 2.0,
-        bounds.size.height / 2.0,
-    )
-
-    val startTransform = CATransform3DMakeScale(0.85, 0.85, 1.0)
-
-    layer.transform = startTransform
+    val start = CATransform3DMakeScale(0.85, 0.85, 1.0)
+    layer.transform = start
 
     val animation = CASpringAnimation().apply {
         keyPath = "transform"
-        fromValue = NSValue.valueWithCATransform3D(startTransform)
+        fromValue = NSValue.valueWithCATransform3D(start)
         toValue = NSValue.valueWithCATransform3D(CATransform3DIdentity.readValue())
+
         damping = 14.0
         stiffness = 180.0
-        mass = 1.0
-        initialVelocity = 0.0
         duration = durationMs / 1000.0
+
         fillMode = kCAFillModeForwards
         removedOnCompletion = false
     }
@@ -47,12 +37,8 @@ internal fun NSView.playPopOut(durationMs: Int = 120) {
     wantsLayer = true
     val layer = layer ?: return
 
-    val bounds = layer.bounds.useContents { this }
-    layer.anchorPoint = CGPointMake(0.5, 0.5)
-    layer.position = CGPointMake(
-        bounds.size.width / 2.0,
-        bounds.size.height / 2.0,
-    )
+    val start = CATransform3DMakeScale(0.85, 0.85, 1.0)
+    layer.transform = start
 
     val end = CATransform3DMakeScale(0.85, 0.85, 1.0)
 
@@ -60,12 +46,9 @@ internal fun NSView.playPopOut(durationMs: Int = 120) {
         keyPath = "transform"
         fromValue = NSValue.valueWithCATransform3D(CATransform3DIdentity.readValue())
         toValue = NSValue.valueWithCATransform3D(end)
-
         damping = 18.0
         stiffness = 240.0
         mass = 1.0
-        initialVelocity = 0.0
-
         duration = durationMs / 1000.0
         fillMode = kCAFillModeForwards
         removedOnCompletion = false
