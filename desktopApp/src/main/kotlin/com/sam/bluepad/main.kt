@@ -1,20 +1,25 @@
 package com.sam.bluepad
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composer
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.tooling.ComposeStackTraceMode
+import androidx.compose.ui.Modifier
 import co.touchlab.kermit.CommonWriter
 import co.touchlab.kermit.Logger
 import co.touchlab.kermit.Severity
 import co.touchlab.kermit.koin.KermitKoinLogger
-import com.sam.bluepad.composables.NucleusWindowWrapper
+import com.sam.bluepad.composables.NativeToastProvider
+import com.sam.bluepad.composables.NucleusDesktopAppContent
+import com.sam.bluepad.composables.SetWindowHandleShareSheet
 import com.sam.bluepad.di.commonAppModule
 import com.sam.bluepad.di.createPlatformModule
 import com.sam.bluepad.di.viewModelModule
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.settings.models.AppFontOption
+import com.sam.bluepad.presentation.commons.ToastController
 import com.sam.bluepad.presentation.feature_settings.SettingsViewmodel
 import com.sam.bluepad.theme.BluePadTheme
 import com.sam.bluepad.utils.TimestampMessageWriter
@@ -65,8 +70,15 @@ fun main(args: Array<String>) = nucleusApplication(
             dynamicColor = userSettings.appSettings.useDynamicColor,
             useSystemFonts = userSettings.appSettings.fontOption == AppFontOption.SYSTEM,
         ) {
-            NucleusWindowWrapper {
-                App()
+            NucleusDesktopAppContent {
+                // set up the window handle for share sheet
+                SetWindowHandleShareSheet()
+                // set up the toast controller for native toast
+                val toastController = koinInject<ToastController>()
+
+                NativeToastProvider(controller = toastController) {
+                    App(modifier = Modifier.fillMaxSize())
+                }
             }
         }
     }

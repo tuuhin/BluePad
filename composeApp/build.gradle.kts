@@ -76,7 +76,6 @@ kotlin {
             // logging & notifications
             implementation(libs.kermit)
             implementation(libs.moko.permissions)
-            implementation(libs.compose.toast)
             // wire & serialization
             implementation(libs.wire.runtime)
             implementation(libs.kotlinx.serialization.protobuf)
@@ -106,6 +105,7 @@ kotlin {
             implementation(projects.jvmCore.bleAdvertise)
             implementation(projects.jvmCore.cryptoBridge)
             implementation(projects.jvmCore.commonUtility)
+            implementation(projects.jvmCore.shareSheet)
             // color
             implementation(libs.nucleus.system.accent)
         }

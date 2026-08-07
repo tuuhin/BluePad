@@ -39,6 +39,7 @@ include(":jvm-core:bt-common")
 include(":jvm-core:crypto-bridge")
 include(":jvm-core:common-utility")
 include(":jvm-core:compression")
+include(":jvm-core:share-sheet")
 // App entry points
 include(":androidApp")
 include(":desktopApp")

@@ -1,0 +1,2 @@
+headers = share_sheet_c.h
+compilerOpts = -DUNICODE -D_UNICODE

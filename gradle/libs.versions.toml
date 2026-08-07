@@ -37,7 +37,6 @@ mokoPermissionsCompose = "0.18.1-desktop-5"
 build-konfig = "0.22.0"
 kableCore = "0.44.3"
 kableExceptions = "0.34.0"
-compose_toast = "3.1.0"
 turbine = "1.2.1"
 nucleusnativeaccess = "0.6.0"
 nucleus = "2.2.0"
@@ -120,8 +119,6 @@ moko-permissions = { module = "io.github.flipsyde59:moko.permissions", version.r
 #kable
 kable-core = { module = "com.juul.kable:kable-core", version.ref = "kableCore" }
 kable-exceptions = { module = "com.juul.kable:kable-exceptions", version.ref = "kableExceptions" }
-# toast
-compose_toast = { module = "io.github.the-best-is-best:compose_toast", version.ref = "compose_toast" }
 #kotlinx serialization
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
 kotlinx-serialization-protobuf = { module = "org.jetbrains.kotlinx:kotlinx-serialization-protobuf", version.ref = "kotlinxSerialization" }

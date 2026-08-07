@@ -1,6 +1,7 @@
 package com.sam.bluepad.plugins.extensions
 
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 
 interface KTNativeJNAExtension {
@@ -8,4 +9,5 @@ interface KTNativeJNAExtension {
     val nativeLibName: Property<String>
     val releaseBuildEnabled: Property<Boolean>
     val cmakeFilePath: DirectoryProperty
+    val cmakeBuildOptions: ListProperty<CmakeOsBuild>
 }
