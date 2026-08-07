@@ -1,3 +1,4 @@
+import com.sam.bluepad.plugins.extensions.CmakeOsBuild
 import org.gradle.internal.os.OperatingSystem
 
 plugins {
@@ -54,9 +55,10 @@ kotlin {
 
 kotlinNativeExportCmakeExt {
 
-    nativeLibName.set("ktShareSheet")
-    generatedPackageName.set("com.sam.bluepad.native.shareSheet")
-    cmakeFilePath.set(rootProject.file("cpp/windows/share_sheet"))
+    nativeLibName = "ktShareSheet"
+    generatedPackageName = "com.sam.bluepad.native.shareSheet"
+    cmakeFilePath = rootProject.file("cpp/windows/share_sheet")
+    cmakeBuildOptions = listOf(CmakeOsBuild.WINDOWS)
 
     // env will get precedence over gradle property
     val envNativeBuildType = providers.environmentVariable("NATIVE_BUILD_TYPE_RELEASE")
@@ -64,5 +66,5 @@ kotlinNativeExportCmakeExt {
     val isRelease = envNativeBuildType.getOrElse("false").toBoolean()
         || propertiesBuildType.getOrElse("false").toBoolean()
 
-    releaseBuildEnabled.set(isRelease)
+    releaseBuildEnabled = isRelease
 }

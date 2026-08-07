@@ -1,3 +1,4 @@
+import com.sam.bluepad.plugins.extensions.CmakeOsBuild
 import org.gradle.internal.os.OperatingSystem
 
 plugins {
@@ -8,10 +9,6 @@ plugins {
 
 val cInterOpName = "btCommon"
 val generatedPackageName = "com.sam.bt_common.platform"
-
-// env will get precedence over gradle property
-val envNativeBuildType = providers.environmentVariable("NATIVE_BUILD_TYPE_RELEASE")
-val propertiesBuildType = providers.gradleProperty("cmake.buildTypeRelease")
 
 kotlin {
     jvmToolchain(22)
@@ -68,11 +65,15 @@ kotlin {
 }
 
 kotlinNativeExportCmakeExt {
-    nativeLibName.set("btCommonNative")
-    generatedPackageName.set("com.sam.bt_common.platform")
-    cmakeFilePath.set(rootProject.file("cpp/windows/bt_common"))
+    nativeLibName = "btCommonNative"
+    generatedPackageName = "com.sam.bt_common.platform"
+    cmakeFilePath = rootProject.file("cpp/windows/bt_common")
+    cmakeBuildOptions = listOf(CmakeOsBuild.WINDOWS)
 
+    // env will get precedence over gradle property
+    val envNativeBuildType = providers.environmentVariable("NATIVE_BUILD_TYPE_RELEASE")
+    val propertiesBuildType = providers.gradleProperty("cmake.buildTypeRelease")
     val isRelease = envNativeBuildType.getOrElse("false").toBoolean()
         || propertiesBuildType.getOrElse("false").toBoolean()
-    releaseBuildEnabled.set(isRelease)
+    releaseBuildEnabled = isRelease
 }
