@@ -3,8 +3,8 @@ package com.sam.bluepad.utility.toast_window
 import kotlinx.cinterop.readValue
 import kotlinx.cinterop.useContents
 import platform.AppKit.NSView
-import platform.Foundation.NSValue
 import platform.CoreGraphics.CGPointMake
+import platform.Foundation.NSValue
 import platform.QuartzCore.CASpringAnimation
 import platform.QuartzCore.CATransform3DIdentity
 import platform.QuartzCore.CATransform3DMakeScale
@@ -15,9 +15,12 @@ internal fun NSView.playPopIn(durationMs: Int = 200) {
     wantsLayer = true
     val layer = layer ?: return
 
+    val bounds = layer.bounds.useContents { this }
     layer.anchorPoint = CGPointMake(0.5, 0.5)
-    val size = layer.frame.useContents { size }
-    layer.position = CGPointMake(size.width / 2.0, size.height / 2.0)
+    layer.position = CGPointMake(
+        bounds.size.width / 2.0,
+        bounds.size.height / 2.0,
+    )
 
     val startTransform = CATransform3DMakeScale(0.85, 0.85, 1.0)
 
@@ -31,7 +34,6 @@ internal fun NSView.playPopIn(durationMs: Int = 200) {
         stiffness = 180.0
         mass = 1.0
         initialVelocity = 0.0
-
         duration = durationMs / 1000.0
         fillMode = kCAFillModeForwards
         removedOnCompletion = false
@@ -45,9 +47,12 @@ internal fun NSView.playPopOut(durationMs: Int = 120) {
     wantsLayer = true
     val layer = layer ?: return
 
+    val bounds = layer.bounds.useContents { this }
     layer.anchorPoint = CGPointMake(0.5, 0.5)
-    val size = layer.frame.useContents { size }
-    layer.position = CGPointMake(size.width / 2.0, size.height / 2.0)
+    layer.position = CGPointMake(
+        bounds.size.width / 2.0,
+        bounds.size.height / 2.0,
+    )
 
     val end = CATransform3DMakeScale(0.85, 0.85, 1.0)
 

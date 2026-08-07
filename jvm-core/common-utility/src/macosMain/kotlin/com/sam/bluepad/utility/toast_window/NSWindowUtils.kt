@@ -10,7 +10,7 @@ import platform.AppKit.NSColor
 import platform.AppKit.NSGlassEffectView
 import platform.AppKit.NSTextField
 import platform.AppKit.NSView
-import platform.AppKit.NSWindow
+import platform.Foundation.NSThread
 import platform.darwin.dispatch_async
 import platform.darwin.dispatch_get_main_queue
 import platform.objc.OBJC_ASSOCIATION_RETAIN_NONATOMIC
@@ -18,31 +18,37 @@ import platform.objc.objc_getAssociatedObject
 import platform.objc.objc_setAssociatedObject
 import platform.posix.intptr_tVar
 
-internal object Keys {
-    val CURRENT_WINDOW = nativeHeap.alloc<ByteVar>()
-    val PARENT_WINDOW = nativeHeap.alloc<ByteVar>()
+internal object ViewKeys {
+    val BACKGROUND = nativeHeap.alloc<ByteVar>()
+    val CONTAINER = nativeHeap.alloc<ByteVar>()
+    val LABEL = nativeHeap.alloc<ByteVar>()
 }
 
-internal fun saveWindow(key: ByteVar, viewKey: NSView, window: NSWindow?) =
-    objc_setAssociatedObject(viewKey, key.ptr, window, OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-
-
-internal fun getWindow(key: ByteVar, viewKey: NSView): NSWindow? =
-    objc_getAssociatedObject(viewKey, key.ptr) as NSWindow?
-
-
-internal fun NSView.getFirstSubView(): NSView? {
-    return subviews.firstOrNull() as? NSView
+internal fun saveViewRefs(
+    root: NSView,
+    background: NSView,
+    container: NSView,
+    label: NSTextField
+) {
+    objc_setAssociatedObject(root, ViewKeys.BACKGROUND.ptr, background, OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    objc_setAssociatedObject(root, ViewKeys.CONTAINER.ptr, container, OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    objc_setAssociatedObject(root, ViewKeys.LABEL.ptr, label, OBJC_ASSOCIATION_RETAIN_NONATOMIC)
 }
 
-/**
- * Returns the content view if the view is a [NSGlassEffectView] else the first subview
- */
-internal fun NSView.getContainerView(): NSView? {
-    return when (this) {
-        is NSGlassEffectView -> contentView
-        else -> subviews.firstOrNull() as? NSView
-    }
+internal fun NSView.getBackground(): NSView? =
+    objc_getAssociatedObject(this, ViewKeys.BACKGROUND.ptr) as? NSView
+
+internal fun NSView.getContainer(): NSView? =
+    objc_getAssociatedObject(this, ViewKeys.CONTAINER.ptr) as? NSView
+
+internal fun NSView.getLabel(): NSTextField? =
+    objc_getAssociatedObject(this, ViewKeys.LABEL.ptr) as? NSTextField
+
+internal fun NSView.getFirstChild(): NSView? = subviews.firstOrNull() as? NSView
+
+internal fun NSView.contentViewOrFirstChild(): NSView? = when (this) {
+    is NSGlassEffectView -> contentView
+    else -> subviews.firstOrNull() as? NSView
 }
 
 internal fun NSView.findNSTextField(): NSTextField? {
@@ -57,10 +63,14 @@ internal fun NSView.findNSTextField(): NSTextField? {
 }
 
 internal fun Long.toNSView(): NSView? {
-    if (this == 0L || this == -1L) return null
-    val pointer = toCPointer<intptr_tVar>() ?: return null
-
-    return interpretObjCPointerOrNull<NSView>(pointer.rawValue)
+    try {
+        if (this == 0L || this == -1L) return null
+        val pointer = toCPointer<intptr_tVar>() ?: return null
+        return interpretObjCPointerOrNull(pointer.rawValue)
+    } catch (_: Exception) {
+        println("CANNOT LOCATE THIS PTR")
+        return null
+    }
 }
 
 internal fun NSView.addDebugBorder(color: NSColor = NSColor.whiteColor, width: Double = 2.0) {
@@ -70,5 +80,6 @@ internal fun NSView.addDebugBorder(color: NSColor = NSColor.whiteColor, width: D
 }
 
 internal fun dispatchOnMain(block: () -> Unit) {
-    dispatch_async(dispatch_get_main_queue(), block)
+    if (NSThread.isMainThread) block()
+    else dispatch_async(dispatch_get_main_queue(), block)
 }
