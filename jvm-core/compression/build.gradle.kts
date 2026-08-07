@@ -26,7 +26,12 @@ kotlin {
             }
         }
 
-        currentOs.isMacOsX -> macosArm64()
+        currentOs.isMacOsX -> macosArm64{
+            compilations.getByName("main").cinterops.create("kompression") {
+                definitionFile.set(project.file("src/nativeInterop/cinterop/macos_compression.def"))
+                packageName = "com.sam.bluepad.compression.native.macos"
+            }
+        }
         currentOs.isLinux -> linuxX64()
     }
 

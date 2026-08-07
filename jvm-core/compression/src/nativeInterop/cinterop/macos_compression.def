@@ -1,0 +1,5 @@
+headers = zstd.h
+headerFilter = zstd.h
+
+compilerOpts = -I/opt/homebrew/include -I/usr/local/include
+linkerOpts = -L/opt/homebrew/lib -L/usr/local/lib -lzstd
