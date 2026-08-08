@@ -45,6 +45,9 @@ lighthouse = "2.3.2"
 catelog-update = "1.1.1"
 wireRuntime = "7.0.0-alpha06"
 koin-plugin = "1.1.0"
+kotlinx-benchmark = "0.4.17"
+zstdJni = "1.5.7-12"
+lz4Java = "1.11.2"
 
 [libraries]
 #testing
@@ -135,6 +138,10 @@ nucleus-system-accent = { module = "dev.nucleusframework:nucleus.system-color", 
 #others
 wire-runtime = { module = "com.squareup.wire:wire-runtime", version.ref = "wireRuntime" }
 material-kolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
+kotlinx-benchmark-runtime = { module = "org.jetbrains.kotlinx:kotlinx-benchmark-runtime", version.ref = "kotlinx-benchmark" }
+#jvm compression algo
+lz4-java = { module = "at.yawk.lz4:lz4-java", version.ref = "lz4Java" }
+zstd-jni = { module = "com.github.luben:zstd-jni", version.ref = "zstdJni" }
 #Gradle plugins
 kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 nucleus-nna-gradlePlugin = { module = "dev.nucleusframework.nna:dev.nucleusframework.nna.gradle.plugin", version.ref = "nucleusnativeaccess" }
@@ -164,6 +171,8 @@ nucleus-nna = { id = "dev.nucleusframework.nna", version.ref = "nucleusnativeacc
 # quality of life
 lighthouse = { id = "io.github.dev-vikas-soni.lighthouse", version.ref = "lighthouse" }
 catelog-update = { id = "nl.littlerobots.version-catalog-update", version.ref = "catelog-update" }
+kotlinx-benchmarks = { id = "org.jetbrains.kotlinx.benchmark", version.ref = "kotlinx-benchmark" }
+kotlin-all-open = { id = "org.jetbrains.kotlin.plugin.allopen", version.ref = "kotlin" }
 #custom plugins
 nucleus-nna-cmake-ext = { id = "com.sam.bluepad.nucleus.nna.cmakeExt", version = "unspecified" }
 nucleus-build-ext = { id = "com.sam.bluepad.nucleus.buildExt", version = "unspecified" }

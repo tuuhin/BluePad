@@ -2,6 +2,8 @@ import org.gradle.internal.os.OperatingSystem
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.kotlinx.benchmarks)
+    alias(libs.plugins.kotlin.all.open)
     alias(libs.plugins.nucleus.nna)
     alias(libs.plugins.nucleus.nna.cmake.ext)
 }
@@ -21,17 +23,18 @@ kotlin {
                 packageName = "com.sam.bluepad.compression.native.mingw"
                 includeDirs(rootProject.file("cpp/windows/compression/include"))
                 binaries.all {
-                    linkerOpts("-lcompression")
+                    linkerOpts("-lnative_compression")
                 }
             }
         }
 
-        currentOs.isMacOsX -> macosArm64{
+        currentOs.isMacOsX -> macosArm64 {
             compilations.getByName("main").cinterops.create("kompression") {
                 definitionFile.set(project.file("src/nativeInterop/cinterop/macos_compression.def"))
                 packageName = "com.sam.bluepad.compression.native.macos"
             }
         }
+
         currentOs.isLinux -> linuxX64()
     }
 
@@ -39,19 +42,43 @@ kotlin {
 
     sourceSets {
         jvmMain.dependencies {
-            implementation("at.yawk.lz4:lz4-java:1.11.2")
-            implementation("com.github.luben:zstd-jni:1.5.7-12")
+            implementation(libs.lz4.java)
+            implementation(libs.zstd.jni)
+            implementation(libs.kotlinx.benchmark.runtime)
         }
         jvmTest.dependencies {
             implementation(libs.assertk)
             implementation(libs.kotlin.test)
         }
+
     }
 
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
         optIn.add("kotlinx.cinterop.ExperimentalForeignApi")
     }
+}
+
+benchmark {
+    configurations {
+        getByName("main") {
+            warmups = 5
+            iterations = 5
+            iterationTime = 3
+            iterationTimeUnit = "s"
+        }
+    }
+    targets {
+        register("jvm")
+    }
+}
+
+allOpen {
+    annotation("org.openjdk.jmh.annotations.State")
+}
+
+tasks.withType<Jar>().configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 kotlinNativeExportCmakeExt {

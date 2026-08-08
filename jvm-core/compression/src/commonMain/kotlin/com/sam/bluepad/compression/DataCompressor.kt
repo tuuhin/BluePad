@@ -2,7 +2,7 @@ package com.sam.bluepad.compression
 
 import com.sam.bluepad.compression.model.CompressionAlgo
 
-interface DataCompressor {
+interface DataCompressor : AutoCloseable {
 
     fun isAlgoAvailable(algo: CompressionAlgo): Boolean
 

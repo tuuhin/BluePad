@@ -6,7 +6,7 @@ import com.sam.bluepad.compression.algos.JvmLz4CmpProvider
 import com.sam.bluepad.compression.algos.JvmZTDCmpProvider
 import com.sam.bluepad.compression.model.CompressionAlgo
 
-class JVMDataCompressor : DataCompressor {
+class JVMDataCompressor : DataCompressor, AutoCloseable {
 
     private val defalte: JVMDefalteCmpProvider by lazy { JVMDefalteCmpProvider() }
     private val gzip: JVMGzipCmpProvider by lazy { JVMGzipCmpProvider() }
@@ -39,4 +39,6 @@ class JVMDataCompressor : DataCompressor {
         }
         return output
     }
+
+    override fun close() = Unit
 }
