@@ -34,6 +34,20 @@ plugins {
 }
 
 include(":composeApp")
+
+// Core modules
+include(":core:common")
+include(":core:domain")
+include(":core:model")
+include(":core:navigation")
+include(":core:ui")
+
+// Data modules
+include(":data:database")
+include(":data:bluetooth")
+include(":data:ble")
+include(":data:preferences")
+
 include(":jvm-core:ble-advertise")
 include(":jvm-core:bt-common")
 include(":jvm-core:crypto-bridge")
