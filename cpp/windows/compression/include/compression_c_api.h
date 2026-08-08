@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #ifdef _MSC_VER
-#ifdef ALLOW_COMPRESSION_MODULE_EXPORTS
+#ifdef ALLOW_MODULE_EXPORTS
 #define COMPRESSION_API __declspec(dllexport)
 #else
 #define COMPRESSION_API __declspec(dllimport)
