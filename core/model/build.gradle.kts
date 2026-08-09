@@ -18,6 +18,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            api(projects.core.common)
+            api(libs.kotlinx.datetime)
+            api(libs.kotlinx.collections.immutable)
         }
 
     }

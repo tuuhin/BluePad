@@ -41,6 +41,7 @@ include(":core:domain")
 include(":core:model")
 include(":core:navigation")
 include(":core:ui")
+include(":core:testing")
 
 // Data modules
 include(":data:database")

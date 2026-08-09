@@ -6,26 +6,40 @@ plugins {
 }
 
 kotlin {
-
     jvmToolchain(22)
 
     android {
-        namespace = "com.sam.bluepad.common"
+        namespace = "com.sam.bluepad.core.testing"
         minSdk = libs.versions.android.minSdk.get().toInt()
         compileSdk = libs.versions.android.compileSdk.get().toInt()
+
+        withHostTest {
+            isIncludeAndroidResources = true
+        }
+
+        withDeviceTestBuilder {
+            sourceSetTreeName = "test"
+        }.configure {
+            instrumentationRunner = "com.sam.bluepad.common.InstrumentTestRunner"
+            execution = "HOST"
+        }
     }
 
     jvm()
 
     sourceSets {
-        commonMain.dependencies {
-            api(libs.kermit)
-            api(libs.kotlinx.coroutines.core)
-            api(libs.okio)
-            api(libs.koin.core)
-            api(libs.koin.annotations)
+        androidMain.dependencies {
+            implementation(libs.junit)
+            implementation(libs.bundles.testing.android)
         }
+        commonMain.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.koin.core)
+            implementation(libs.koin.annotations)
+        }
+
         jvmMain.dependencies {
+            api(libs.junit)
             implementation(libs.kotlinx.coroutinesSwing)
         }
     }
