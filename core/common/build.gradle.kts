@@ -24,6 +24,17 @@ kotlin {
             api(libs.okio)
             api(libs.koin.core)
             api(libs.koin.annotations)
+
+            // crypto
+            implementation(libs.kotlin.crypto.sha2)
+            implementation(libs.kotlin.crypto.random)
+        }
+        commonTest.dependencies {
+            implementation(libs.koin.test)
+            implementation(libs.koin.test.junit)
+            implementation(libs.bundles.testing.unit)
+            // local
+            implementation(projects.core.testing)
         }
         jvmMain.dependencies {
             implementation(libs.kotlinx.coroutinesSwing)

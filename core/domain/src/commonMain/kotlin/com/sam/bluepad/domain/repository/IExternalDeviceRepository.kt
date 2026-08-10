@@ -1,0 +1,31 @@
+package com.sam.bluepad.domain.repository
+
+import com.sam.bluepad.domain.utils.Resource
+import com.sam.bluepad.model.devices.ExternalDeviceModel
+import kotlinx.coroutines.flow.Flow
+import kotlin.uuid.Uuid
+
+typealias ResourceExternalDevice = Resource<ExternalDeviceModel, Exception>
+typealias ResourceExternalDeviceList = Resource<List<ExternalDeviceModel>, Exception>
+
+interface IExternalDeviceRepository {
+
+
+    fun saveOrUpdateDevice(device: ExternalDeviceModel, keepRevoked: Boolean = true)
+        : Flow<ResourceExternalDevice>
+
+    fun saveOrUpdateDevices(devices: List<ExternalDeviceModel>, keepRevoked: Boolean = true)
+        : Flow<ResourceExternalDeviceList>
+
+    fun revokeOrUnRevokeDevice(device: ExternalDeviceModel): Flow<ResourceExternalDevice>
+    fun unRevokeAllDevices(): Flow<Resource<Unit, Exception>>
+
+    fun getAllDevices(): Flow<ResourceExternalDeviceList>
+    fun getAllRevokedDevices(): Flow<ResourceExternalDeviceList>
+
+    suspend fun getDeviceByUuid(uuid: Uuid): Result<ExternalDeviceModel>
+
+    fun deleteDevice(device: ExternalDeviceModel): Flow<Resource<Unit, Exception>>
+
+    fun deleteDevices(devices: List<ExternalDeviceModel>): Flow<Resource<Unit, Exception>>
+}
