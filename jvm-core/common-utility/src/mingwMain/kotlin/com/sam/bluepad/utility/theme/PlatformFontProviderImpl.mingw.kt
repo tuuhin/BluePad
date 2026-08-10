@@ -1,6 +1,5 @@
-package com.sam.bluepad.utility
+package com.sam.bluepad.utility.theme
 
-import com.sam.bluepad.utility.domain.NativePlatformFontProvider
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
@@ -10,7 +9,7 @@ import platform.windows.NONCLIENTMETRICSW
 import platform.windows.SPI_GETNONCLIENTMETRICS
 import platform.windows.SystemParametersInfoW
 
-actual class NativePlatformFontProviderImpl : NativePlatformFontProvider {
+actual class PlatformFontProviderImpl : IPlatformFontProvider {
 
     actual override fun readFontFamily(): String? {
         return memScoped {

@@ -40,7 +40,7 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.bundles.koin.common)
             implementation(libs.koin.annotations)
-            implementation(libs.bundles.room)
+            implementation(libs.androidx.room.runtime)
             // local
             implementation(projects.core.common)
             implementation(projects.core.model)

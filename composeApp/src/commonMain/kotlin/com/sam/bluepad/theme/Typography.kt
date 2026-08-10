@@ -11,11 +11,11 @@ import com.sam.bluepad.resources.Res
 import com.sam.bluepad.resources.RobotoFlex
 import org.jetbrains.compose.resources.Font
 
-internal expect val SystemFontFamily: FontFamily
+internal expect val SystemFontFamily: FontFamily?
 
 internal val SystemTypography: Typography
     @Composable
-    get() = Typography(fontFamily = SystemFontFamily)
+    get() = SystemFontFamily?.let { Typography(fontFamily = it) } ?: Typography()
 
 val AppTypographyCustom: Typography
     @Composable

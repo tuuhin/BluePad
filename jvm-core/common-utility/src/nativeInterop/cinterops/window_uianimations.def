@@ -1,0 +1,4 @@
+headers = uianimation.h
+headerFilter = uianimation.h
+package = platform.uianimation
+linkerOpts = -lole32

@@ -37,10 +37,9 @@ mokoPermissionsCompose = "0.18.1-desktop-5"
 build-konfig = "0.22.0"
 kableCore = "0.44.3"
 kableExceptions = "0.34.0"
-compose_toast = "3.1.0"
 turbine = "1.2.1"
 nucleusnativeaccess = "0.6.0"
-nucleus = "2.2.0"
+nucleus = "2.3.2"
 cryptographyCore = "0.6.0"
 lighthouse = "2.3.2"
 catelog-update = "1.1.1"
@@ -124,12 +123,11 @@ moko-permissions = { module = "io.github.flipsyde59:moko.permissions", version.r
 #kable
 kable-core = { module = "com.juul.kable:kable-core", version.ref = "kableCore" }
 kable-exceptions = { module = "com.juul.kable:kable-exceptions", version.ref = "kableExceptions" }
-# toast
-compose_toast = { module = "io.github.the-best-is-best:compose_toast", version.ref = "compose_toast" }
 #kotlinx serialization
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
 kotlinx-serialization-protobuf = { module = "org.jetbrains.kotlinx:kotlinx-serialization-protobuf", version.ref = "kotlinxSerialization" }
 #io
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinxIoCore" }
 #test helpers
 assertk = { module = "com.willowtreeapps.assertk:assertk", version.ref = "assertk" }
@@ -139,7 +137,6 @@ nucleus-core-application = { module = "dev.nucleusframework:nucleus.nucleus-appl
 nucleus-decorated-window-tao = { module = "dev.nucleusframework:nucleus.decorated-window-tao", version.ref = "nucleus" }
 nucleus-decorated-window-material3 = { module = "dev.nucleusframework:nucleus.decorated-window-material3", version.ref = "nucleus" }
 nucleus-system-accent = { module = "dev.nucleusframework:nucleus.system-color", version.ref = "nucleus" }
-okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 #others
 wire-runtime = { module = "com.squareup.wire:wire-runtime", version.ref = "wireRuntime" }
 material-kolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
@@ -181,7 +178,6 @@ nucleus-nna-cmake-ext = { id = "com.sam.bluepad.nucleus.nna.cmakeExt", version =
 nucleus-build-ext = { id = "com.sam.bluepad.nucleus.buildExt", version = "unspecified" }
 dx-code-quality = { id = "com.sam.bluepad.dx.quality", version = "unspecified" }
 
-
 [bundles]
 testing-unit = ["kotlin-test", "kotlin-testJunit", "junit", "assertk", "turbine", "kotlinx-coroutines-test"]
 testing-android = ["androidx-testExt-junit", "androidx-espresso-core"]
@@ -189,7 +185,6 @@ compose-ui = ["cmp-runtime", "cmp-foundation", "cmp-ui", "cmp-material3", "cmp-c
 compose-navigation3 = ["jetbrains-lifecycle-viewmodelNavigation3", "jetbrains-material3-adaptiveNavigation3", "jetbrains-navigation3-ui"]
 koin-common = ["koin-core", "koin-viewmodel", "koin-compose", "koin-compose-viewmodel"]
 koin-android = ["koin-android", "koin-android-startup"]
-room = ["androidx-room-runtime", "androidx-sqlite-bundled"]
 datastore = ["androidx-datastore", "androidx-datastore-preferences", "androidx-datastore-core-okio"]
 crypto = ["kotlin-crypto-sha2", "kotlin-crypto-random", "whyoleg-cryptography-core", "whyoleg-cryptography-provider-optimal"]
 kable = ["kable-core", "kable-exceptions"]
