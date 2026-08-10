@@ -1,10 +1,10 @@
 plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.ksp)
-    alias(libs.plugins.androidx.room)
     alias(libs.plugins.dx.code.quality)
     alias(libs.plugins.koin.compiler)
+    alias(libs.plugins.wire.plugin)
+    alias(libs.plugins.kotlinx.serialization)
 }
 
 kotlin {
@@ -12,7 +12,7 @@ kotlin {
     jvmToolchain(22)
 
     android {
-        namespace = "com.sam.bluepad.database"
+        namespace = "com.sam.bluepad.preferences"
         minSdk = libs.versions.android.minSdk
             .get()
             .toInt()
@@ -31,19 +31,18 @@ kotlin {
     jvm()
 
     sourceSets {
-        androidMain.dependencies {
-            implementation(libs.androidx.sqlite.framework)
-        }
-        getByName("androidDeviceTest").dependencies {
-            implementation(libs.bundles.testing.android)
-        }
+
         commonMain.dependencies {
             implementation(libs.bundles.koin.common)
             implementation(libs.koin.annotations)
-            implementation(libs.bundles.room)
+            implementation(libs.wire.runtime)
+            implementation(libs.kotlinx.serialization.protobuf)
             // local
             implementation(projects.core.common)
             implementation(projects.core.model)
+            implementation(projects.core.domain)
+            // datastore
+            implementation(libs.bundles.datastore)
         }
         commonTest.dependencies {
             implementation(libs.koin.test)
@@ -52,9 +51,6 @@ kotlin {
             // local
             implementation(projects.core.testing)
         }
-        jvmMain.dependencies {
-            implementation(libs.androidx.sqlite.bundled)
-        }
     }
 
     compilerOptions {
@@ -62,11 +58,9 @@ kotlin {
     }
 }
 
-room {
-    schemaDirectory("$projectDir/schemas")
-}
-
-dependencies {
-    add("kspAndroid", libs.androidx.room.compiler)
-    add("kspJvm", libs.androidx.room.compiler)
+wire {
+    kotlin {}
+    sourcePath {
+        srcDir("src/commonMain/proto")
+    }
 }

@@ -7,4 +7,5 @@ expect class FilesProvider : IFilesProvider {
 
     override fun cacheDirectory(): Path
     override fun filesDirectory(): Path
+    override fun deletePath(): Boolean
 }

@@ -25,6 +25,10 @@ actual class FilesProvider : IFilesProvider {
         return dir
     }
 
+    actual override fun deletePath(): Boolean {
+        throw IllegalStateException("Method should not be invoked from main source-set")
+    }
+
     companion object {
 
 

@@ -11,4 +11,8 @@ actual class FilesProvider(private val context: Context) : IFilesProvider {
 
     actual override fun filesDirectory(): Path = context.filesDir.toOkioPath()
     actual override fun cacheDirectory(): Path = context.cacheDir.toOkioPath()
+
+    actual override fun deletePath(): Boolean {
+        throw IllegalStateException("Method should not be invoked from main source-set")
+    }
 }

@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package com.sam.bluepad.preferences.data;
+
+message UserAppSettingsProto {
+    bool use_system_font = 1;
+    bool use_dynamic_colors = 2;
+}

@@ -36,6 +36,8 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.koin.core)
             implementation(libs.koin.annotations)
+
+            implementation(projects.core.common)
         }
 
         jvmMain.dependencies {
