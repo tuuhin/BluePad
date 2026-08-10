@@ -48,6 +48,7 @@ include(":data:database")
 include(":data:bluetooth")
 include(":data:ble")
 include(":data:preferences")
+include(":data:crypto")
 
 include(":jvm-core:ble-advertise")
 include(":jvm-core:bt-common")

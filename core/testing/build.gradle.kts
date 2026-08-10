@@ -33,9 +33,10 @@ kotlin {
             implementation(libs.bundles.testing.android)
         }
         commonMain.dependencies {
-            implementation(libs.kotlinx.coroutines.test)
             implementation(libs.koin.core)
             implementation(libs.koin.annotations)
+            implementation(libs.bundles.testing.unit)
+            implementation(project.dependencies.platform(libs.kotlinx.coroutines.bom))
 
             implementation(projects.core.common)
         }
