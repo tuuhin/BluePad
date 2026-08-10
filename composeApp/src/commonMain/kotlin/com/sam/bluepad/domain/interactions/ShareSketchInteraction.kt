@@ -2,7 +2,9 @@ package com.sam.bluepad.domain.interactions
 
 import com.sam.bluepad.domain.models.SketchModel
 
-fun interface ShareSketchInteraction {
+interface ShareSketchInteraction {
 
-	fun shareSketch(sketch: SketchModel): Result<Unit>
+    fun setWindowHandle(long: Long)
+
+    fun shareSketch(sketch: SketchModel): Result<Unit>
 }

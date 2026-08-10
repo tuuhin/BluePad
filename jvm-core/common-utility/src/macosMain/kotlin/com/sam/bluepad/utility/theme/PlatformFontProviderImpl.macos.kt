@@ -1,10 +1,8 @@
-package com.sam.bluepad.utility
+package com.sam.bluepad.utility.theme
 
-import com.sam.bluepad.utility.domain.NativePlatformFontProvider
 import platform.AppKit.NSFont
 
-actual class NativePlatformFontProviderImpl : NativePlatformFontProvider {
-
+actual class PlatformFontProviderImpl : IPlatformFontProvider {
     actual override fun readFontFamily(): String? {
         val font = NSFont.systemFontOfSize(NSFont.systemFontSize)
         return font.familyName

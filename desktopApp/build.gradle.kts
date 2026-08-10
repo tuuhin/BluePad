@@ -33,6 +33,7 @@ dependencies {
     implementation(libs.bundles.nucleus)
     // compose app module
     implementation(projects.composeApp)
+    implementation(projects.jvmCore.commonUtility)
     //koin
     testImplementation(libs.koin.test)
     testImplementation(libs.koin.test.junit)
