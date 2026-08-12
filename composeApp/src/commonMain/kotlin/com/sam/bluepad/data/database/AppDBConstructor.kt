@@ -1,6 +1,6 @@
 package com.sam.bluepad.data.database
 
-import androidx.room.RoomDatabaseConstructor
+import androidx.room3.RoomDatabaseConstructor
 
 @Suppress("KotlinNoActualForExpect")
 expect object AppDBConstructor : RoomDatabaseConstructor<BluePadDB> {

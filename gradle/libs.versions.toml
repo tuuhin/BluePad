@@ -20,7 +20,7 @@ junit = "4.13.2"
 kotlin = "2.4.10"
 kotlinx-coroutines = "1.11.0"
 kotlinxIoCore = "0.9.1"
-room = "2.8.4"
+room3 = "3.0.1"
 sqlite = "2.7.0"
 ksp = "2.3.10"
 koin = "4.2.2"
@@ -39,7 +39,7 @@ kableCore = "0.44.3"
 kableExceptions = "0.34.0"
 turbine = "1.2.1"
 nucleusnativeaccess = "0.6.0"
-nucleus = "2.2.0"
+nucleus = "2.3.2"
 cryptographyCore = "0.6.0"
 lighthouse = "2.3.2"
 catelog-update = "1.1.1"
@@ -81,11 +81,12 @@ cmp-adaptive = { module = "org.jetbrains.compose.material3.adaptive:adaptive", v
 jetbrains-lifecycle-viewmodelNavigation3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "androidx-lifecycle" }
 jetbrains-material3-adaptiveNavigation3 = { module = "org.jetbrains.compose.material3.adaptive:adaptive-navigation3", version.ref = "compose-multiplatform-adaptive" }
 jetbrains-navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "cmpNav3" }
-# room
+# room3
 androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
-androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
-androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
-androidx-room-sqlite-wrapper = { module = "androidx.room:room-sqlite-wrapper", version.ref = "room" }
+androidx-sqlite-framework = { module = "androidx.sqlite:sqlite-framework", version.ref = "sqlite" }
+androidx-room-runtime = { module = "androidx.room3:room3-runtime", version.ref = "room3" }
+androidx-room-compiler = { module = "androidx.room3:room3-compiler", version.ref = "room3" }
+androidx-room-sqlite-wrapper = { module = "androidx.room3:room3-sqlite-wrapper", version.ref = "room3" }
 #android splash
 androidx-splash = { module = "androidx.core:core-splashscreen", version.ref = "splashApiVersion" }
 #koin
@@ -155,7 +156,7 @@ jetbrains-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin"
 wire-plugin = { id = "com.squareup.wire", version.ref = "wireRuntime" }
 #others
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-androidx-room = { id = "androidx.room", version.ref = "room" }
+androidx-room = { id = "androidx.room3", version.ref = "room3" }
 build-konfig = { id = "com.codingfeline.buildkonfig", version.ref = "build-konfig" }
 koin-compiler = { id = "io.insert-koin.compiler.plugin", version.ref = "koin-plugin" }
 # nucleus
@@ -176,7 +177,6 @@ compose-ui = ["cmp-runtime", "cmp-foundation", "cmp-ui", "cmp-material3", "cmp-c
 compose-navigation3 = ["jetbrains-lifecycle-viewmodelNavigation3", "jetbrains-material3-adaptiveNavigation3", "jetbrains-navigation3-ui"]
 koin-common = ["koin-core", "koin-viewmodel", "koin-compose", "koin-compose-viewmodel"]
 koin-android = ["koin-android", "koin-android-startup"]
-room = ["androidx-room-runtime", "androidx-sqlite-bundled"]
 datastore = ["androidx-datastore", "androidx-datastore-preferences", "androidx-datastore-core-okio"]
 crypto = ["kotlin-crypto-sha2", "kotlin-crypto-random", "whyoleg-cryptography-core", "whyoleg-cryptography-provider-optimal"]
 kable = ["kable-core", "kable-exceptions"]
