@@ -45,6 +45,7 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.androidx.ui.tooling.preview)
             // database
+            implementation(libs.androidx.room.sqlite.wrapper)
             implementation(libs.androidx.sqlite.framework)
         }
 
@@ -64,7 +65,6 @@ kotlin {
             implementation(libs.cmp.ui.tooling.preview)
             // room database & datastore
             implementation(libs.androidx.room.runtime)
-            implementation(libs.androidx.room.sqlite.wrapper)
             implementation(libs.bundles.datastore)
             // di
             implementation(libs.bundles.koin.common)

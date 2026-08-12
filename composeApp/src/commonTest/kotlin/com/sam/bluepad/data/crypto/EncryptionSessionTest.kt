@@ -2,6 +2,7 @@ package com.sam.bluepad.data.crypto
 
 import com.sam.bluepad.di.commonAppModule
 import com.sam.bluepad.di.createPlatformModule
+import com.sam.bluepad.di.createPlatformTestModule
 import com.sam.bluepad.di.testModule
 import com.sam.bluepad.domain.crypto.EncryptionSessionManager
 import com.sam.bluepad.domain.crypto.KeyEncryptionManager
@@ -32,7 +33,8 @@ class EncryptionSessionTest : KoinTest {
     val koinTestRule = KoinTestRule.create {
         allowOverride(true)
         modules(createPlatformModule() + commonAppModule)
-        loadKoinModules(testModule)
+        // load the test module here
+        loadKoinModules(createPlatformTestModule() + testModule)
     }
 
     @get:Rule

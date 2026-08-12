@@ -10,6 +10,7 @@ import assertk.assertions.isTrue
 import com.sam.bluepad.data.repository.FakeSketchesRepoImpl
 import com.sam.bluepad.di.commonAppModule
 import com.sam.bluepad.di.createPlatformModule
+import com.sam.bluepad.di.createPlatformTestModule
 import com.sam.bluepad.di.testModule
 import com.sam.bluepad.domain.models.CreateSketchModel
 import com.sam.bluepad.domain.sync.InPayloadManager
@@ -43,7 +44,7 @@ class PayloadManagerTest : KoinTest {
         // include the platform module
         modules(createPlatformModule() + commonAppModule)
         // load the test module here
-        loadKoinModules(testModule)
+        loadKoinModules(createPlatformTestModule() + testModule)
     }
 
     @get:Rule
