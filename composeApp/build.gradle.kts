@@ -46,6 +46,7 @@ kotlin {
             implementation(libs.androidx.ui.tooling.preview)
             // database
             implementation(libs.androidx.room.sqlite.wrapper)
+            implementation(libs.androidx.sqlite.framework)
         }
 
         getByName("androidDeviceTest").dependencies {
@@ -63,7 +64,7 @@ kotlin {
             implementation(libs.cmp.adaptive)
             implementation(libs.cmp.ui.tooling.preview)
             // room database & datastore
-            implementation(libs.bundles.room)
+            implementation(libs.androidx.room.runtime)
             implementation(libs.bundles.datastore)
             // di
             implementation(libs.bundles.koin.common)
@@ -98,6 +99,8 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(project.dependencies.platform(libs.kotlinx.coroutines.bom))
             implementation(libs.kotlinx.coroutinesSwing)
+            // database
+            implementation(libs.androidx.sqlite.bundled)
             // kable ble scanning
             implementation(libs.bundles.kable)
             // local modules
@@ -129,7 +132,7 @@ koinCompiler {
 }
 
 
-room {
+room3 {
     schemaDirectory("$projectDir/schemas")
 }
 
@@ -140,9 +143,9 @@ composeCompiler {
 }
 
 dependencies {
-    "kspAndroid"(libs.androidx.room.compiler)
-    "kspJvm"(libs.androidx.room.compiler)
-    "androidRuntimeClasspath"(libs.androidx.ui.tooling.preview)
+    add("kspAndroid", libs.androidx.room.compiler)
+    add("kspJvm", libs.androidx.room.compiler)
+    add("androidRuntimeClasspath", libs.androidx.ui.tooling.preview)
 }
 
 compose.resources {

@@ -68,7 +68,6 @@ class KTNucleusPackagingExtPlugin : Plugin<Project> {
     }
 
     private fun Project.setupCopyAndDeleteTaskForDist() {
-
         val deleteLibs = tasks.register<Delete>("deleteNativeLibraryForPackaging") {
             description = "delete the associated lib copy in desktop resources"
 
@@ -93,7 +92,6 @@ class KTNucleusPackagingExtPlugin : Plugin<Project> {
                     from(binary.linkTaskProvider.map { it.destinationDirectory }) {
                         include(libraryExt)
                     }
-                    // Fix 1: Lazy task reference prevents ConcurrentModificationException
                     val copyTaskName = "copyTo${binary.name.replaceFirstChar(Char::uppercase)}"
                     dependsOn(subproject.tasks.matching { it.name == copyTaskName })
                 }
@@ -102,7 +100,6 @@ class KTNucleusPackagingExtPlugin : Plugin<Project> {
             into(targetDir)
         }
 
-        // Fix 2: Safe deferred iteration prevents task container mutation
         tasks.configureEach {
             if (name == "prepareAppResources" || name.startsWith("package") || name.startsWith("createDistributable")) {
                 dependsOn(copyNativeLib)
@@ -114,40 +111,27 @@ class KTNucleusPackagingExtPlugin : Plugin<Project> {
         }
     }
 
-    /**
-     * We need to set the paths for the native library as our library has a transitive dependency
-     */
     private fun Task.setUpProjectPathForRun(project: Project) {
         val forkOptions = this as? ProcessForkOptions ?: return
 
-        // Wire task dependencies eagerly at configuration time using provider mapping
-        project.rootProject.subprojects {
-            val kotlinExp = extensions.findByType<KotlinMultiplatformExtension>() ?: return@subprojects
-            val nativeBinaries = kotlinExp.targets.filterIsInstance<KotlinNativeTarget>()
+        // Extract subproject output directory Providers safely during configuration phase
+        val binaryDirectories = project.rootProject.subprojects.mapNotNull { subproject ->
+            val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>() ?: return@mapNotNull null
+            kotlinExp.targets
+                .filterIsInstance<KotlinNativeTarget>()
                 .flatMap { it.binaries }
-
-            for (binary in nativeBinaries) {
-                this@setUpProjectPathForRun.dependsOn(binary.linkTaskProvider)
-            }
-        }
-
-        // Fix 3: Defer file scanning to execution time (doFirst)
-        doFirst {
-            val binDirs = mutableSetOf<String>()
-
-            for (subproject in project.rootProject.subprojects) {
-                val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>() ?: continue
-                val nativeBinaries = kotlinExp.targets.filterIsInstance<KotlinNativeTarget>()
-                    .flatMap { it.binaries }
-
-                for (binary in nativeBinaries) {
-                    val file = binary.outputFile
-                    if (file.extension in arrayOf("dll", "so", "dylib")) {
-                        binDirs.add(file.parentFile.absolutePath)
-                    }
+                .onEach { binary ->
+                    this@setUpProjectPathForRun.dependsOn(binary.linkTaskProvider)
                 }
-            }
+                .map { binary -> binary.linkTaskProvider.map { it.destinationDirectory.get().asFile } }
+        }.flatten()
 
+        // Defer resolving path until execution phase without referencing `Project`
+        doFirst {
+            val binDirs = binaryDirectories.mapNotNull { provider ->
+                val dir = provider.orNull
+                if (dir != null && dir.exists()) dir.absolutePath else null
+            }.toSet()
             if (binDirs.isEmpty()) return@doFirst
 
             val pathSeparator = File.pathSeparator

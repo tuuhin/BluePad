@@ -1,14 +1,16 @@
 package com.sam.bluepad.data.database.convertors
 
-import androidx.room.TypeConverter
+import androidx.room3.ColumnTypeConverter
+import androidx.room3.ProvidedColumnTypeConverter
 import kotlin.uuid.Uuid
 
+@ProvidedColumnTypeConverter
 class UUIDTypeConvertors {
 
-	@TypeConverter
+    @ColumnTypeConverter
 	fun fromUUIDToText(uuid: Uuid): String = uuid.toHexString()
 
-	@TypeConverter
+    @ColumnTypeConverter
 	fun fromTextToUUID(text: String): Uuid = Uuid.parseHex(text)
 
 }

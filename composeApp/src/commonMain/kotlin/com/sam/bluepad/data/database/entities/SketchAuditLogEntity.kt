@@ -1,10 +1,10 @@
 package com.sam.bluepad.data.database.entities
 
-import androidx.room.ColumnInfo
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
-import androidx.room.PrimaryKey
+import androidx.room3.ColumnInfo
+import androidx.room3.Entity
+import androidx.room3.ForeignKey
+import androidx.room3.Index
+import androidx.room3.PrimaryKey
 import com.sam.bluepad.domain.models.SketchChangeType
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -13,13 +13,13 @@ import kotlin.uuid.Uuid
 @Entity(
 	tableName = "sketch_logs_entity",
 	foreignKeys = [
-		ForeignKey(
-			entity = SketchMetadataEntity::class,
-			parentColumns = ["_id"],
-			childColumns = ["sketch_id"],
-			onDelete = ForeignKey.CASCADE,
-			onUpdate = ForeignKey.CASCADE
-		),
+        ForeignKey(
+            entity = SketchMetadataEntity::class,
+            parentColumns = ["_id"],
+            childColumns = ["sketch_id"],
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE,
+        ),
 	],
 	indices = [Index("sketch_id")],
 )

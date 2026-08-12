@@ -11,10 +11,10 @@ import org.koin.dsl.module
 import org.koin.plugin.module.dsl.create
 import org.koin.plugin.module.dsl.single
 
-private fun provideRoomDb(builder: AppDBBuilder): BluePadDB = BluePadDB.prepareRoomDb(builder.getMemoryDbBuilder())
+private fun provideRoomTestDb(builder: AppDBBuilder): BluePadDB = BluePadDB.prepareRoomDb(builder.getMemoryDbBuilder())
 
 val testModule = module {
-    single(createdAtStart = true) { create(::provideRoomDb) } bind BluePadDB::class
+    single(createdAtStart = true) { create(::provideRoomTestDb) } bind BluePadDB::class
     single<TestCryptoFileProvider>() bind CryptoFilePathProvider::class
     single<FakeSketchesRepoImpl>() bind SketchesRepository::class
 }
