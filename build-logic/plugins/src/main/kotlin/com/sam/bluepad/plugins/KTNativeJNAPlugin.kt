@@ -15,6 +15,7 @@ import org.gradle.internal.os.OperatingSystem
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
@@ -43,12 +44,12 @@ class KTNativeJNAPlugin : Plugin<Project> {
         }
 
         if (!isOsSupported) return
-        kmpExt.targets.whenObjectAdded {
-            if (this !is KotlinNativeTarget) return@whenObjectAdded
+
+        // Use withType lazy container iteration instead of direct eager callbacks
+        kmpExt.targets.withType<KotlinNativeTarget>().configureEach {
             configureLinkLibraryTask(this)
         }
     }
-
 
     private fun Project.applyPlugins() {
         val aliases = listOf("kotlinMultiplatform", "nucleus-nna")
@@ -78,7 +79,6 @@ class KTNativeJNAPlugin : Plugin<Project> {
     }
 
     private fun Project.createExtension(): KTNativeJNAExtension {
-
         val extension = extensions.create<KTNativeJNAExtension>("kotlinNativeExportCmakeExt")
         extension.apply {
             generatedPackageName.convention("com.sam.bluepad.platform")
@@ -96,14 +96,16 @@ class KTNativeJNAPlugin : Plugin<Project> {
             os.isLinux -> "*.a"
             else -> return
         }
+
         nativeTarget.binaries.configureEach {
             val buildDir = layout.buildDirectory
 
-            // Linker options using Provider-aware mapping to stay execution-safe
+            // Safely retrieve provider directory paths without premature file realization during configuration
             val libDebugPath = buildDir.dir("cmake/lib/Debug").map { it.asFile.absolutePath }
             val libReleasePath = buildDir.dir("cmake/lib/Release").map { it.asFile.absolutePath }
 
-            linkerOpts(libReleasePath.map { "-L$it" }.get(), libDebugPath.map { "-L$it" }.get())
+            // Dynamic mapping ensures lazily evaluated linker flags
+            linkerOpts("-L${libReleasePath.get()}", "-L${libDebugPath.get()}")
 
             // Register copy task safely
             val taskName = "copyTo${name.replaceFirstChar(Char::uppercase)}"
@@ -115,11 +117,13 @@ class KTNativeJNAPlugin : Plugin<Project> {
                 from(buildDir.dir("cmake/bin/Release"))
                 include(filePattern)
                 into(linkTaskProvider.flatMap { it.destinationDirectory })
-                dependsOn("cmakeBuild")
+
+                // Lazy dependency resolution to avoid eager task realization
+                dependsOn(tasks.matching { it.name == "cmakeBuild" })
             }
 
             linkTaskProvider.configure {
-                dependsOn("cmakeBuild")
+                dependsOn(tasks.matching { it.name == "cmakeBuild" })
                 finalizedBy(copyNativeToPath)
             }
         }

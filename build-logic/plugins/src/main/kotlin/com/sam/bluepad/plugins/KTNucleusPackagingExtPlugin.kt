@@ -93,24 +93,20 @@ class KTNucleusPackagingExtPlugin : Plugin<Project> {
                     from(binary.linkTaskProvider.map { it.destinationDirectory }) {
                         include(libraryExt)
                     }
-                    // Explicitly depend on the copy task if it exists (for Windows)
+                    // Fix 1: Lazy task reference prevents ConcurrentModificationException
                     val copyTaskName = "copyTo${binary.name.replaceFirstChar(Char::uppercase)}"
-                    subproject.tasks.findByName(copyTaskName)?.let {
-                        dependsOn(it)
-                    }
+                    dependsOn(subproject.tasks.matching { it.name == copyTaskName })
                 }
             }
             val targetDir = layout.projectDirectory.dir("desktopResources/$osSimpleName/libs")
             into(targetDir)
         }
 
-
-        tasks.matching {
-            it.name == "prepareAppResources" ||
-                it.name.startsWith("package") ||
-                it.name.startsWith("createDistributable")
-        }.configureEach {
-            dependsOn(copyNativeLib)
+        // Fix 2: Safe deferred iteration prevents task container mutation
+        tasks.configureEach {
+            if (name == "prepareAppResources" || name.startsWith("package") || name.startsWith("createDistributable")) {
+                dependsOn(copyNativeLib)
+            }
         }
 
         tasks.named("clean") {
@@ -122,31 +118,38 @@ class KTNucleusPackagingExtPlugin : Plugin<Project> {
      * We need to set the paths for the native library as our library has a transitive dependency
      */
     private fun Task.setUpProjectPathForRun(project: Project) {
-
         val forkOptions = this as? ProcessForkOptions ?: return
 
-        val binDirs = mutableSetOf<String>()
-
-        // check all the subprojects for kmp ext and take the native targets
-        for (subproject in project.rootProject.subprojects) {
-            val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>() ?: continue
+        // Wire task dependencies eagerly at configuration time using provider mapping
+        project.rootProject.subprojects {
+            val kotlinExp = extensions.findByType<KotlinMultiplatformExtension>() ?: return@subprojects
             val nativeBinaries = kotlinExp.targets.filterIsInstance<KotlinNativeTarget>()
                 .flatMap { it.binaries }
 
             for (binary in nativeBinaries) {
-                val file = binary.outputFile
-                // Check if it's a dynamic/shared library
-                val isLibFile = file.extension in arrayOf("dll", "so", "dylib")
-                if (!isLibFile) continue
-                binDirs.add(file.parentFile.absolutePath)
-                // wait for the library to get build
-                dependsOn(binary.linkTaskProvider)
+                this@setUpProjectPathForRun.dependsOn(binary.linkTaskProvider)
             }
         }
 
-        if (binDirs.isEmpty()) return
-
+        // Fix 3: Defer file scanning to execution time (doFirst)
         doFirst {
+            val binDirs = mutableSetOf<String>()
+
+            for (subproject in project.rootProject.subprojects) {
+                val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>() ?: continue
+                val nativeBinaries = kotlinExp.targets.filterIsInstance<KotlinNativeTarget>()
+                    .flatMap { it.binaries }
+
+                for (binary in nativeBinaries) {
+                    val file = binary.outputFile
+                    if (file.extension in arrayOf("dll", "so", "dylib")) {
+                        binDirs.add(file.parentFile.absolutePath)
+                    }
+                }
+            }
+
+            if (binDirs.isEmpty()) return@doFirst
+
             val pathSeparator = File.pathSeparator
             val existingPath = System.getenv("PATH") ?: ""
 
