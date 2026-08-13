@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -33,24 +34,20 @@ class SettingsViewmodel(
         localDeviceProvider.readDeviceInfo,
         settingsProvider.settingsFlow,
     ) { device, settings ->
-
-        // combine will only respond if the flows emit value so
-        _isSettingsLoaded.update { true }
-
         SettingsScreenState(
             device = device,
             platformOs = platformInfoProvider.platformOS,
             appSettings = settings,
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(4_000L),
-        initialValue = SettingsScreenState(),
-    )
+    }.onEach { _isSettingsLoaded.update { true } }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(4_000L),
+            initialValue = SettingsScreenState(),
+        )
 
-    private val _uiEvent = MutableSharedFlow<UIEvents>()
     override val uiEvent: SharedFlow<UIEvents>
-        get() = _uiEvent
+        field = MutableSharedFlow<UIEvents>()
 
     fun onEvent(event: SettingsScreenEvent) {
         when (event) {
@@ -62,6 +59,6 @@ class SettingsViewmodel(
 
     private fun onUpdateDeviceName(name: String) = viewModelScope.launch {
         localDeviceProvider.updateDeviceName(name)
-        _uiEvent.emit(UIEvents.ShowSnackBar("Name updated"))
+        uiEvent.emit(UIEvents.ShowSnackBar("Name updated"))
     }
 }

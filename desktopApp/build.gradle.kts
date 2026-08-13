@@ -108,7 +108,6 @@ nucleus.application {
             iconFile.set(packagingRoot.file("windows/bluepad-1024.ico"))
             upgradeUuid = commonProperties.getProperty("WINDOWS_UPGRADE_UUID", null)?.ifEmpty { null }
             console = false
-            perUserInstall = true
             dirChooser = true
 
             nsis {
