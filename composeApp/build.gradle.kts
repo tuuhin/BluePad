@@ -47,6 +47,8 @@ kotlin {
             // database
             implementation(libs.androidx.room.sqlite.wrapper)
             implementation(libs.androidx.sqlite.framework)
+            // downloadable-fonts
+            implementation(libs.androidx.downloadable.fonts)
         }
 
         getByName("androidDeviceTest").dependencies {
@@ -157,7 +159,7 @@ compose.resources {
     customDirectory(
         sourceSetName = "jvmMain",
         directoryProvider = provider {
-            layout.projectDirectory.dir("src/jvmMain/resources/compose")
+            layout.projectDirectory.dir("src/jvmMain/composeResources")
         },
     )
 }

@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+-dontwarn org.bouncycastle.jce.ECNamedCurveTable
+-dontwarn org.bouncycastle.jce.spec.ECNamedCurveParameterSpec
+-dontwarn org.bouncycastle.math.ec.ECFieldElement
+-dontwarn org.bouncycastle.math.ec.ECPoint

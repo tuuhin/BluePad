@@ -3,32 +3,58 @@ package com.sam.bluepad.theme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.unit.sp
-import com.sam.bluepad.resources.GoogleSansFlex
-import com.sam.bluepad.resources.Res
-import com.sam.bluepad.resources.RobotoFlex
-import org.jetbrains.compose.resources.Font
-
-internal expect val SystemFontFamily: FontFamily?
 
 internal val SystemTypography: Typography
     @Composable
-    get() = SystemFontFamily?.let { Typography(fontFamily = it) } ?: Typography()
+    get() {
+        val font = systemFontFamily() ?: return Typography()
+        return Typography(font)
+    }
 
 val AppTypographyCustom: Typography
     @Composable
     get() {
-        val displayFont = flexFontEmphasis(fontWeight = 800, fontWidth = 110f)
-        val headlineFont = flexFontEmphasis(fontWeight = 700, fontWidth = 100f)
-        val bodyFont = robotoFlex(weight = 400)
-        val labelFont = robotoFlex(weight = 500, width = 105f)
-
-        val heavyEmphasisFont = flexFontEmphasis()
-        val roundedFont = flexFontRounded()
+        // --- Font Configurations ---
+        val displayFont = googleSansFlexFont(
+            FontVariation.Settings(
+                FontVariation.weight(800),
+                FontVariation.slant(0f),
+                FontVariation.width(110f),
+            ),
+        )
+        val headlineFont = googleSansFlexFont(
+            FontVariation.Settings(
+                FontVariation.weight(700),
+                FontVariation.slant(0f),
+                FontVariation.width(100f),
+            ),
+        )
+        val bodyFont = robotoFlexFont(
+            FontVariation.Settings(
+                FontVariation.weight(400),
+                FontVariation.slant(0f),
+                FontVariation.width(100f),
+            ),
+        )
+        val labelFont = robotoFlexFont(
+            FontVariation.Settings(
+                FontVariation.weight(400),
+                FontVariation.slant(0f),
+                FontVariation.width(105f),
+            ),
+        )
+        val heavyEmphasisFont = googleSansFlexFont(
+            FontVariation.Settings(
+                FontVariation.weight(900), // Clamped to 900 for standard variable font safety
+                FontVariation.slant(0f),
+                FontVariation.width(120f),
+            ),
+        )
 
         return Typography(
+            // --- Standard Display Styles ---
             displayLarge = TextStyle(
                 fontFamily = displayFont,
                 fontSize = 57.sp,
@@ -47,6 +73,8 @@ val AppTypographyCustom: Typography
                 lineHeight = 44.sp,
                 letterSpacing = 0.sp,
             ),
+
+            // --- Standard Headline Styles ---
             headlineLarge = TextStyle(
                 fontFamily = headlineFont,
                 fontSize = 32.sp,
@@ -66,7 +94,7 @@ val AppTypographyCustom: Typography
                 letterSpacing = 0.sp,
             ),
 
-            // Title Styles
+            // --- Standard Title Styles ---
             titleLarge = TextStyle(
                 fontFamily = headlineFont,
                 fontSize = 22.sp,
@@ -74,19 +102,23 @@ val AppTypographyCustom: Typography
                 letterSpacing = 0.sp,
             ),
             titleMedium = TextStyle(
-                fontFamily = flexFontEmphasis(fontWeight = 550),
+                fontFamily = googleSansFlexFont(
+                    settings = FontVariation.Settings(FontVariation.weight(500)), // Fixed ultra-thin weight (150 -> 500)
+                ),
                 fontSize = 16.sp,
                 lineHeight = 24.sp,
                 letterSpacing = 0.15.sp,
             ),
             titleSmall = TextStyle(
-                fontFamily = flexFontEmphasis(fontWeight = 500),
+                fontFamily = googleSansFlexFont(
+                    settings = FontVariation.Settings(FontVariation.weight(500)),
+                ),
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
                 letterSpacing = 0.1.sp,
             ),
 
-            // Body Styles
+            // --- Standard Body Styles ---
             bodyLarge = TextStyle(
                 fontFamily = bodyFont,
                 fontSize = 16.sp,
@@ -100,13 +132,15 @@ val AppTypographyCustom: Typography
                 letterSpacing = 0.25.sp,
             ),
             bodySmall = TextStyle(
-                fontFamily = robotoFlex(weight = 300),
+                fontFamily = robotoFlexFont(
+                    settings = FontVariation.Settings(FontVariation.weight(300)),
+                ),
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
                 letterSpacing = 0.4.sp,
             ),
 
-            // Label Styles
+            // --- Standard Label Styles ---
             labelLarge = TextStyle(
                 fontFamily = labelFont,
                 fontSize = 14.sp,
@@ -125,6 +159,8 @@ val AppTypographyCustom: Typography
                 lineHeight = 16.sp,
                 letterSpacing = 0.5.sp,
             ),
+
+            // --- Material 3 Expressive Emphasized Styles ---
             displayLargeEmphasized = TextStyle(
                 fontFamily = heavyEmphasisFont,
                 fontSize = 64.sp,
@@ -144,57 +180,10 @@ val AppTypographyCustom: Typography
                 letterSpacing = 0.sp,
             ),
             titleLargeEmphasized = TextStyle(
-                fontFamily = roundedFont,
+                fontFamily = heavyEmphasisFont,
                 fontSize = 22.sp,
                 lineHeight = 28.sp,
                 letterSpacing = 0.sp,
             ),
         )
     }
-
-@Composable
-private fun flexFontEmphasis(
-    slant: Float = 0f,
-    fontWeight: Int = 1000,
-    fontWidth: Float = 120f,
-): FontFamily =
-    FontFamily(
-        Font(
-            resource = Res.font.GoogleSansFlex,
-            variationSettings =
-                FontVariation.Settings(
-                    FontVariation.weight(fontWeight),
-                    FontVariation.slant(slant),
-                    FontVariation.width(fontWidth),
-                ),
-        ),
-    )
-
-@Composable
-private fun flexFontRounded(): FontFamily =
-    FontFamily(
-        Font(
-            resource = Res.font.GoogleSansFlex,
-            variationSettings =
-                FontVariation.Settings(
-                    FontVariation.weight(800),
-                    FontVariation.Setting("ROND", 100f),
-                ),
-        ),
-    )
-
-@Composable
-private fun robotoFlex(
-    weight: Int = 400,
-    slant: Float = 0f,
-    width: Float = 100f
-): FontFamily = FontFamily(
-    Font(
-        resource = Res.font.RobotoFlex,
-        variationSettings = FontVariation.Settings(
-            FontVariation.weight(weight),
-            FontVariation.slant(slant),
-            FontVariation.width(width),
-        ),
-    ),
-)

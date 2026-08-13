@@ -45,6 +45,7 @@ lighthouse = "2.3.2"
 catelog-update = "1.1.1"
 wireRuntime = "7.0.0-alpha06"
 koin-plugin = "1.1.0"
+google-fonts = "1.12.0-rc01"
 
 [libraries]
 #testing
@@ -137,6 +138,7 @@ nucleus-system-accent = { module = "dev.nucleusframework:nucleus.system-color", 
 #others
 wire-runtime = { module = "com.squareup.wire:wire-runtime", version.ref = "wireRuntime" }
 material-kolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
+androidx-downloadable-fonts = { module = "androidx.compose.ui:ui-text-google-fonts", version.ref = "google-fonts" }
 #Gradle plugins
 kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 nucleus-nna-gradlePlugin = { module = "dev.nucleusframework.nna:dev.nucleusframework.nna.gradle.plugin", version.ref = "nucleusnativeaccess" }
