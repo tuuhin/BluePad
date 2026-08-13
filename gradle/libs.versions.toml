@@ -10,7 +10,7 @@ android-compileSdk = "37"
 android-targetSdk = "37"
 android-minSdk = "28"
 androidx-activity = "1.13.0"
-androidx-appcompat = "1.7.1"
+androidx-appcompat = "1.8.0"
 androidx-core = "1.19.0"
 androidx-espresso = "3.7.0"
 androidx-lifecycle = "2.11.0"
@@ -22,11 +22,11 @@ kotlinx-coroutines = "1.11.0"
 kotlinxIoCore = "0.9.1"
 room3 = "3.0.1"
 sqlite = "2.7.0"
-ksp = "2.3.10"
+ksp = "2.3.11"
 koin = "4.2.2"
 kotlincrypto = "0.8.0"
 kotlincryptorandom = "0.6.0"
-androidx-tooling-version = "1.11.4"
+androidx-tooling-version = "1.12.0"
 cmpNav3 = "1.2.0-alpha02"
 composeMultiplatform = "1.11.1"
 composeMultiplatform-material3 = "1.11.0-alpha07"
@@ -39,7 +39,7 @@ kableCore = "0.44.3"
 kableExceptions = "0.34.0"
 turbine = "1.2.1"
 nucleusnativeaccess = "0.6.0"
-nucleus = "2.3.2"
+nucleus = "2.4.1"
 cryptographyCore = "0.6.0"
 lighthouse = "2.3.2"
 catelog-update = "1.1.1"
@@ -108,6 +108,7 @@ kotlin-crypto-sha2 = { module = "org.kotlincrypto.hash:sha2", version.ref = "kot
 kotlin-crypto-random = { module = "org.kotlincrypto.random:crypto-rand", version.ref = "kotlincryptorandom" }
 whyoleg-cryptography-provider-optimal = { module = "dev.whyoleg.cryptography:cryptography-provider-optimal", version.ref = "cryptographyCore" }
 whyoleg-cryptography-core = { module = "dev.whyoleg.cryptography:cryptography-core", version.ref = "cryptographyCore" }
+# compression
 #datastore
 androidx-datastore = { module = "androidx.datastore:datastore", version.ref = "datastore" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
