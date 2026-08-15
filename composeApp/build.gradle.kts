@@ -49,6 +49,9 @@ kotlin {
             implementation(libs.androidx.sqlite.framework)
             // downloadable-fonts
             implementation(libs.androidx.downloadable.fonts)
+            implementation(libs.zstd.compression.get().toString()) {
+                artifact { type = "aar" }
+            }
         }
 
         getByName("androidDeviceTest").dependencies {
@@ -113,6 +116,8 @@ kotlin {
             implementation(projects.jvmCore.shareSheet)
             // color
             implementation(libs.nucleus.system.accent)
+            // compression
+            implementation(libs.zstd.compression)
         }
 
         jvmTest.dependencies {
@@ -123,7 +128,6 @@ kotlin {
 
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
-        optIn.add("kotlin.uuid.ExperimentalUuidApi")
         optIn.add("kotlinx.serialization.ExperimentalSerializationApi")
         optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
     }

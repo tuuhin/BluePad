@@ -5,6 +5,7 @@ import com.sam.bluepad.data.ble.delegate.BLEConnectorSyncHandlerDelegate
 import com.sam.bluepad.data.ble.delegate.PeerDataAdvertiserDelegate
 import com.sam.bluepad.data.ble.delegate.PeerProximityAdvertiserDelegate
 import com.sam.bluepad.data.ble.delegate.PeerProximityConnectorDelegate
+import com.sam.bluepad.data.compression.CompressionManagerImpl
 import com.sam.bluepad.data.crypto.EncryptionSessionManagerImpl
 import com.sam.bluepad.data.crypto.encryption.AESCBCEncryptionManager
 import com.sam.bluepad.data.crypto.files.KeyFileManagerImpl
@@ -27,6 +28,7 @@ import com.sam.bluepad.data.sync.SyncManagerImpl
 import com.sam.bluepad.data.sync_diff.SyncDataSaverImpl
 import com.sam.bluepad.data.sync_diff.SyncDataSessionReaderImpl
 import com.sam.bluepad.data.sync_diff.SyncDiffCalculatorImpl
+import com.sam.bluepad.domain.compression.ICompressionManager
 import com.sam.bluepad.domain.crypto.EncryptionManager
 import com.sam.bluepad.domain.crypto.EncryptionSessionManager
 import com.sam.bluepad.domain.crypto.KeyFileManager
@@ -110,4 +112,7 @@ val commonAppModule = module {
     // Crypto
     factory<AESCBCEncryptionManager> { create(::AESCBCEncryptionManager) } bind EncryptionManager::class
     factory<EncryptionSessionManagerImpl> { create(::EncryptionSessionManagerImpl) } bind EncryptionSessionManager::class
+
+    // compression
+    single<CompressionManagerImpl>() bind ICompressionManager::class
 }
