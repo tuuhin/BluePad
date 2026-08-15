@@ -8,19 +8,18 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.os.Build
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.ble.delegate.BLEConnectorSyncHandlerDelegate
+import com.sam.bluepad.data.ble.delegate.PeerProximityConnectorDelegate
 import com.sam.bluepad.data.ble.exceptions.GattInvalidStatusException
 import com.sam.bluepad.data.ble.utils.toggleNotification
 import com.sam.bluepad.data.ble.utils.writeToCharacteristics
+import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.ConnectorSyncEvent
 import com.sam.bluepad.domain.exceptions.InvalidServiceOrCharacteristicsException
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
-import com.sam.bluepad.domain.sync.InPayloadManager
-import com.sam.bluepad.domain.sync.OutPayloadManager
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -28,8 +27,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.serialization.protobuf.ProtoBuf
-import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.toJavaUuid
 import kotlin.uuid.toKotlinUuid
@@ -37,31 +36,17 @@ import kotlin.uuid.toKotlinUuid
 private const val TAG = "SYNC_CONNECTION_CALLBACK"
 
 @SuppressLint("MissingPermission")
-class SyncDeviceConnectionCallback private constructor(
+class SyncDeviceConnectionCallback(
     deviceInfoProvider: LocalDeviceInfoProvider,
-    private val externalDevicesRepository: ExternalDevicesRepository,
-    private val delegate: BLEConnectorSyncHandlerDelegate,
+    dispatcher: PlatformDispatcherProvider,
+    private val repository: ExternalDevicesRepository,
+    private val syncHandlerDelegate: BLEConnectorSyncHandlerDelegate,
+    private val proximityDelegate: PeerProximityConnectorDelegate,
 ) : BluetoothGattCallback() {
 
-    constructor(
-        deviceInfoProvider: LocalDeviceInfoProvider,
-        externalDevicesRepository: ExternalDevicesRepository,
-        protoBuf: ProtoBuf,
-        syncOutPayloadManager: OutPayloadManager,
-        syncInPayloadManager: InPayloadManager,
-    ) : this(
-        deviceInfoProvider = deviceInfoProvider,
-        externalDevicesRepository = externalDevicesRepository,
-        delegate = BLEConnectorSyncHandlerDelegate(
-            protoBuf = protoBuf,
-            outPayloadManager = syncOutPayloadManager,
-            inPayloadManager = syncInPayloadManager,
-        ),
-    )
-
-    private val _scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-
-    private val _receiverInfo = ConcurrentHashMap<String, ExternalDeviceModel>()
+    private val _scope = CoroutineScope(dispatcher.main + SupervisorJob())
+    private val _lock = Mutex()
+    private val _receiverInfo = HashMap<String, ExternalDeviceModel>()
 
     private var _onEvents: ((ConnectorSyncEvent) -> Unit)? = null
     private var _onError: ((Throwable) -> Unit)? = null
@@ -179,17 +164,17 @@ class SyncDeviceConnectionCallback private constructor(
                     return
                 }
                 _scope.launch {
-                    val result = delegate.handleHandshakeRead(
+                    val result = proximityDelegate.handleHandshakeRead(
                         deviceAddress = gatt.device.address,
                         value = value,
                         deviceInfo = _currentDeviceProfile.value,
                         onReadSuccess = { gatt.toggleNotification(characteristic, true) },
-                        savedDevices = { id -> externalDevicesRepository.getDeviceByUuid(id) },
+                        savedDevices = { id -> repository.getDeviceByUuid(id) },
                     )
                     result.fold(
                         onSuccess = { device ->
                             val deviceAddress = gatt.device.address
-                            _receiverInfo[deviceAddress] = device
+                            _lock.withLock { _receiverInfo[deviceAddress] = device }
                         },
                         onFailure = { err -> _onEvents?.invoke(ConnectorSyncEvent.HandshakeFailed(err.message)) },
                     )
@@ -266,14 +251,14 @@ class SyncDeviceConnectionCallback private constructor(
                     return
                 }
                 _scope.launch {
-                    delegate.onEnabledDisabledCCCDescriptor(
+                    proximityDelegate.onEnabledDisabledCCCDescriptor(
                         address = gatt.device.address,
                         characteristicId = characteristicId,
                         bytes = value,
                         onWriteBytes = { bytes -> gatt.writeToCharacteristics(descriptor.characteristic, bytes) },
                         onToggleNotification = { uuid, enable ->
                             val notificationCharacteristic = gatt.getService(serviceId.toJavaUuid())
-                                .getCharacteristic(uuid.toJavaUuid()) ?: return@launch
+                                .getCharacteristic(uuid.toJavaUuid()) ?: return@onEnabledDisabledCCCDescriptor false
                             gatt.toggleNotification(notificationCharacteristic, enable)
                         },
                     )
@@ -353,13 +338,13 @@ class SyncDeviceConnectionCallback private constructor(
                     return
                 }
                 _scope.launch {
-                    val event = delegate.handleHandshakeNotification(
+                    val event = proximityDelegate.handleHandshakeNotification(
                         value = value,
                         onHandshakeSuccess = {
                             // connection handshake success
-                            _receiverInfo[deviceAddress]?.let { device ->
-                                _onEvents?.invoke(ConnectorSyncEvent.HandshakeSuccess(device))
-                            }
+                            val device = _lock.withLock { _receiverInfo[deviceAddress] }
+                            if (device != null) _onEvents?.invoke(ConnectorSyncEvent.HandshakeSuccess(device))
+
                             gatt.toggleNotification(characteristic, false)
                         },
                     )
@@ -379,17 +364,17 @@ class SyncDeviceConnectionCallback private constructor(
                 }
 
                 _scope.launch {
-                    val result = delegate.handleSyncDataNotification(
+                    val result = syncHandlerDelegate.handleSyncDataNotification(
                         characteristicId = characteristic.uuid.toKotlinUuid(),
                         value = value,
                         onWriteBytes = { bytes -> gatt.writeToCharacteristics(characteristic, bytes) },
                         onToggleNotification = { uuid, enable ->
                             val notificationCharacteristic = gatt.getService(serviceId.toJavaUuid())
-                                .getCharacteristic(uuid.toJavaUuid()) ?: return@launch
+                                .getCharacteristic(uuid.toJavaUuid()) ?: return@handleSyncDataNotification false
                             gatt.toggleNotification(notificationCharacteristic, enable)
                         },
                         onEvent = { event -> _onEvents?.invoke(event) },
-                        onReadDevice = { _receiverInfo[deviceAddress] },
+                        onReadDevice = { _lock.withLock { _receiverInfo[deviceAddress] } },
                     )
 
                     result.fold(

@@ -10,23 +10,18 @@ import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.ble.delegate.BLEAdvertiserSyncHandlerDelegate
+import com.sam.bluepad.data.ble.delegate.PeerDataAdvertiserDelegate
+import com.sam.bluepad.data.ble.delegate.PeerProximityAdvertiserDelegate
 import com.sam.bluepad.data.ble.exceptions.GattInvalidCharacteristicsException
 import com.sam.bluepad.data.ble.exceptions.GattInvalidDescriptorException
 import com.sam.bluepad.data.ble.utils.hasIndication
-import com.sam.bluepad.data.sync.dto.BLESyncDataType
-import com.sam.bluepad.data.sync.dto.BLESyncSession
 import com.sam.bluepad.data.utils.PlatformDispatcherProvider
-import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
-import com.sam.bluepad.domain.sync.InPayloadManager
-import com.sam.bluepad.domain.sync.OutPayloadManager
-import com.sam.bluepad.domain.use_cases.BytesEncoder
-import com.sam.bluepad.domain.use_cases.RandomGenerator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -40,7 +35,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.toKotlinUuid
 
@@ -50,36 +44,14 @@ private typealias GATTSendResponse = (device: BluetoothDevice, requestId: Int, s
 private typealias GATTNotifyCharacteristicsChanged = (device: BluetoothDevice, characteristics: BluetoothGattCharacteristic, value: ByteArray) -> Boolean
 
 @SuppressLint("MissingPermission")
-class ServerConnectionCallback private constructor(
+class ServerConnectionCallback(
     deviceInfoProvider: LocalDeviceInfoProvider,
+    dispatchers: PlatformDispatcherProvider,
     private val externalDevicesRepo: ExternalDevicesRepository,
-    private val delegate: BLEAdvertiserSyncHandlerDelegate,
-    private val dispatchers: PlatformDispatcherProvider,
+    private val syncDelegate: BLEAdvertiserSyncHandlerDelegate,
+    private val peerDelegate: PeerProximityAdvertiserDelegate,
+    private val deviceDataDelegate: PeerDataAdvertiserDelegate,
 ) : BluetoothGattServerCallback() {
-
-    constructor(
-        protoBuf: ProtoBuf,
-        randomGenerator: RandomGenerator,
-        platformInfoProvider: PlatformInfoProvider,
-        encoder: BytesEncoder,
-        deviceInfoProvider: LocalDeviceInfoProvider,
-        externalDevicesRepo: ExternalDevicesRepository,
-        syncInManager: InPayloadManager,
-        syncOutManager: OutPayloadManager,
-        dispatchers: PlatformDispatcherProvider,
-    ) : this(
-        deviceInfoProvider = deviceInfoProvider,
-        externalDevicesRepo = externalDevicesRepo,
-        dispatchers = dispatchers,
-        delegate = BLEAdvertiserSyncHandlerDelegate(
-            protoBuf = protoBuf,
-            randomGenerator = randomGenerator,
-            platformInfoProvider = platformInfoProvider,
-            encoder = encoder,
-            inPayloadManager = syncInManager,
-            outPayloadManager = syncOutManager,
-        ),
-    )
 
     private val _scope = CoroutineScope(dispatchers.io + SupervisorJob())
 
@@ -172,11 +144,16 @@ class ServerConnectionCallback private constructor(
         when (characteristicsId) {
             // HANDLE DEVICE DISCOVERY ADVERTISEMENT HERE
             BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID if (serviceId == BLEConstants.DEVICE_INFO_SERVICE_ID) -> {
-                Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM DISCOVERY SERVICE" }
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
+                    return
+                }
+                _scope.launch {
+                    Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM DISCOVERY SERVICE" }
 
-                val result = delegate.handleDeviceReadRequest(currentDeviceInfo = _deviceInfo.value)
-                sendReadResponse(device, requestId, offset, result)
-                return
+                    val result = deviceDataDelegate.handleDeviceReadRequest(currentDeviceInfo = _deviceInfo.value)
+                    sendReadResponse(device, requestId, offset, result)
+                }
             }
 
             // HANDLE SYNC SERVICE PROXIMITY CHECK ADVERTISEMENT HERE
@@ -190,7 +167,7 @@ class ServerConnectionCallback private constructor(
                     // handshake requested
                     _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeStarted)
 
-                    val result = delegate.handleProximityReadRequest(
+                    val result = peerDelegate.handleProximityReadRequest(
                         address = device.address,
                         currentDevice = _deviceInfo.value,
                     )
@@ -229,15 +206,22 @@ class ServerConnectionCallback private constructor(
         when (characteristicId) {
             // HANDLE DEVICE DISCOVERY ADVERTISEMENT HERE
             BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID if (serviceId == BLEConstants.DEVICE_INFO_SERVICE_ID) -> {
-                Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM DISCOVERY SERVICE" }
-
-                val result = delegate.handleDeviceWriteRequest(value = value)
-                val peerDevice = result.getOrElse { err ->
-                    val errorResult = Result.failure<Unit>(err)
-                    sendWriteResponse(device, requestId, offset, responseNeeded, value, errorResult)
+                if (!_scope.isActive) {
+                    Logger.w(tag = TAG) { "COROUTINE IS NOT ACTIVE" }
                     return
                 }
-                _peerDevices.update { device -> (device + peerDevice).distinctBy { it.deviceId } }
+                Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : ${characteristic.uuid} FROM DISCOVERY SERVICE" }
+
+                _scope.launch {
+
+                    val result = deviceDataDelegate.handleDeviceWriteRequest(value = value)
+                    val peerDevice = result.getOrElse { err ->
+                        val errorResult = Result.failure<Unit>(err)
+                        sendWriteResponse(device, requestId, offset, responseNeeded, value, errorResult)
+                        return@launch
+                    }
+                    _peerDevices.update { device -> (device + peerDevice).distinctBy { it.deviceId } }
+                }
             }
 
             // HANDLE SYNC AND PROXIMITY SERVICE FROM HERE
@@ -249,7 +233,7 @@ class ServerConnectionCallback private constructor(
                     return
                 }
                 _scope.launch {
-                    val result = delegate.handleProximityWriteRequest(
+                    val result = peerDelegate.handleProximityWriteRequest(
                         value = value,
                         address = device.address,
                         onNotify = { bytes ->
@@ -281,38 +265,17 @@ class ServerConnectionCallback private constructor(
                     return
                 }
                 _scope.launch {
-                    val result = delegate.handleSyncDataWriteRequest(
+                    val result = syncDelegate.handleSyncDataWriteRequest(
                         value = value,
                         onNotify = { bytes ->
                             _onCharacteristicsChanged?.invoke(device, characteristic, bytes) ?: false
                         },
-                    )
-                    result.fold(
-                        onSuccess = { session ->
-                            val device = _activeSyncDeviceInfo[device.address] ?: return@fold
-                            val event = when (session) {
-                                is BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
-                                is BLESyncSession.SyncSessionSuccessful ->
-                                    AdvertiserSyncEvent.FullDuplexCompleted(device, session.sessionId)
-
-                                is BLESyncSession.SyncSessionFailed -> AdvertiserSyncEvent.SyncFailed(session.reason.name)
-                                is BLESyncSession.SyncPacketTransition -> {
-                                    val isHalfDone =
-                                        session.prevType == BLESyncDataType.CONTENT && session.newType == BLESyncDataType.METADATA
-                                    if (!isHalfDone) return@fold
-                                    // half completed
-                                    AdvertiserSyncEvent.HalfDuplexCompleted(device)
-                                }
-
-                                else -> return@fold
-                            }
-                            _advertiserEvents.tryEmit(event)
-                        },
-                        onFailure = { error ->
-                            val event = AdvertiserSyncEvent.SyncFailed(error.message ?: "Unknown Error")
-                            _advertiserEvents.tryEmit(event)
-                        },
-                    )
+                        onReadDevice = { _activeSyncDeviceInfo[device.address] },
+                        onEvent = { event -> _advertiserEvents.tryEmit(event) },
+                    ).onFailure { error ->
+                        val event = AdvertiserSyncEvent.SyncFailed(error.message ?: "Unknown Error")
+                        _advertiserEvents.tryEmit(event)
+                    }
                     // send write response
                     sendWriteResponse(device, requestId, offset, responseNeeded, value, result.toUnitResult())
                 }
@@ -352,7 +315,7 @@ class ServerConnectionCallback private constructor(
                     return
                 }
                 _scope.launch {
-                    val result = delegate.handleCCCReadRequest(
+                    val result = peerDelegate.handleCCCReadRequest(
                         address = device.address,
                         descriptorUuid = descriptorId,
                         characteristicsId = characteristicsId,
@@ -407,7 +370,7 @@ class ServerConnectionCallback private constructor(
                     return
                 }
                 _scope.launch {
-                    val result = delegate.handleCCCWriteRequest(
+                    val result = peerDelegate.handleCCCWriteRequest(
                         address = device.address,
                         descriptorUuid = descriptorId,
                         characteristicsId = characteristicId,
@@ -471,7 +434,7 @@ class ServerConnectionCallback private constructor(
         // clears everything on done
         if (_scope.isActive) _scope.cancel()
         // clear the maps
-        delegate.cleanUp()
+        peerDelegate.cleanUp()
         _peerDevices.value = emptyList()
 
         // clean the callbacks too

@@ -71,14 +71,16 @@ sealed interface BLESyncSession {
      * @property type The category or schema of the data being sent.
      * @property sequenceNumber Used to ensure packets are processed in the correct order.
      * @property payload The serialized data content.
+     * @property isEmptyStart Specialized case for first empty output
      * @see BLESyncDataType
      */
     @Serializable
     @SerialName("bs_dp")
     data class BLESyncDataPacket(
         @ProtoNumber(1) val type: BLESyncDataType,
-        @ProtoNumber(2) val sequenceNumber: Int,
-        @ProtoNumber(3) val payload: String,
+        @ProtoNumber(2) val sequenceNumber: Int = 0,
+        @ProtoNumber(3) val payload: String = "",
+        @ProtoNumber(number = 4) val isEmptyStart: Boolean = false,
         @ProtoNumber(100) override val sessionId: Uuid
     ) : BLESyncSession
 
@@ -142,7 +144,8 @@ sealed interface BLESyncSession {
     @Serializable
     @SerialName("ssc")
     data class SyncSessionSuccessful(
-        @ProtoNumber(100) override val sessionId: Uuid
+        @ProtoNumber(100) override val sessionId: Uuid,
+        @ProtoNumber(1) val reason: BLESyncCompletionReason = BLESyncCompletionReason.FULL_DUPLEX_SYNC_COMPLETED
     ) : BLESyncSession
 
     /**
@@ -152,7 +155,8 @@ sealed interface BLESyncSession {
     @Serializable
     @SerialName("ss_ak")
     data class SyncSessionSuccessfulAck(
-        @ProtoNumber(100) override val sessionId: Uuid
+        @ProtoNumber(100) override val sessionId: Uuid,
+        @ProtoNumber(1) val reason: BLESyncCompletionReason = BLESyncCompletionReason.FULL_DUPLEX_SYNC_COMPLETED
     ) : BLESyncSession
 
 

@@ -1,5 +1,10 @@
 package com.sam.bluepad.di
 
+import com.sam.bluepad.data.ble.delegate.BLEAdvertiserSyncHandlerDelegate
+import com.sam.bluepad.data.ble.delegate.BLEConnectorSyncHandlerDelegate
+import com.sam.bluepad.data.ble.delegate.PeerDataAdvertiserDelegate
+import com.sam.bluepad.data.ble.delegate.PeerProximityAdvertiserDelegate
+import com.sam.bluepad.data.ble.delegate.PeerProximityConnectorDelegate
 import com.sam.bluepad.data.crypto.EncryptionSessionManagerImpl
 import com.sam.bluepad.data.crypto.encryption.AESCBCEncryptionManager
 import com.sam.bluepad.data.crypto.files.KeyFileManagerImpl
@@ -78,6 +83,13 @@ val commonAppModule = module {
     factory<SyncManagerImpl>() bind SyncManager::class
     factory<OutgoingPayloadManagerImpl> { create(::OutgoingPayloadManagerImpl) } bind OutPayloadManager::class
     factory<IncomingPayloadManagerImpl> { create(::IncomingPayloadManagerImpl) } bind InPayloadManager::class
+
+    // ble delegates
+    factory<BLEAdvertiserSyncHandlerDelegate>()
+    factory<BLEConnectorSyncHandlerDelegate>()
+    factory<PeerDataAdvertiserDelegate>()
+    factory<PeerProximityAdvertiserDelegate>()
+    factory<PeerProximityConnectorDelegate>()
 
     // Device Info Provider
     single<LocalDeviceInfoProviderImpl>() bind LocalDeviceInfoProvider::class
