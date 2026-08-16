@@ -407,6 +407,7 @@ class SyncDeviceConnectionCallback(
 
     fun onClearCallbacks() {
         Logger.d(tag = TAG) { "CALLBACKS REMOVED" }
+        syncHandlerDelegate.cleanUp()
         _onError = null
         _onEvents = null
     }

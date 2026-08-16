@@ -112,16 +112,16 @@ class BLEAdvertiserSyncHandlerDelegate(
         Logger.d(tag = TAG) { "RECEIVED A DATA PACKET ACK TYPE:${data.type} SESSION_ID :${data.sessionId}" }
 
         // mark the payload as consumed
-        outPayloadManager.markChunkAck(data.sequenceNumber)
+        outPayloadManager.markChunkAck(data.sessionId, data.sequenceNumber)
 
         // check if wr have more bytes that can be sent
-        if (!outPayloadManager.getHasMoreChunks()) {
+        if (!outPayloadManager.getHasMoreChunks(data.sessionId)) {
             // send we are done with sending metadata packet
             val response = BLESyncSession.BLESyncDataPacketEnd(type = data.type, sessionId = data.sessionId)
             return@runCatching response
         }
 
-        val chunk = outPayloadManager.getNextChunk()
+        val chunk = outPayloadManager.getNextChunk(data.sessionId)
             .getOrElse { err ->
                 Logger.w(tag = TAG, throwable = err) { "CANNOT USE NEXT CHUNK EVEN IF ITS CLEAR" }
                 Logger.w(tag = TAG) { "RESPONDING WITH SYN SESSION FAILED" }
@@ -187,7 +187,7 @@ class BLEAdvertiserSyncHandlerDelegate(
 
                 is SyncDataPayload.ContentIdsQuery if (payload.type == BLESyncDataType.METADATA) -> {
                     // LOAD THE DATA AND TRANSITION FROM METADAT TO CONTENT_REQ
-                    outPayloadManager.prepareChunks(result)
+                    outPayloadManager.prepareChunks(payload.sessionId, result)
                     BLESyncSession.SyncPacketTransition(
                         prevType = BLESyncDataType.METADATA,
                         newType = BLESyncDataType.CONTENT_REQUEST,
@@ -197,7 +197,7 @@ class BLEAdvertiserSyncHandlerDelegate(
 
                 is SyncDataPayload.ContentPayload if payload.type == BLESyncDataType.CONTENT_REQUEST -> {
                     // LOAD THE DATA AND TRANSITION FROM CONTENT REQ TO CONTENT
-                    outPayloadManager.prepareChunks(result)
+                    outPayloadManager.prepareChunks(payload.sessionId, result)
                     // now send a transition request
                     BLESyncSession.SyncPacketTransition(
                         prevType = BLESyncDataType.CONTENT_REQUEST,
@@ -210,7 +210,7 @@ class BLEAdvertiserSyncHandlerDelegate(
                     // Half duplex sync done
                     Logger.d(tag = TAG) { "STARTING THE SECOND HALF-DUPLEX SYNC SESSION ID:${payload.sessionId}" }
                     // NOW WE NEED TO SEND THE METADATA FROM THE ADVERTISER
-                    outPayloadManager.prepareChunks(SyncDataPayload.Metadata)
+                    outPayloadManager.prepareChunks(payload.sessionId, SyncDataPayload.Metadata)
                     // now send a transition request
                     BLESyncSession.SyncPacketTransition(
                         prevType = BLESyncDataType.CONTENT,
@@ -233,7 +233,7 @@ class BLEAdvertiserSyncHandlerDelegate(
             payload.isRequested -> {
                 Logger.d(tag = TAG) { "PACKET TRANSITION SENDING ACK" }
                 // clear the buffer and send ack
-                inPayloadManager.clearBuffer()
+                inPayloadManager.clearBuffer(payload.sessionId)
                 outPayloadManager.reset()
                 // send the same payload but with ack on
                 payload.copy(isRequested = false, isAck = true)
@@ -249,7 +249,7 @@ class BLEAdvertiserSyncHandlerDelegate(
                 )
             }
 
-            !outPayloadManager.getHasMoreChunks() -> {
+            !outPayloadManager.getHasMoreChunks(payload.sessionId) -> {
                 Logger.w(tag = TAG) { "CANNOT FIND ANYTHING TO SEND SENDING PACKET END" }
                 // send we are done with sending metadata packet
                 BLESyncSession.BLESyncDataPacketEnd(type = payload.newType, sessionId = payload.sessionId)
@@ -257,7 +257,7 @@ class BLEAdvertiserSyncHandlerDelegate(
 
             // now send the response
             else -> {
-                val chunkResult = outPayloadManager.getNextChunk()
+                val chunkResult = outPayloadManager.getNextChunk(payload.sessionId)
                 // we have a block
                 val chunk = chunkResult.getOrElse { err ->
                     Logger.w(tag = TAG, throwable = err) { "A CHUNK OF DATA SHOULD BE PRESENT" }
@@ -296,7 +296,7 @@ class BLEAdvertiserSyncHandlerDelegate(
         }
 
         // add the chunk to the payload
-        inPayloadManager.addIncomingPayloadChunk(data.sequenceNumber, data.payload)
+        inPayloadManager.addIncomingPayloadChunk(data.sessionId, data.sequenceNumber, data.payload)
         // response ack payload
         BLESyncSession.BLESyncDataAck(
             type = data.type,
@@ -309,7 +309,7 @@ class BLEAdvertiserSyncHandlerDelegate(
         : Result<BLESyncSession> = runCatching {
         // Clear buffers for a new session.
         outPayloadManager.reset()
-        inPayloadManager.clearBuffer()
+        inPayloadManager.clearBuffer(payload.sessionId)
 
         Logger.d(tag = TAG) { "SESSION START ACK SESSION ID:${payload.sessionId}" }
 
@@ -317,6 +317,10 @@ class BLEAdvertiserSyncHandlerDelegate(
             isAck = true,
             sessionId = payload.sessionId,
         )
+    }
+
+    fun cleanUp() {
+        inPayloadManager.clearAllBuffers()
     }
 
     companion object {

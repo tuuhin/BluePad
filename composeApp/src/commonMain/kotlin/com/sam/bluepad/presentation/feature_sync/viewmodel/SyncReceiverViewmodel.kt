@@ -108,6 +108,7 @@ class SyncReceiverViewmodel(
                     _foreignDevice.update { event.device }
                     _syncPhase.update { SyncUIState.Running }
                 }
+
                 is AdvertiserSyncEvent.HalfDuplexCompleted -> _syncPhase.update { SyncUIState.HalfDuplexCompleted }
                 is AdvertiserSyncEvent.FullDuplexCompleted -> {
                     _syncSessionId.update { event.sessionId }
@@ -115,6 +116,7 @@ class SyncReceiverViewmodel(
                 }
 
                 AdvertiserSyncEvent.HandshakeStarted -> _syncPhase.update { SyncUIState.Started }
+                else -> {}
             }
         }.catch { err ->
             val message = err.message ?: "Unknown error with receiving data"

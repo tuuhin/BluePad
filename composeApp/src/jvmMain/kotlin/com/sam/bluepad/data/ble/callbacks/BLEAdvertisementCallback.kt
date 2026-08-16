@@ -238,6 +238,7 @@ class BLEAdvertisementCallback(
     }
 
     fun cleanUp() {
+        syncDelegate.cleanUp()
         peerDelegate.cleanUp()
         _peerDevices.value = emptyList()
         _activeSyncDeviceInfo.clear()

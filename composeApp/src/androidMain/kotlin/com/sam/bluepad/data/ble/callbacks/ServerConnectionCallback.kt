@@ -437,6 +437,9 @@ class ServerConnectionCallback(
         peerDelegate.cleanUp()
         _peerDevices.value = emptyList()
 
+        // clear the delegates
+        syncDelegate.cleanUp()
+
         // clean the callbacks too
         _sendResponse = null
         _onCharacteristicsChanged = null

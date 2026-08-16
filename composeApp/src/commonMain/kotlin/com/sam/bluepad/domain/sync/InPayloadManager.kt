@@ -4,26 +4,40 @@ import com.sam.bluepad.domain.sync.models.SyncDataPayload
 import kotlin.uuid.Uuid
 
 /**
- * Sync data re-assembler
+ * Manages the buffering, reassembly, and processing lifecycle of incoming fragmented sync payload data.
  */
 interface InPayloadManager {
 
     /**
-     * Buffers an incoming chunk.
-     * @param seq The order index of the chunk.
-     * @param payload The raw data string.
+     * Buffers an incoming payload chunk for a specific sync session.
+     *
+     * @param sessionId The unique identifier for the active sync session.
+     * @param seq The zero-based sequence or order index of the chunk.
+     * @param payload The raw string payload corresponding to the chunk.
      */
-    suspend fun addIncomingPayloadChunk(seq: Int, payload: String)
+    suspend fun addIncomingPayloadChunk(sessionId: Uuid, seq: UInt, payload: String)
 
     /**
-     * Processes buffered chunks to extract Metadata IDs.
-     * Clears the buffer automatically upon successful processing.
-     * @return [Uuid]s for which the metadata aren't thing
+     * Reassembles and decodes all buffered chunks for the specified [sessionId], then executes
+     * the corresponding sync processing operation.
+     *
+     * Automatically clears the session buffer upon completion or failure.
+     *
+     * @param sessionId The unique identifier for the sync session being processed.
+     * @return [Result.success] with [SyncDataPayload.ProcessedResult] containing the outcome of processing,
+     * or [Result.failure] if decoding or sync processing fails.
      */
     suspend fun processData(sessionId: Uuid): Result<SyncDataPayload.ProcessedResult>
 
     /**
-     * Forcefully clears all buffered chunks.
+     * Forcefully clears all buffered chunks for a specific sync session.
+     *
+     * @param sessionId The unique identifier for the sync session to clear.
      */
-    suspend fun clearBuffer()
+    suspend fun clearBuffer(sessionId: Uuid)
+
+    /**
+     * Clears all buffered chunk states across all active sync sessions.
+     */
+    fun clearAllBuffers()
 }

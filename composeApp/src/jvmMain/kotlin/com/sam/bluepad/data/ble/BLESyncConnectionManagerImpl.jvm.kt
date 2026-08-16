@@ -272,6 +272,9 @@ actual class BLESyncConnectionManagerImpl(
             }
             awaitClose {
                 runBlocking(NonCancellable) {
+                    // clear all form the handler delegate
+                    syncHandlerDelegate.cleanUp()
+                    // then perform all the disconnect and close logic
                     try {
                         Logger.i(tag = TAG) { "DISCONNECTING THE PERIPHERAL" }
                         withTimeoutOrNull(2.seconds) {

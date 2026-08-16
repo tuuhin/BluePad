@@ -134,7 +134,7 @@ class BLEConnectorSyncHandlerDelegate(
         }
 
         Logger.d(tag = TAG) { "PROCESSED RESULT:$result" }
-        if (result is SyncDataPayload.Outgoing) outPayloadManager.prepareChunks(result)
+        if (result is SyncDataPayload.Outgoing) outPayloadManager.prepareChunks(sessionId = data.sessionId, result)
 
         runCatching {
             // handle the result
@@ -179,7 +179,7 @@ class BLEConnectorSyncHandlerDelegate(
             data.isRequested -> {
                 Logger.w(tag = TAG) { "REQUESTED TRANSITION REQUEST RESPONDING WITH ACK" }
                 // clear the buffer
-                inPayloadManager.clearBuffer()
+                inPayloadManager.clearBuffer(data.sessionId)
                 outPayloadManager.reset()
                 // send it back with same ack
                 data.copy(isRequested = false, isAck = true)
@@ -195,7 +195,7 @@ class BLEConnectorSyncHandlerDelegate(
                 )
             }
 
-            !outPayloadManager.getHasMoreChunks() -> {
+            !outPayloadManager.getHasMoreChunks(data.sessionId) -> {
                 // Checks when we call for packets and we dont have any more
                 // so mark as packet end and no more data sending
                 //  we are done with sending metadata packet
@@ -205,7 +205,7 @@ class BLEConnectorSyncHandlerDelegate(
 
             else -> {
                 // now send the response
-                val chunkResult = outPayloadManager.getNextChunk()
+                val chunkResult = outPayloadManager.getNextChunk(sessionId = data.sessionId)
                 val chunk = chunkResult.getOrElse { err ->
                     Logger.w(tag = TAG, throwable = err) { "A CHUNK OF DATA SHOULD BE PRESENT" }
                     return@runCatching BLESyncSession.SyncSessionFailed(
@@ -229,7 +229,7 @@ class BLEConnectorSyncHandlerDelegate(
     private suspend fun onDataPacketReceived(data: BLESyncSession.BLESyncDataPacket) = runCatching {
         Logger.d(tag = TAG) { "RECEIVED PACKET DATA FROM OTHER DEVICE TYPE:${data.type}" }
 
-        inPayloadManager.addIncomingPayloadChunk(data.sequenceNumber, data.payload)
+        inPayloadManager.addIncomingPayloadChunk(data.sessionId, data.sequenceNumber, data.payload)
         val response = BLESyncSession.BLESyncDataAck(
             type = data.type,
             sequenceNumber = data.sequenceNumber,
@@ -242,15 +242,15 @@ class BLEConnectorSyncHandlerDelegate(
     private suspend fun onDataPacketACKReceived(data: BLESyncSession.BLESyncDataAck) = runCatching {
         Logger.d(tag = TAG) { "RECEIVED PACKET ACK DATA FROM OTHER DEVICE" }
         // mark the payload as consumed
-        outPayloadManager.markChunkAck(data.sequenceNumber)
+        outPayloadManager.markChunkAck(data.sessionId, data.sequenceNumber)
 
-        if (!outPayloadManager.getHasMoreChunks()) {
+        if (!outPayloadManager.getHasMoreChunks(data.sessionId)) {
             Logger.d(tag = TAG) { "NO MORE CHUNKS FOUND MARKING PACKET END" }
             // send we are done with sending metadata packet
             val response = BLESyncSession.BLESyncDataPacketEnd(type = data.type, sessionId = data.sessionId)
             return@runCatching response
         }
-        val chunkResult = outPayloadManager.getNextChunk()
+        val chunkResult = outPayloadManager.getNextChunk(data.sessionId)
         // we have a block
         val chunk = chunkResult.getOrElse { err ->
             Logger.w(tag = TAG, throwable = err) { "ISSUE WITH NEXT CHUNK" }
@@ -271,14 +271,14 @@ class BLEConnectorSyncHandlerDelegate(
         if (!request.isAck) throw BLEConnectorException.SyncStarkNotAckException()
 
         // first prepare chunks for metadata
-        outPayloadManager.prepareChunks(SyncDataPayload.Metadata)
+        outPayloadManager.prepareChunks(request.sessionId, SyncDataPayload.Metadata)
             .getOrElse { err ->
                 Logger.w(tag = TAG, throwable = err) { "CANNOT PREPARE THE BLOCKS" }
                 throw err
             }
 
         // check if we have chunks ?
-        if (!outPayloadManager.getHasMoreChunks()) {
+        if (!outPayloadManager.getHasMoreChunks(request.sessionId)) {
             // we might not have any chunks as initial payload can be empty
             Logger.d(tag = TAG) { "CANNOT FIND ANY BLOCK FOR START SENDING EMPTY START" }
             val responseData = BLESyncSession.BLESyncDataPacket(
@@ -290,7 +290,7 @@ class BLEConnectorSyncHandlerDelegate(
             return@runCatching responseData
         }
         // get the chunk
-        val chunk = outPayloadManager.getNextChunk().getOrElse { err ->
+        val chunk = outPayloadManager.getNextChunk(request.sessionId).getOrElse { err ->
             Logger.w(tag = TAG, throwable = err) { "ISSUE WITH NEXT CHUNK" }
             throw err
         }
@@ -306,6 +306,11 @@ class BLEConnectorSyncHandlerDelegate(
         Logger.d(tag = TAG) { "SENDING FIRST BLOCK OF METADATA CHUNKS" }
         // now send the response
         responseData
+    }
+
+    fun cleanUp() {
+        Logger.d(tag = TAG) { "CLEARS ALL INTERMEDIATE BUFFER STATE FROM ALL SESSIONS" }
+        inPayloadManager.clearAllBuffers()
     }
 
     companion object {
