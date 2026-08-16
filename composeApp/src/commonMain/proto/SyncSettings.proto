@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package com.sam.bluepad.data.proto;
+
+message UserSyncSettingsProto {
+    uint32 sync_compression_level = 3;
+    uint32 sync_chunk_size = 4;
+}

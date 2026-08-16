@@ -1,13 +1,13 @@
 package com.sam.bluepad.data.sync
 
 import co.touchlab.kermit.Logger
-import com.sam.bluepad.BuildKonfig
 import com.sam.bluepad.data.sync.dto.SyncPayloadSequence
 import com.sam.bluepad.data.sync.mappers.toPayloadSequence
 import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.domain.compression.ICompressionManager
 import com.sam.bluepad.domain.models.SketchModel
 import com.sam.bluepad.domain.repository.SketchesRepository
+import com.sam.bluepad.domain.settings.SyncSettingsProvider
 import com.sam.bluepad.domain.sync.OutPayloadManager
 import com.sam.bluepad.domain.sync.exceptions.OutgoingDataException
 import com.sam.bluepad.domain.sync.models.FragmentedDataBlock
@@ -27,7 +27,6 @@ import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.concurrent.atomics.decrementAndFetch
 import kotlin.concurrent.atomics.incrementAndFetch
-import kotlin.time.measureTimedValue
 import kotlin.uuid.Uuid
 
 private const val TAG = "SYNC_OUT_PAYLOAD_MANAGER"
@@ -40,6 +39,7 @@ class OutgoingPayloadManagerImpl private constructor(
     private val timezone: TimeZone,
     private val compressor: ICompressionManager,
     private val dispatchers: PlatformDispatcherProvider,
+    private val syncSettings: SyncSettingsProvider,
 ) : OutPayloadManager {
 
     constructor(
@@ -47,13 +47,15 @@ class OutgoingPayloadManagerImpl private constructor(
         encoder: BytesEncoder,
         repo: SketchesRepository,
         dispatchers: PlatformDispatcherProvider,
-        compressor: ICompressionManager
+        compressor: ICompressionManager,
+        syncSettings: SyncSettingsProvider
     ) : this(
         protoBuf = protoBuf,
         encoder = encoder,
         compressor = compressor,
         sketchRepository = repo,
         dispatchers = dispatchers,
+        syncSettings = syncSettings,
         timezone = TimeZone.currentSystemDefault(),
     )
 
@@ -133,13 +135,11 @@ class OutgoingPayloadManagerImpl private constructor(
     private suspend fun chunkAndSequencePayload(session: SessionState, payload: SyncPayloadSequence) {
         val bytes = withContext(dispatchers.io) { protoBuf.encodeToByteArray<SyncPayloadSequence>(payload) }
 
+        val settings = syncSettings.settings()
+        val level = settings.syncCompressionLevel
         // a time check for
         val compressedBytes = withContext(dispatchers.default) {
-            if (BuildKonfig.IS_DEBUG) {
-                val (compressedBytes, time) = measureTimedValue { compressor.compressBytes(bytes) }
-                Logger.d(tag = TAG) { "COMPRESSION TOOK :$time" }
-                compressedBytes
-            } else compressor.compressBytes(bytes)
+            compressor.compressBytes(bytes, level)
         }
 
         Logger.d(tag = TAG) { "TOTAL BYTES TO BE SEND UN-COMPRESSED :${bytes.size} COMPRESSED:${compressedBytes.size}" }
@@ -149,13 +149,15 @@ class OutgoingPayloadManagerImpl private constructor(
         val encodedString = encoder.encodeBytes(compressedBytes)
         Logger.d(tag = TAG) { "PREPARING PAYLOAD TOTAL SIZE:${encodedString.length}" }
 
-        withContext(dispatchers.default) {
-            session.lock.withLock {
-                val chunks = encodedString.chunked(DEFAULT_WINDOW_SIZE)
-                session.dataQueue.addAll(chunks)
-                Logger.d(tag = TAG) { "PAYLOAD CHUNKS READY NUMBER OF BLOCKS:${chunks.size}" }
-            }
+        val windowSize = syncSettings.settings()
+            .syncPayloadSize.coerceIn(0..MAX_WINDOW_SIZE)
+
+        session.lock.withLock {
+            val chunks = encodedString.chunked(windowSize)
+            session.dataQueue.addAll(chunks)
+            Logger.d(tag = TAG) { "PAYLOAD CHUNKS READY NUMBER OF BLOCKS:${chunks.size}" }
         }
+
     }
 
     override suspend fun reset() {
@@ -175,7 +177,7 @@ class OutgoingPayloadManagerImpl private constructor(
 
 
     companion object {
-        private const val DEFAULT_WINDOW_SIZE = 128
+        private const val MAX_WINDOW_SIZE = 480
         private const val MAX_READ_WITHOUT_ACK = 2
     }
 }

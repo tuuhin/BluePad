@@ -1,9 +1,8 @@
 package com.sam.bluepad.data.datastore
 
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.okio.OkioSerializer
 import androidx.datastore.preferences.core.Preferences
-import com.sam.bluepad.data.datastore.serializers.AppSettingsSerializer
-import com.sam.bluepad.data.datastore.serializers.UserAppSettingsKT
 import com.sam.bluepad.data.utils.CommonAppFilesStore
 
 class DataStoreProvider(private val storage: CommonAppFilesStore) {
@@ -12,8 +11,11 @@ class DataStoreProvider(private val storage: CommonAppFilesStore) {
         producePath = { storage.filesDirectory() / "settings" / fileName },
     )
 
-    fun provideSettingsDataStore(fileName: String): DataStore<UserAppSettingsKT> = DataStoreUtils.createTypedDatastore(
-        serializer = AppSettingsSerializer,
+    fun <T> provideSettingsDataStore(
+        fileName: String,
+        serializer: OkioSerializer<T>
+    ): DataStore<T> = DataStoreUtils.createTypedDatastore(
+        serializer = serializer,
         producePath = { storage.filesDirectory() / "settings" / fileName },
     )
 }

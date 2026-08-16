@@ -1,6 +1,7 @@
 package com.sam.bluepad.data.datastore
 
 import androidx.datastore.core.DataStore
+import com.sam.bluepad.data.datastore.serializers.AppSettingsSerializer
 import com.sam.bluepad.data.datastore.serializers.UserAppSettingsKT
 import com.sam.bluepad.domain.settings.UserAppSettingsProvider
 import com.sam.bluepad.domain.settings.models.AppFontOption
@@ -16,7 +17,8 @@ class UserAppSettingsProviderImpl(
 
     private val dataStore: DataStore<UserAppSettingsKT> by lazy {
         dataStoreProvider.provideSettingsDataStore(
-            DataStoreUtils.APP_USER_SETTINGS_DATASTORE_FILE,
+            serializer = AppSettingsSerializer,
+            fileName = DataStoreUtils.APP_USER_SETTINGS_DATASTORE_FILE,
         )
     }
 

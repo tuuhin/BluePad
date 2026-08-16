@@ -18,6 +18,7 @@ import com.sam.bluepad.data.database.dao.SketchMetadataDao
 import com.sam.bluepad.data.database.dao.SketchesDao
 import com.sam.bluepad.data.datastore.DataStoreProvider
 import com.sam.bluepad.data.datastore.LocalDeviceInfoProviderImpl
+import com.sam.bluepad.data.datastore.SyncSettingsProviderImpl
 import com.sam.bluepad.data.datastore.UserAppSettingsProviderImpl
 import com.sam.bluepad.data.repository.ExternalDevicesRepoImpl
 import com.sam.bluepad.data.repository.SketchesRepoImpl
@@ -36,6 +37,7 @@ import com.sam.bluepad.domain.crypto.SyncDiffFileManager
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.repository.SketchesRepository
+import com.sam.bluepad.domain.settings.SyncSettingsProvider
 import com.sam.bluepad.domain.settings.UserAppSettingsProvider
 import com.sam.bluepad.domain.sync.InPayloadManager
 import com.sam.bluepad.domain.sync.OutPayloadManager
@@ -73,6 +75,7 @@ val commonAppModule = module {
     // DataStore & Settings
     single<DataStoreProvider>()
     single<UserAppSettingsProviderImpl>() bind UserAppSettingsProvider::class
+    single<SyncSettingsProviderImpl>() bind SyncSettingsProvider::class
 
     // Utils
     single<RandomNameGenerator>()
