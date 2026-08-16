@@ -3,7 +3,6 @@ package com.sam.bluepad.data.ble.delegate
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.ble.exceptions.BLEAdvertiserException
 import com.sam.bluepad.data.ble.exceptions.BLEConnectorException
-import com.sam.bluepad.data.sync.dto.BLESyncCompletionReason
 import com.sam.bluepad.data.sync.dto.BLESyncDataType
 import com.sam.bluepad.data.sync.dto.BLESyncFailedReason
 import com.sam.bluepad.data.sync.dto.BLESyncSession
@@ -175,16 +174,11 @@ class BLEAdvertiserSyncHandlerDelegate(
             Logger.d(tag = TAG) { "PROCESSING JOB CAN BE CANCELLED ISACTIVE: ${job.isActive} COMPLETED: ${job.isCompleted}" }
             if (job.isActive) job.cancelAndJoin()
 
+            // processing the incoming data shows that there is no changes between
+            // the current device data and the other pair, but we still process with name content ids
+            // and content bytes , yes this increases our two-and-fro path 4 times but no extra states to
+            // maintain keeping the overall logic simple
             when (result) {
-                // processing the incoming data shows that there is no changes between
-                // the current device data and the other pair
-                is SyncDataPayload.ContentIdsQuery if result.ids.isEmpty() -> {
-                    BLESyncSession.SyncSessionSuccessful(
-                        sessionId = payload.sessionId,
-                        reason = BLESyncCompletionReason.CONTENT_ALREADY_SAME,
-                    )
-                }
-
                 is SyncDataPayload.ContentIdsQuery if (payload.type == BLESyncDataType.METADATA) -> {
                     // LOAD THE DATA AND TRANSITION FROM METADAT TO CONTENT_REQ
                     outPayloadManager.prepareChunks(payload.sessionId, result)
@@ -286,7 +280,7 @@ class BLEAdvertiserSyncHandlerDelegate(
         Logger.d(tag = TAG) { "RECEIVED A DATA PACKET TYPE:${data.type} SESSION_ID:${data.sessionId}" }
         // no data
         if (data.isEmptyStart) {
-            Logger.d(tag = TAG) { "NO INIAL DATA FOUND ON THE START OF SYNC FROM CONNECTOR" }
+            Logger.d(tag = TAG) { "NO INITIAL DATA FOUND ON THE START OF SYNC FROM CONNECTOR" }
             return@runCatching BLESyncSession.SyncPacketTransition(
                 prevType = null,
                 newType = BLESyncDataType.METADATA,

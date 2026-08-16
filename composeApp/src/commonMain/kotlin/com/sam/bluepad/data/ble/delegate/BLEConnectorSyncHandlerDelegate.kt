@@ -87,7 +87,10 @@ class BLEConnectorSyncHandlerDelegate(
                 return Result.success(Unit)
             }
 
-            else -> return Result.failure(BLEConnectorException.InvalidSessionTypeException())
+            else -> {
+                val err = BLEConnectorException.InvalidSessionTypeException(requestData)
+                return Result.failure(err)
+            }
         }
             // if we got any issues just throw it
             .getOrThrow()
@@ -277,7 +280,8 @@ class BLEConnectorSyncHandlerDelegate(
                 throw err
             }
 
-        // check if we have chunks ?
+        // in most cases we will have some chunk data
+        // as our compression layer will add some so there is very less chance this block will be called
         if (!outPayloadManager.getHasMoreChunks(request.sessionId)) {
             // we might not have any chunks as initial payload can be empty
             Logger.d(tag = TAG) { "CANNOT FIND ANY BLOCK FOR START SENDING EMPTY START" }
@@ -286,7 +290,7 @@ class BLEConnectorSyncHandlerDelegate(
                 isEmptyStart = true,
                 sessionId = request.sessionId,
             )
-            Logger.d(tag = TAG) { "SENDING THE DATA PACKET BUT WITH ISEMPY FLAG ON" }
+            Logger.d(tag = TAG) { "SENDING THE DATA PACKET BUT WITH IS EMPTY FLAG ON" }
             return@runCatching responseData
         }
         // get the chunk
@@ -294,9 +298,7 @@ class BLEConnectorSyncHandlerDelegate(
             Logger.w(tag = TAG, throwable = err) { "ISSUE WITH NEXT CHUNK" }
             throw err
         }
-
         // we have a block
-        Logger.d(tag = TAG) { "FIRST BLOCK OF METADATA IS READY" }
         val responseData = BLESyncSession.BLESyncDataPacket(
             type = BLESyncDataType.METADATA,
             sequenceNumber = chunk.seqNumber,

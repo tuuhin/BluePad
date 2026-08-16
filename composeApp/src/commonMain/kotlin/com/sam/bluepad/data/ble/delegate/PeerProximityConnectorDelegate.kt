@@ -110,7 +110,7 @@ class PeerProximityConnectorDelegate(
                 val outgoingData = _lock.withLock { _handshakeMap[address] } ?: return
                 val syncWrite = protoBuf.encodeToByteArray<BLESyncHandshakeData.AdvertiseResponseData>(outgoingData)
                 val response = onWriteBytes(syncWrite)
-                Logger.d(tag = TAG) { "WRITING ADVERTISING RESPONSE CHARACTERISTICS IS_SUCCESS:$response" }
+                Logger.d(tag = TAG) { "PROXIMITY SYNC NOTIFICATION ENABLED, SENDING WRITE RESPONSE IS_SUCCESS :$response" }
             }
 
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID -> {

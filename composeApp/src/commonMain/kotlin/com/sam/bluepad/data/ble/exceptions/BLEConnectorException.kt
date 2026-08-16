@@ -1,11 +1,12 @@
 package com.sam.bluepad.data.ble.exceptions
 
 import com.sam.bluepad.data.sync.dto.BLEHandshakeFailedReason
+import com.sam.bluepad.data.sync.dto.BLESyncSession
 
 sealed class BLEConnectorException(message: String) : Exception(message) {
 
-    class InvalidSessionTypeException :
-        BLEConnectorException("Provided session type is invalid or any handler is not present")
+    class InvalidSessionTypeException(val session: BLESyncSession) :
+        BLEConnectorException("Provided session type is invalid or any handler is not present, found ${session.javaClass.simpleName}")
 
     class SyncStarkNotAckException : BLEConnectorException("Start is not ack properly missing ack flag")
     class InvalidHandshakeValueException : BLEConnectorException("Invalid Handshake value")
