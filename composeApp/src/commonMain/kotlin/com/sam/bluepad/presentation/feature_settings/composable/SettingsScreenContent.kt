@@ -111,6 +111,26 @@ fun SettingsScreenContent(
                 },
             )
         }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Text(
+                text = "Sync Settings",
+                style = MaterialTheme.typography.bodyLargeEmphasized,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            PayloadSizeSelector(
+                onUpdatePayloadSize = { onEvent(SettingsScreenEvent.OnUpdatePayloadSize(it)) },
+                initialValue = state.syncSettings.syncPayloadSize,
+            )
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            CompressionLevelSelector(
+                onLevelChange = { onEvent(SettingsScreenEvent.OnUpdateCompressionLevel(it)) },
+                selectedLevel = state.syncSettings.syncCompressionLevel,
+            )
+        }
     }
 }
 

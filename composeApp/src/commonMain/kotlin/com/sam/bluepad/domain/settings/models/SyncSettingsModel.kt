@@ -11,6 +11,6 @@ data class SyncSettingsModel(
         const val MIN_SYNC_CHUNK_SIZE = 16
 
         // number should be lesser than mtu
-        const val MAX_SYNC_CHUNK_SIZE = 400
+        const val MAX_SYNC_CHUNK_SIZE = 320
     }
 }
