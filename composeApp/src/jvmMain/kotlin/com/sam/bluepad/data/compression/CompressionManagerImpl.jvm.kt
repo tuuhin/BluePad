@@ -12,7 +12,7 @@ actual class CompressionManagerImpl(
     actual override suspend fun compressBytes(bytes: ByteArray): ByteArray {
         require(bytes.isNotEmpty()) { "Cannot compress empty bytes" }
         return withContext(dispatchers.default) {
-            Zstd.compress(bytes, 3)
+            Zstd.compress(bytes, ICompressionManager.COMPRESSION_LEVEL)
         }
     }
 
