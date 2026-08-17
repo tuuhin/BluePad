@@ -29,6 +29,7 @@ class ReadDeviceInfoTest {
         assertThat(adapter.macAddress).isNotNull().isNotEmpty()
         assertThat(adapter.bluetoothAdapter).isNotNull().isNotEmpty()
         assertThat(adapter.bluetoothVendor).isNotNull().isNotEmpty()
+        println(adapter)
     }
 
     @Test

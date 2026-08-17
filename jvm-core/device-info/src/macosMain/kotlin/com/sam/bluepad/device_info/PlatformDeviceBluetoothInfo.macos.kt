@@ -6,9 +6,7 @@ import platform.IOBluetooth.IOBluetoothHostController
 actual class PlatformDeviceBluetoothInfo : IDeviceBluetoothInfo {
 
     private var _cachedAdapterName: String? = null
-    private var _cachedManufactureName: String? = null
     private var _cachedMacAddress: String? = null
-    private var _cachedVersion: String? = null
 
     actual override val adapterName: String?
         get() {
@@ -19,26 +17,24 @@ actual class PlatformDeviceBluetoothInfo : IDeviceBluetoothInfo {
         }
 
     actual override val manufacture: String?
+        // Unable to read bluetooth adapter manufacturer
         get() = null
 
     actual override val macAddress: String?
         get() {
             if (_cachedMacAddress == null) {
-                val macAddress = hostController { controller -> controller.addressAsString() }
-                _cachedMacAddress = macAddress
+                _cachedMacAddress = hostController { controller -> controller.addressAsString() }
             }
             return _cachedMacAddress
         }
 
-    actual override val bluetoothVersion: String?
-        get() = null
 
     private inline fun <T> hostController(operate: (IOBluetoothHostController) -> T): T? {
         val controller = IOBluetoothHostController.defaultController()
-            ?: run {
-                _logger.w { "FAILED TO READ BLUETOOTH HOST CONTROLLER" }
-                return null
-            }
+        if (controller == null) {
+            _logger.w { "FAILED TO READ BLUETOOTH HOST CONTROLLER" }
+            return null
+        }
         return operate(controller)
     }
 
