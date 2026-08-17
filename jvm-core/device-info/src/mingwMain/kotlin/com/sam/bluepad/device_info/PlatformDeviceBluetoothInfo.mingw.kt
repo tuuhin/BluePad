@@ -7,6 +7,7 @@ import com.sam.bluepad.windows.bluetooth.BluetoothFindFirstRadio
 import com.sam.bluepad.windows.bluetooth.BluetoothFindNextRadio
 import com.sam.bluepad.windows.bluetooth.BluetoothFindRadioClose
 import com.sam.bluepad.windows.bluetooth.BluetoothGetRadioInfo
+import kotlinx.cinterop.CArrayPointer
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
@@ -14,6 +15,7 @@ import kotlinx.cinterop.ptr
 import kotlinx.cinterop.sizeOf
 import kotlinx.cinterop.toKString
 import kotlinx.cinterop.value
+import platform.windows.BYTEVar
 import platform.windows.CloseHandle
 import platform.windows.ERROR_NO_MORE_ITEMS
 import platform.windows.ERROR_SUCCESS
@@ -25,7 +27,6 @@ actual class PlatformDeviceBluetoothInfo : IDeviceBluetoothInfo {
     private var _cachedAdapterName: String? = null
     private var _cachedManufactureName: String? = null
     private var _cachedMacAddress: String? = null
-    private var _cachedVersion: String? = null
 
     actual override val adapterName: String?
         get() {
@@ -39,7 +40,7 @@ actual class PlatformDeviceBluetoothInfo : IDeviceBluetoothInfo {
         get() {
             if (_cachedManufactureName == null) {
                 val code = readRadio { radio -> radio.manufacturer.toInt() } ?: return null
-                _cachedManufactureName = DeviceCommons.manufactureMap.getOrElse(code) { "Unknown manufacturer" }
+                _cachedManufactureName = manufactureMap.getOrElse(code) { "Unknown manufacturer" }
             }
             return _cachedManufactureName
         }
@@ -47,32 +48,23 @@ actual class PlatformDeviceBluetoothInfo : IDeviceBluetoothInfo {
     actual override val macAddress: String?
         get() {
             if (_cachedMacAddress == null) {
-                val macAddress = readRadio { radio ->
-                    buildString {
-                        val bytes = radio.address.rgBytes
-                        for (i in 5 downTo 0) {
-                            val hexByte = bytes[i].toString(radix = 16)
-                                .padStart(2, '0')
-                                .uppercase()
-                            append(hexByte)
-                            if (i > 0) append(":")
-                        }
-                    }
-                }
+                val macAddress = readRadio { radio -> radio.address.rgBytes.toAddress() }
                 _cachedMacAddress = macAddress
             }
             return _cachedMacAddress
         }
 
-    actual override val bluetoothVersion: String?
-        get() {
-            if (_cachedVersion == null) {
-                val version = readRadio { radio -> radio.lmpSubversion }?.toInt() ?: return null
-                _cachedVersion = DeviceCommons.lmpVersions.getOrElse(version) { "UNKNOWN VERSION" }
+    fun CArrayPointer<BYTEVar>.toAddress(): String {
+        return buildString {
+            for (i in 5 downTo 0) {
+                val hexByte = this@toAddress[i].toString(16)
+                    .padStart(2, '0')
+                    .uppercase()
+                append(hexByte)
+                if (i > 0) append(":")
             }
-            return _cachedVersion
         }
-
+    }
 
     private inline fun <T> readRadio(operate: (BLUETOOTH_RADIO_INFO) -> T): T? = memScoped {
         val findParams = alloc<BLUETOOTH_FIND_RADIO_PARAMS>()
@@ -108,6 +100,22 @@ actual class PlatformDeviceBluetoothInfo : IDeviceBluetoothInfo {
 
     companion object {
         private val _logger = Logger.withTag("DEVICE_INFO_READER")
+
+        private val manufactureMap = buildMap {
+            put(0, "Ericsson Technology Licensing")
+            put(2, "Intel Corp.")
+            put(10, "Qualcomm / Atheros")
+            put(13, "Texas Instruments Inc.")
+            put(15, "Broadcom Corporation");
+            put(18, "Infineon Technologies AG")
+            put(29, "Qualcomm Technologies International")
+            put(47, "Marvell Technology Group Ltd.")
+            put(76, "Apple Inc.");
+            put(113, "Realtek Semiconductor Corp.")
+            put(224, "Nordic Semiconductor ASA")
+            put(6, "Microsoft")
+        }
+
     }
 
 }
