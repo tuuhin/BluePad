@@ -3,6 +3,7 @@ package com.sam.bluepad.presentation.feature_settings
 import androidx.lifecycle.viewModelScope
 import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
+import com.sam.bluepad.domain.settings.SyncSettingsProvider
 import com.sam.bluepad.domain.settings.UserAppSettingsProvider
 import com.sam.bluepad.presentation.feature_settings.event.SettingsScreenEvent
 import com.sam.bluepad.presentation.feature_settings.event.SettingsScreenState
@@ -25,6 +26,7 @@ class SettingsViewmodel(
     private val localDeviceProvider: LocalDeviceInfoProvider,
     private val platformInfoProvider: PlatformInfoProvider,
     private val settingsProvider: UserAppSettingsProvider,
+    private val syncSettings: SyncSettingsProvider,
 ) : AppViewModel() {
 
     private val _isSettingsLoaded = MutableStateFlow(false)
@@ -33,11 +35,13 @@ class SettingsViewmodel(
     val state = combine(
         localDeviceProvider.readDeviceInfo,
         settingsProvider.settingsFlow,
-    ) { device, settings ->
+        syncSettings.settingsFlow,
+    ) { device, settings, syncSettings ->
         SettingsScreenState(
             device = device,
             platformOs = platformInfoProvider.platformOS,
             appSettings = settings,
+            syncSettings = syncSettings,
         )
     }.onEach { _isSettingsLoaded.update { true } }
         .stateIn(
@@ -54,6 +58,10 @@ class SettingsViewmodel(
             is SettingsScreenEvent.OnUpdateDeviceName -> onUpdateDeviceName(event.newName)
             SettingsScreenEvent.OnToggleAppFont -> viewModelScope.launch { settingsProvider.toggleUseSystemFont() }
             SettingsScreenEvent.UseDynamicColor -> viewModelScope.launch { settingsProvider.toggleUseDynamicColor() }
+            is SettingsScreenEvent.OnUpdatePayloadSize -> viewModelScope.launch { syncSettings.updatePayloadSize(event.size) }
+            is SettingsScreenEvent.OnUpdateCompressionLevel -> viewModelScope.launch {
+                syncSettings.updateCompressionLevel(event.level)
+            }
         }
     }
 

@@ -43,4 +43,6 @@ sealed interface AdvertiserSyncEvent {
      * @property reason Reason for failure.
      */
     data class SyncFailed(val reason: String) : AdvertiserSyncEvent
+
+    data object RemoteProcessing : AdvertiserSyncEvent
 }

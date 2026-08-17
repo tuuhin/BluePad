@@ -52,7 +52,7 @@ sealed interface BLESyncSession {
     @Serializable
     @SerialName("sss")
     data class SyncSessionStart(
-        @ProtoNumber(100) override val sessionId: Uuid
+        @ProtoNumber(1) override val sessionId: Uuid
     ) : BLESyncSession
 
     /**
@@ -62,8 +62,8 @@ sealed interface BLESyncSession {
     @Serializable
     @SerialName("ss_sa")
     data class SyncSessionStartAck(
-        @ProtoNumber(1) val isAck: Boolean,
-        @ProtoNumber(100) override val sessionId: Uuid
+        @ProtoNumber(1) override val sessionId: Uuid,
+        @ProtoNumber(2) val isAck: Boolean,
     ) : BLESyncSession
 
     /**
@@ -71,15 +71,17 @@ sealed interface BLESyncSession {
      * @property type The category or schema of the data being sent.
      * @property sequenceNumber Used to ensure packets are processed in the correct order.
      * @property payload The serialized data content.
+     * @property isEmptyStart Specialized case for first empty output
      * @see BLESyncDataType
      */
     @Serializable
     @SerialName("bs_dp")
     data class BLESyncDataPacket(
-        @ProtoNumber(1) val type: BLESyncDataType,
-        @ProtoNumber(2) val sequenceNumber: Int,
-        @ProtoNumber(3) val payload: String,
-        @ProtoNumber(100) override val sessionId: Uuid
+        @ProtoNumber(1) override val sessionId: Uuid,
+        @ProtoNumber(2) val type: BLESyncDataType,
+        @ProtoNumber(3) val sequenceNumber: UInt = 0u,
+        @ProtoNumber(4) val payload: String = "",
+        @ProtoNumber(5) val isEmptyStart: Boolean = false,
     ) : BLESyncSession
 
     /**
@@ -90,8 +92,8 @@ sealed interface BLESyncSession {
     @Serializable
     @SerialName("bs_pe")
     data class BLESyncDataPacketEnd(
-        @ProtoNumber(1) val type: BLESyncDataType,
-        @ProtoNumber(100) override val sessionId: Uuid
+        @ProtoNumber(1) override val sessionId: Uuid,
+        @ProtoNumber(2) val type: BLESyncDataType,
     ) : BLESyncSession
 
     /**
@@ -101,7 +103,7 @@ sealed interface BLESyncSession {
     @Serializable
     @SerialName("spp")
     data class SyncPacketProcessing(
-        @ProtoNumber(100) override val sessionId: Uuid
+        @ProtoNumber(1) override val sessionId: Uuid
     ) : BLESyncSession
 
     /**
@@ -112,9 +114,9 @@ sealed interface BLESyncSession {
     @Serializable
     @SerialName("bs_da")
     data class BLESyncDataAck(
-        @ProtoNumber(1) val type: BLESyncDataType,
-        @ProtoNumber(2) val sequenceNumber: Int,
-        @ProtoNumber(100) override val sessionId: Uuid
+        @ProtoNumber(1) override val sessionId: Uuid,
+        @ProtoNumber(2) val type: BLESyncDataType,
+        @ProtoNumber(3) val sequenceNumber: UInt,
     ) : BLESyncSession
 
 
@@ -128,11 +130,11 @@ sealed interface BLESyncSession {
     @Serializable
     @SerialName("spt")
     data class SyncPacketTransition(
-        @ProtoNumber(1) val prevType: BLESyncDataType? = null,
-        @ProtoNumber(2) val newType: BLESyncDataType,
-        @ProtoNumber(3) val isRequested: Boolean = true,
-        @ProtoNumber(4) val isAck: Boolean = false,
-        @ProtoNumber(100) override val sessionId: Uuid
+        @ProtoNumber(1) override val sessionId: Uuid,
+        @ProtoNumber(2) val prevType: BLESyncDataType? = null,
+        @ProtoNumber(3) val newType: BLESyncDataType,
+        @ProtoNumber(4) val isRequested: Boolean = true,
+        @ProtoNumber(5) val isAck: Boolean = false,
     ) : BLESyncSession
 
 
@@ -142,7 +144,8 @@ sealed interface BLESyncSession {
     @Serializable
     @SerialName("ssc")
     data class SyncSessionSuccessful(
-        @ProtoNumber(100) override val sessionId: Uuid
+        @ProtoNumber(1) override val sessionId: Uuid,
+        @ProtoNumber(2) val reason: BLESyncCompletionReason = BLESyncCompletionReason.FULL_DUPLEX_SYNC_COMPLETED
     ) : BLESyncSession
 
     /**
@@ -152,7 +155,8 @@ sealed interface BLESyncSession {
     @Serializable
     @SerialName("ss_ak")
     data class SyncSessionSuccessfulAck(
-        @ProtoNumber(100) override val sessionId: Uuid
+        @ProtoNumber(1) override val sessionId: Uuid,
+        @ProtoNumber(2) val reason: BLESyncCompletionReason = BLESyncCompletionReason.FULL_DUPLEX_SYNC_COMPLETED
     ) : BLESyncSession
 
 
@@ -163,9 +167,9 @@ sealed interface BLESyncSession {
     @Serializable
     @SerialName("ssf")
     data class SyncSessionFailed(
-        @ProtoNumber(1) val reason: BLESyncFailedReason,
-        @ProtoNumber(2) val isCritical: Boolean = false,
-        @ProtoNumber(100) override val sessionId: Uuid,
+        @ProtoNumber(1) override val sessionId: Uuid,
+        @ProtoNumber(2) val reason: BLESyncFailedReason,
+        @ProtoNumber(3) val isCritical: Boolean = false,
     ) : BLESyncSession
 
 }

@@ -39,13 +39,14 @@ kableCore = "0.44.3"
 kableExceptions = "0.34.0"
 turbine = "1.2.1"
 nucleusnativeaccess = "0.6.0"
-nucleus = "2.4.1"
+nucleus = "2.4.7"
 cryptographyCore = "0.6.0"
 lighthouse = "2.3.2"
 catelog-update = "1.1.1"
 wireRuntime = "7.0.0-alpha06"
 koin-plugin = "1.1.0"
-google-fonts = "1.12.0-rc01"
+google-fonts = "1.12.0"
+zstdVersion = "1.5.7-13"
 
 [libraries]
 #testing
@@ -138,7 +139,10 @@ nucleus-system-accent = { module = "dev.nucleusframework:nucleus.system-color", 
 #others
 wire-runtime = { module = "com.squareup.wire:wire-runtime", version.ref = "wireRuntime" }
 material-kolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
+# downloadable fonts
 androidx-downloadable-fonts = { module = "androidx.compose.ui:ui-text-google-fonts", version.ref = "google-fonts" }
+# compresssion
+zstd-compression = { module = "com.github.luben:zstd-jni", version.ref = "zstdVersion" }
 #Gradle plugins
 kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 nucleus-nna-gradlePlugin = { module = "dev.nucleusframework.nna:dev.nucleusframework.nna.gradle.plugin", version.ref = "nucleusnativeaccess" }

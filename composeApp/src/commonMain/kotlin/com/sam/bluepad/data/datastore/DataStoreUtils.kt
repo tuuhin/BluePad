@@ -13,6 +13,7 @@ object DataStoreUtils {
 
     const val APP_COMMONS_DATASTORE_FILE = "app_properties.pb"
     const val APP_USER_SETTINGS_DATASTORE_FILE = "user_settings.pb"
+    const val APP_SYNC_SETTINGS_DATASTORE_FILE = "sync_settings.pb"
 
     // keys
     const val APP_DEVICE_ID_KEY = "blepad_app_device_id"
