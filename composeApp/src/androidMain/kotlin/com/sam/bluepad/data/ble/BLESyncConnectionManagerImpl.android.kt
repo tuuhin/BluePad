@@ -12,13 +12,14 @@ import android.content.Context
 import android.location.LocationManager
 import android.os.Build
 import android.os.ParcelUuid
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.ble.callbacks.SyncDeviceConnectionCallback
 import com.sam.bluepad.data.ble.callbacks.SyncDeviceDiscoveryCallback
 import com.sam.bluepad.data.ble.exceptions.GattInvalidStatusException
+import com.sam.bluepad.data.utils.CoroutineLifecycleOwner
+import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.data.utils.hasBLEScanPermission
 import com.sam.bluepad.data.utils.hasCoarseLocationPermission
 import com.sam.bluepad.data.utils.hasFineLocationPermission
@@ -32,7 +33,6 @@ import com.sam.bluepad.domain.exceptions.LocationDisabledException
 import com.sam.bluepad.domain.exceptions.LocationPermissionException
 import com.sam.bluepad.domain.utils.Resource
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.channels.awaitClose
@@ -52,6 +52,7 @@ private const val TAG = "SYNC_CONNECTION_MANAGER"
 @SuppressLint("MissingPermission")
 actual class BLESyncConnectionManagerImpl(
     private val context: Context,
+    private val dispatches: PlatformDispatcherProvider,
     private val scanCallback: SyncDeviceDiscoveryCallback,
     private val connectionCallback: SyncDeviceConnectionCallback,
 ) : BLESyncConnectionManager {
@@ -88,6 +89,7 @@ actual class BLESyncConnectionManagerImpl(
             emit(Resource.Success(ConnectorSyncEvent.DiscoveryStarted))
             Logger.i(tag = TAG) { "SCANNING FOR DEVICES STATED" }
             val btDevice = withTimeout(timeout) {
+                // TODO: Some way determine the correct device we are trying to connect to
                 runBLEDiscovery().first()
             }
             Logger.i(tag = TAG) { "SCAN RESULT FOUND" }
@@ -106,7 +108,7 @@ actual class BLESyncConnectionManagerImpl(
             }
             Logger.e(tag = TAG, throwable = e) { "SOME EXCEPTION OCCURRED" }
         }
-    }.flowOn(Dispatchers.IO)
+    }.flowOn(dispatches.io)
 
 
     private fun runBLEDiscovery(): Flow<BluetoothDevice> = channelFlow {
@@ -148,9 +150,13 @@ actual class BLESyncConnectionManagerImpl(
             close(err)
         }
 
+
+        val lifecycle = CoroutineLifecycleOwner(coroutineContext)
+        lifecycle.lifecycle.addObserver(connectionCallback)
+
         Logger.d(tag = TAG) { "OPENING GATT CONNECTION" }
         val btGatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
-            val ioDispatcher = Dispatchers.IO
+            val ioDispatcher = dispatches.io
                 .limitedParallelism(2, "bluetooth_connection_executor")
                 .asExecutor()
             device.connectGatt(connectSettings, ioDispatcher, connectionCallback)
@@ -164,14 +170,11 @@ actual class BLESyncConnectionManagerImpl(
         awaitClose {
             Logger.d(tag = TAG) { "CLOSING GATT CONNECTION" }
             btGatt?.close()
-            connectionCallback.onClearCallbacks()
+//            lifecycle.lifecycle.removeObserver(connectionCallback)
         }
-    }
+    }.flowOn(dispatches.main)
 
-    override fun close() {
-        Log.d(TAG, "CALLBACK CLEAN UP")
-        connectionCallback.onClose()
-    }
+    override fun close() = Unit
 
     private fun checkPermissionsAndPreconditions(): Exception? {
         return when {
