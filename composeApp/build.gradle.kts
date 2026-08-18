@@ -114,6 +114,7 @@ kotlin {
             implementation(projects.jvmCore.cryptoBridge)
             implementation(projects.jvmCore.commonUtility)
             implementation(projects.jvmCore.shareSheet)
+            implementation(projects.jvmCore.deviceInfo)
             // color
             implementation(libs.nucleus.system.accent)
             // compression

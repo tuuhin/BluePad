@@ -1,9 +1,9 @@
 package com.sam.bluepad.presentation.feature_sync.viewmodel
 
 import androidx.lifecycle.viewModelScope
-import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLESyncConnectionManager
 import com.sam.bluepad.domain.ble.events.ConnectorSyncEvent
+import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.utils.Resource
 import com.sam.bluepad.presentation.feature_sync.event.SyncConnectorScreenEvent
@@ -33,7 +33,7 @@ import kotlin.uuid.Uuid
 @KoinViewModel
 class SyncConnectorViewModel(
     localDeviceInfoProvider: LocalDeviceInfoProvider,
-    platformInfoProvider: PlatformInfoProvider,
+    platformInfoProvider: IPlatformInfoReader,
     private val connectionManager: BLESyncConnectionManager
 ) : AppViewModel() {
 

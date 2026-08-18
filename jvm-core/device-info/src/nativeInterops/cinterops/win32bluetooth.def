@@ -1,0 +1,5 @@
+headers = windows.h bthdef.h bluetoothapis.h
+headerFilter = bluetoothapis.h bthdef.h
+
+linkerOpts.mingw = -lbthprops -lws2_32
+compilerOpts.mingw = -DWIN32_LEAN_AND_MEAN

@@ -80,6 +80,7 @@ fun CurrentDeviceInfoCard(
 ) {
 
     var showDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeviceInfoDialog by rememberSaveable { mutableStateOf(false) }
 
     UpdateDeviceNameDialog(
         showDialog = showDialog,
@@ -89,6 +90,11 @@ fun CurrentDeviceInfoCard(
             onUpdateName(newName)
             showDialog = false
         },
+    )
+
+    PlatformDetailsDialog(
+        showDialog = showDeviceInfoDialog,
+        onDismissDialog = { showDeviceInfoDialog = false },
     )
 
     Card(
@@ -149,6 +155,8 @@ fun CurrentDeviceInfoCard(
             }
             DeviceOSTypeContainer(
                 deviceOs = devicePlatform,
+                onClick = { showDeviceInfoDialog = true },
+                enabled = true,
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                 modifier = Modifier.size(80.dp),
             )

@@ -44,6 +44,7 @@ import androidx.compose.material3.WideNavigationRailValue
 import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberWideNavigationRailState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,10 +59,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import androidx.window.core.layout.WindowSizeClass
-import com.sam.bluepad.presentation.core.AppCommonViewModel
 import com.sam.bluepad.presentation.composables.RequestBTEnableDialog
+import com.sam.bluepad.presentation.core.AppCommonViewModel
 import com.sam.bluepad.presentation.navigation.nav_graph.RootTabLayoutNavGraph
 import com.sam.bluepad.presentation.utils.LocalAnimatedContentScope
+import com.sam.bluepad.presentation.utils.LocalPlatformDetails
 import com.sam.bluepad.presentation.utils.LocalWindowSizeInfo
 import com.sam.bluepad.presentation.utils.UiEventsHandler
 import com.sam.bluepad.presentation.utils.transitions.sharedTransitionRenderInOverlay
@@ -94,6 +96,7 @@ fun AdaptiveNavigationSuitWrapper(
     val viewModel = koinViewModel<AppCommonViewModel>(viewModelStoreOwner = storeOwner)
 
     val bluetoothState by viewModel.bluetoothState.collectAsStateWithLifecycle()
+    val platformDetails by viewModel.platformDetails.collectAsStateWithLifecycle()
 
     UiEventsHandler(
         eventsFlow = viewModel::uiEvent,
@@ -169,14 +172,16 @@ fun AdaptiveNavigationSuitWrapper(
                         },
                     ),
             )
-            ContainerContent(
-                isBtActive = bluetoothState.isBTActive,
-                content = content,
-                onRequestBTActive = { showDialog = true },
-                modifier = Modifier.weight(1f)
-                    .fillMaxHeight()
-                    .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()),
-            )
+            CompositionLocalProvider(LocalPlatformDetails provides platformDetails) {
+                ContainerContent(
+                    isBtActive = bluetoothState.isBTActive,
+                    content = content,
+                    onRequestBTActive = { showDialog = true },
+                    modifier = Modifier.weight(1f)
+                        .fillMaxHeight()
+                        .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()),
+                )
+            }
         }
     }
 }

@@ -15,7 +15,6 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.ble.callbacks.DeviceConnectionCallback
-import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.data.utils.hasBLEScanPermission
 import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.BLEConstants
@@ -26,6 +25,7 @@ import com.sam.bluepad.domain.exceptions.BluetoothInvalidAddressException
 import com.sam.bluepad.domain.exceptions.BluetoothInvalidDeviceException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
 import com.sam.bluepad.domain.exceptions.BluetoothPermissionException
+import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import com.sam.bluepad.domain.utils.Resource
@@ -55,7 +55,7 @@ actual class BLEConnectionManagerImpl(
     private val context: Context,
     private val protoBuf: ProtoBuf,
     private val deviceInfoProvider: LocalDeviceInfoProvider,
-    private val platformInfoProvider: PlatformInfoProvider,
+    private val platformInfoProvider: IPlatformInfoReader,
     private val randomGenerator: RandomGenerator,
 ) : BLEConnectionManager {
 

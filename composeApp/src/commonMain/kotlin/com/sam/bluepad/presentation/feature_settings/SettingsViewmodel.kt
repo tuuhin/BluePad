@@ -1,7 +1,7 @@
 package com.sam.bluepad.presentation.feature_settings
 
 import androidx.lifecycle.viewModelScope
-import com.sam.bluepad.data.utils.PlatformInfoProvider
+import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.settings.SyncSettingsProvider
 import com.sam.bluepad.domain.settings.UserAppSettingsProvider
@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -24,13 +24,13 @@ import org.koin.core.annotation.KoinViewModel
 @KoinViewModel
 class SettingsViewmodel(
     private val localDeviceProvider: LocalDeviceInfoProvider,
-    private val platformInfoProvider: PlatformInfoProvider,
+    private val platformInfoProvider: IPlatformInfoReader,
     private val settingsProvider: UserAppSettingsProvider,
     private val syncSettings: SyncSettingsProvider,
 ) : AppViewModel() {
 
-    private val _isSettingsLoaded = MutableStateFlow(false)
-    val isSettingsLoaded = _isSettingsLoaded.asStateFlow()
+    val isSettingsLoaded: StateFlow<Boolean>
+        field = MutableStateFlow(false)
 
     val state = combine(
         localDeviceProvider.readDeviceInfo,
@@ -43,7 +43,7 @@ class SettingsViewmodel(
             appSettings = settings,
             syncSettings = syncSettings,
         )
-    }.onEach { _isSettingsLoaded.update { true } }
+    }.onEach { isSettingsLoaded.update { true } }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(4_000L),

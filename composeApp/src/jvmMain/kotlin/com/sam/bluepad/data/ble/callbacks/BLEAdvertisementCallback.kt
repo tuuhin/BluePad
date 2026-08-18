@@ -5,6 +5,8 @@ import com.sam.ble_advertise.BLEAdvertiserListener
 import com.sam.ble_advertise.models.BLEAdvertisementStatus
 import com.sam.ble_advertise.models.GattWriteResponse
 import com.sam.bluepad.data.ble.delegate.BLEAdvertiserSyncHandlerDelegate
+import com.sam.bluepad.data.sync.dto.BLESyncDataType
+import com.sam.bluepad.data.sync.dto.BLESyncSession
 import com.sam.bluepad.data.ble.delegate.PeerDataAdvertiserDelegate
 import com.sam.bluepad.data.ble.delegate.PeerProximityAdvertiserDelegate
 import com.sam.bluepad.domain.ble.BLEConstants
@@ -12,6 +14,7 @@ import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.models.LocalDeviceInfoModel
+import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import kotlinx.coroutines.channels.BufferOverflow
