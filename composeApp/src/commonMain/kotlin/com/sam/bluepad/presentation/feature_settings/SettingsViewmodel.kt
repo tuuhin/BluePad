@@ -1,7 +1,7 @@
 package com.sam.bluepad.presentation.feature_settings
 
 import androidx.lifecycle.viewModelScope
-import com.sam.bluepad.data.utils.PlatformInfoProvider
+import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.settings.UserAppSettingsProvider
 import com.sam.bluepad.presentation.feature_settings.event.SettingsScreenEvent
@@ -23,7 +23,7 @@ import org.koin.core.annotation.KoinViewModel
 @KoinViewModel
 class SettingsViewmodel(
     private val localDeviceProvider: LocalDeviceInfoProvider,
-    private val platformInfoProvider: PlatformInfoProvider,
+    private val platformInfoProvider: IPlatformInfoReader,
     private val settingsProvider: UserAppSettingsProvider,
 ) : AppViewModel() {
 

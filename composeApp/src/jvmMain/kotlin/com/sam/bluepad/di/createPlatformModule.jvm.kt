@@ -17,7 +17,6 @@ import com.sam.bluepad.data.platform.PlatformInfoReaderImpl
 import com.sam.bluepad.data.utils.CommonAppFilesStore
 import com.sam.bluepad.data.utils.JVMPermissionController
 import com.sam.bluepad.data.utils.PlatformDispatcherProvider
-import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.BLEDiscoveryManager
@@ -65,7 +64,6 @@ actual fun createPlatformModule(): Module = module {
     factory<BTDeviceBondManagerImpl>() bind BTDeviceBondManager::class
     factory<BTEnableRequestProviderImpl>() bind BTEnableRequestProvider::class
 
-    single<PlatformInfoProvider>()
 
     // interactions
     single<ShareSketchInteractionImpl>() bind ShareSketchInteraction::class

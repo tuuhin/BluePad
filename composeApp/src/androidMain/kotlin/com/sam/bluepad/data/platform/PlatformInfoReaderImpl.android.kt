@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.utils.hasConnectPermission
+import com.sam.bluepad.domain.models.DevicePlatformOS
 import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.domain.platform.PlatformDeviceInfo
 
@@ -14,6 +15,9 @@ private const val TAG = "ANDROID_DEVICE_INFO"
 actual class PlatformInfoReaderImpl(private val context: Context) : IPlatformInfoReader {
 
     private val bluetoothAdapter by lazy { context.getSystemService<BluetoothManager>() }
+
+    actual override val platformOS: DevicePlatformOS
+        get() = DevicePlatformOS.ANDROID
 
     actual override suspend fun readPlatform(): Result<PlatformDeviceInfo> {
         val osName = "Android"

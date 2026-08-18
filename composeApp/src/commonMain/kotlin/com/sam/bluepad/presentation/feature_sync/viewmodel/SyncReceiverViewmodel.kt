@@ -1,11 +1,11 @@
 package com.sam.bluepad.presentation.feature_sync.viewmodel
 
 import androidx.lifecycle.viewModelScope
-import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEAdvertisementManager
 import com.sam.bluepad.domain.ble.BLEConnectionType
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.models.ExternalDeviceModel
+import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.presentation.feature_sync.event.SyncReceiverScreenEvent
 import com.sam.bluepad.presentation.feature_sync.event.SyncWorkflowEvent
@@ -34,7 +34,7 @@ import kotlin.uuid.Uuid
 @KoinViewModel
 class SyncReceiverViewmodel(
     localDeviceProvider: LocalDeviceInfoProvider,
-    platformProvider: PlatformInfoProvider,
+    platformProvider: IPlatformInfoReader,
     private val advertiser: BLEAdvertisementManager,
 ) : AppViewModel() {
 
@@ -108,6 +108,7 @@ class SyncReceiverViewmodel(
                     _foreignDevice.update { event.device }
                     _syncPhase.update { SyncUIState.Running }
                 }
+
                 is AdvertiserSyncEvent.HalfDuplexCompleted -> _syncPhase.update { SyncUIState.HalfDuplexCompleted }
                 is AdvertiserSyncEvent.FullDuplexCompleted -> {
                     _syncSessionId.update { event.sessionId }

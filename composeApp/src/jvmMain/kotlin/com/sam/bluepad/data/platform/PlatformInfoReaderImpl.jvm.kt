@@ -2,6 +2,7 @@ package com.sam.bluepad.data.platform
 
 import com.sam.bluepad.com.sam.bluepad.device_info.JVMDeviceInfoReader
 import com.sam.bluepad.com.sam.bluepad.device_info.JVMPlatformInfoReader
+import com.sam.bluepad.domain.models.DevicePlatformOS
 import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.domain.platform.PlatformDeviceInfo
 import kotlinx.coroutines.CancellationException
@@ -12,6 +13,16 @@ actual class PlatformInfoReaderImpl : IPlatformInfoReader {
 
     private val osInfo by lazy { JVMPlatformInfoReader() }
     private val btAdapterInfo by lazy { JVMDeviceInfoReader() }
+
+    actual override val platformOS: DevicePlatformOS
+        get() {
+            val os = System.getProperty("os.name").lowercase()
+            return when {
+                os.contains("win") -> DevicePlatformOS.WINDOWS
+                os.contains("mac") -> DevicePlatformOS.MACOS
+                else -> throw UnsupportedOperationException("Unsupported operating system: $os")
+            }
+        }
 
     actual override suspend fun readPlatform(): Result<PlatformDeviceInfo> {
         return coroutineScope {

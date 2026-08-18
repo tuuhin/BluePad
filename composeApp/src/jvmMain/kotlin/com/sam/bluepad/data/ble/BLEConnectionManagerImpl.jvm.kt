@@ -8,7 +8,6 @@ import com.juul.kable.WriteType
 import com.juul.kable.logs.Logging
 import com.juul.kable.logs.SystemLogEngine
 import com.juul.kable.toIdentifier
-import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConnectionManager
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.enums.BLEConnectionState
@@ -16,6 +15,7 @@ import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.exceptions.BLEConnectionFailedException
 import com.sam.bluepad.domain.exceptions.BLEServiceNotFoundException
 import com.sam.bluepad.domain.exceptions.BluetoothNotEnabledException
+import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import com.sam.bluepad.domain.utils.Resource
@@ -44,7 +44,7 @@ private const val TAG = "BLE_CONNECTOR"
 actual class BLEConnectionManagerImpl(
     private val protoBuf: ProtoBuf,
     private val deviceInfoProvider: LocalDeviceInfoProvider,
-    private val platformInfoProvider: PlatformInfoProvider,
+    private val platformInfoProvider: IPlatformInfoReader,
     private val randomGenerator: RandomGenerator,
 ) : BLEConnectionManager {
 

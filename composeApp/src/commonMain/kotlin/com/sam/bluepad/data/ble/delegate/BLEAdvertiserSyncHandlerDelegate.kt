@@ -6,12 +6,12 @@ import com.sam.bluepad.data.sync.dto.BLESyncDataType
 import com.sam.bluepad.data.sync.dto.BLESyncFailedReason
 import com.sam.bluepad.data.sync.dto.BLESyncHandshakeData
 import com.sam.bluepad.data.sync.dto.BLESyncSession
-import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.exceptions.InvalidCCCDescriptorException
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.models.LocalDeviceInfoModel
+import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.domain.sync.InPayloadManager
 import com.sam.bluepad.domain.sync.OutPayloadManager
 import com.sam.bluepad.domain.sync.models.SyncDataPayload
@@ -28,7 +28,7 @@ import kotlin.uuid.Uuid
 class BLEAdvertiserSyncHandlerDelegate(
     val protoBuf: ProtoBuf,
     val randomGenerator: RandomGenerator,
-    val platformInfoProvider: PlatformInfoProvider,
+    val platformInfoProvider: IPlatformInfoReader,
     val encoder: BytesEncoder,
     val inPayloadManager: InPayloadManager,
     val outPayloadManager: OutPayloadManager,
