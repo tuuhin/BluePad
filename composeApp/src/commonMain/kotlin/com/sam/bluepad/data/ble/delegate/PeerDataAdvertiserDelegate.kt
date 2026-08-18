@@ -3,9 +3,9 @@ package com.sam.bluepad.data.ble.delegate
 import co.touchlab.kermit.Logger
 import com.sam.bluepad.data.ble.exceptions.BLEAdvertiserException
 import com.sam.bluepad.data.utils.PlatformDispatcherProvider
-import com.sam.bluepad.data.utils.PlatformInfoProvider
 import com.sam.bluepad.domain.ble.models.BLEPeerData
 import com.sam.bluepad.domain.models.LocalDeviceInfoModel
+import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.domain.use_cases.RandomGenerator
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromByteArray
@@ -15,7 +15,7 @@ import kotlinx.serialization.protobuf.ProtoBuf
 class PeerDataAdvertiserDelegate(
     val protoBuf: ProtoBuf,
     val randomGenerator: RandomGenerator,
-    val platformInfoProvider: PlatformInfoProvider,
+    val platformInfoProvider: IPlatformInfoReader,
     val dispatchers: PlatformDispatcherProvider,
 ) {
 
