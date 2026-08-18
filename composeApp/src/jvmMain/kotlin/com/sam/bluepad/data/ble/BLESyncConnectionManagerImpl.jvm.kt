@@ -10,6 +10,8 @@ import com.juul.kable.Scanner
 import com.juul.kable.WriteType
 import com.juul.kable.logs.Logging
 import com.sam.bluepad.data.ble.delegate.BLEConnectorSyncHandlerDelegate
+import com.sam.bluepad.data.ble.delegate.PeerProximityConnectorDelegate
+import com.sam.bluepad.data.utils.PlatformDispatcherProvider
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.BLESyncConnectionManager
 import com.sam.bluepad.domain.ble.ResourcesSyncDataEvents
@@ -20,8 +22,6 @@ import com.sam.bluepad.domain.exceptions.InvalidServiceOrCharacteristicsExceptio
 import com.sam.bluepad.domain.models.ExternalDeviceModel
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
-import com.sam.bluepad.domain.sync.InPayloadManager
-import com.sam.bluepad.domain.sync.OutPayloadManager
 import com.sam.bluepad.domain.utils.Resource
 import com.sam.bt_common.isBTActive
 import com.sam.bt_common.isLEConnectionAvailable
@@ -50,7 +50,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -59,27 +58,13 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "BLE_SYNC_CONNECTION_MANAGER"
 
-actual class BLESyncConnectionManagerImpl private constructor(
+actual class BLESyncConnectionManagerImpl(
     private val localDeviceProvider: LocalDeviceInfoProvider,
+    private val dispatchers: PlatformDispatcherProvider,
     private val externalDevicesRepository: ExternalDevicesRepository,
-    private val delegate: BLEConnectorSyncHandlerDelegate,
+    private val peerProximityDelegate: PeerProximityConnectorDelegate,
+    private val syncHandlerDelegate: BLEConnectorSyncHandlerDelegate,
 ) : BLESyncConnectionManager {
-
-    constructor(
-        deviceInfoProvider: LocalDeviceInfoProvider,
-        externalDevicesRepository: ExternalDevicesRepository,
-        protoBuf: ProtoBuf,
-        syncOutPayloadManager: OutPayloadManager,
-        syncInPayloadManager: InPayloadManager,
-    ) : this(
-        localDeviceProvider = deviceInfoProvider,
-        externalDevicesRepository = externalDevicesRepository,
-        delegate = BLEConnectorSyncHandlerDelegate(
-            protoBuf = protoBuf,
-            outPayloadManager = syncOutPayloadManager,
-            inPayloadManager = syncInPayloadManager,
-        ),
-    )
 
     private val _scanner = Scanner {
         logging {
@@ -193,7 +178,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
                     syncDataCharacteristics.observeNotifications(
                         peripheral = peripheral,
                         onObserveBytes = { bytes ->
-                            val result = delegate.handleSyncDataNotification(
+                            val result = syncHandlerDelegate.handleSyncDataNotification(
                                 characteristicId = BLEConstants.SYNC_DATA_CHARACTERISTICS_ID,
                                 value = bytes,
                                 onWriteBytes = { dataBytes ->
@@ -232,7 +217,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
                             true
                         },
                         onObserveBytes = { bytes ->
-                            val event = delegate.handleHandshakeNotification(
+                            val event = peerProximityDelegate.handleHandshakeNotification(
                                 value = bytes,
                                 onHandshakeSuccess = {
                                     if (this.isActive) {
@@ -257,7 +242,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
                 val bytes = peripheral.read(handshakeCharacteristics)
 
 
-                val deviceResult = delegate.handleHandshakeRead(
+                val deviceResult = peerProximityDelegate.handleHandshakeRead(
                     deviceAddress = deviceAddress,
                     value = bytes,
                     deviceInfo = localDeviceProvider.readDeviceInfo.first(),
@@ -287,6 +272,9 @@ actual class BLESyncConnectionManagerImpl private constructor(
             }
             awaitClose {
                 runBlocking(NonCancellable) {
+                    // clear all form the handler delegate
+                    syncHandlerDelegate.cleanUp()
+                    // then perform all the disconnect and close logic
                     try {
                         Logger.i(tag = TAG) { "DISCONNECTING THE PERIPHERAL" }
                         withTimeoutOrNull(2.seconds) {
@@ -349,7 +337,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
                 val descriptorValue = peripheral.read(cccDescriptor)
                 Logger.d(tag = TAG) { "READY TO OBSERVE NOTIFICATIONS" }
                 // mostly ccc will be enabled here
-                delegate.onEnabledDisabledCCCDescriptor(
+                peerProximityDelegate.onEnabledDisabledCCCDescriptor(
                     address = peripheral.identifier.toString(),
                     characteristicId = this@observeNotifications.characteristicUuid,
                     bytes = descriptorValue,
@@ -363,7 +351,7 @@ actual class BLESyncConnectionManagerImpl private constructor(
                 val descriptorValue = peripheral.read(cccDescriptor)
                 Logger.d(tag = TAG) { "CHARACTERISTICS:${characteristicUuid} NOTIFICATION OBSERVER STOPPED" }
                 // mostly ccc will be disabled here
-                delegate.onEnabledDisabledCCCDescriptor(
+                peerProximityDelegate.onEnabledDisabledCCCDescriptor(
                     address = peripheral.toString(),
                     characteristicId = this@observeNotifications.characteristicUuid,
                     bytes = descriptorValue,

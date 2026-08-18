@@ -1,6 +1,6 @@
 package com.sam.bluepad.domain.use_cases
 
-interface RandomGenerator {
+fun interface RandomGenerator {
 
-	fun generateRandomBytes(size: Int = 12): ByteArray
+    suspend fun generateRandomBytes(size: Int): ByteArray
 }

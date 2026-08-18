@@ -1,5 +1,11 @@
 package com.sam.bluepad.di
 
+import com.sam.bluepad.data.ble.delegate.BLEAdvertiserSyncHandlerDelegate
+import com.sam.bluepad.data.ble.delegate.BLEConnectorSyncHandlerDelegate
+import com.sam.bluepad.data.ble.delegate.PeerDataAdvertiserDelegate
+import com.sam.bluepad.data.ble.delegate.PeerProximityAdvertiserDelegate
+import com.sam.bluepad.data.ble.delegate.PeerProximityConnectorDelegate
+import com.sam.bluepad.data.compression.CompressionManagerImpl
 import com.sam.bluepad.data.crypto.EncryptionSessionManagerImpl
 import com.sam.bluepad.data.crypto.encryption.AESCBCEncryptionManager
 import com.sam.bluepad.data.crypto.files.KeyFileManagerImpl
@@ -12,6 +18,7 @@ import com.sam.bluepad.data.database.dao.SketchMetadataDao
 import com.sam.bluepad.data.database.dao.SketchesDao
 import com.sam.bluepad.data.datastore.DataStoreProvider
 import com.sam.bluepad.data.datastore.LocalDeviceInfoProviderImpl
+import com.sam.bluepad.data.datastore.SyncSettingsProviderImpl
 import com.sam.bluepad.data.datastore.UserAppSettingsProviderImpl
 import com.sam.bluepad.data.repository.ExternalDevicesRepoImpl
 import com.sam.bluepad.data.repository.SketchesRepoImpl
@@ -22,6 +29,7 @@ import com.sam.bluepad.data.sync.SyncManagerImpl
 import com.sam.bluepad.data.sync_diff.SyncDataSaverImpl
 import com.sam.bluepad.data.sync_diff.SyncDataSessionReaderImpl
 import com.sam.bluepad.data.sync_diff.SyncDiffCalculatorImpl
+import com.sam.bluepad.domain.compression.ICompressionManager
 import com.sam.bluepad.domain.crypto.EncryptionManager
 import com.sam.bluepad.domain.crypto.EncryptionSessionManager
 import com.sam.bluepad.domain.crypto.KeyFileManager
@@ -29,6 +37,7 @@ import com.sam.bluepad.domain.crypto.SyncDiffFileManager
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
 import com.sam.bluepad.domain.repository.SketchesRepository
+import com.sam.bluepad.domain.settings.SyncSettingsProvider
 import com.sam.bluepad.domain.settings.UserAppSettingsProvider
 import com.sam.bluepad.domain.sync.InPayloadManager
 import com.sam.bluepad.domain.sync.OutPayloadManager
@@ -66,6 +75,7 @@ val commonAppModule = module {
     // DataStore & Settings
     single<DataStoreProvider>()
     single<UserAppSettingsProviderImpl>() bind UserAppSettingsProvider::class
+    single<SyncSettingsProviderImpl>() bind SyncSettingsProvider::class
 
     // Utils
     single<RandomNameGenerator>()
@@ -78,6 +88,13 @@ val commonAppModule = module {
     factory<SyncManagerImpl>() bind SyncManager::class
     factory<OutgoingPayloadManagerImpl> { create(::OutgoingPayloadManagerImpl) } bind OutPayloadManager::class
     factory<IncomingPayloadManagerImpl> { create(::IncomingPayloadManagerImpl) } bind InPayloadManager::class
+
+    // ble delegates
+    factory<BLEAdvertiserSyncHandlerDelegate>()
+    factory<BLEConnectorSyncHandlerDelegate>()
+    factory<PeerDataAdvertiserDelegate>()
+    factory<PeerProximityAdvertiserDelegate>()
+    factory<PeerProximityConnectorDelegate>()
 
     // Device Info Provider
     single<LocalDeviceInfoProviderImpl>() bind LocalDeviceInfoProvider::class
@@ -98,4 +115,7 @@ val commonAppModule = module {
     // Crypto
     factory<AESCBCEncryptionManager> { create(::AESCBCEncryptionManager) } bind EncryptionManager::class
     factory<EncryptionSessionManagerImpl> { create(::EncryptionSessionManagerImpl) } bind EncryptionSessionManager::class
+
+    // compression
+    single<CompressionManagerImpl>() bind ICompressionManager::class
 }

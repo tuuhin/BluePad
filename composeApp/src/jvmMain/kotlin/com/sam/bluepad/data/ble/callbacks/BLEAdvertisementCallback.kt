@@ -7,6 +7,8 @@ import com.sam.ble_advertise.models.GattWriteResponse
 import com.sam.bluepad.data.ble.delegate.BLEAdvertiserSyncHandlerDelegate
 import com.sam.bluepad.data.sync.dto.BLESyncDataType
 import com.sam.bluepad.data.sync.dto.BLESyncSession
+import com.sam.bluepad.data.ble.delegate.PeerDataAdvertiserDelegate
+import com.sam.bluepad.data.ble.delegate.PeerProximityAdvertiserDelegate
 import com.sam.bluepad.domain.ble.BLEConstants
 import com.sam.bluepad.domain.ble.events.AdvertiserSyncEvent
 import com.sam.bluepad.domain.ble.models.BLEPeerData
@@ -15,10 +17,6 @@ import com.sam.bluepad.domain.models.LocalDeviceInfoModel
 import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.domain.provider.LocalDeviceInfoProvider
 import com.sam.bluepad.domain.repository.ExternalDevicesRepository
-import com.sam.bluepad.domain.sync.InPayloadManager
-import com.sam.bluepad.domain.sync.OutPayloadManager
-import com.sam.bluepad.domain.use_cases.BytesEncoder
-import com.sam.bluepad.domain.use_cases.RandomGenerator
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -27,7 +25,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import kotlinx.serialization.protobuf.ProtoBuf
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
 
@@ -35,33 +32,14 @@ private const val TAG = "BLE_ADVERTISEMENT_CALLBACK"
 
 private typealias NotifyCharacteristicsChanged = suspend (deviceAddress: String, characteristicsUuid: Uuid, value: ByteArray) -> Boolean
 
-class BLEAdvertisementCallback private constructor(
+class BLEAdvertisementCallback(
     private val deviceInfoProvider: LocalDeviceInfoProvider,
     private val externalDevicesRepo: ExternalDevicesRepository,
-    private val delegate: BLEAdvertiserSyncHandlerDelegate,
+    private val syncDelegate: BLEAdvertiserSyncHandlerDelegate,
+    private val peerDelegate: PeerProximityAdvertiserDelegate,
+    private val deviceDataDelegate: PeerDataAdvertiserDelegate,
 ) : BLEAdvertiserListener {
 
-    constructor(
-        protoBuf: ProtoBuf,
-        randomGenerator: RandomGenerator,
-        platformInfoProvider: IPlatformInfoReader,
-        encoder: BytesEncoder,
-        deviceInfoProvider: LocalDeviceInfoProvider,
-        externalDevicesRepo: ExternalDevicesRepository,
-        syncInManager: InPayloadManager,
-        syncOutManager: OutPayloadManager,
-    ) : this(
-        deviceInfoProvider = deviceInfoProvider,
-        externalDevicesRepo = externalDevicesRepo,
-        delegate = BLEAdvertiserSyncHandlerDelegate(
-            protoBuf = protoBuf,
-            randomGenerator = randomGenerator,
-            platformInfoProvider = platformInfoProvider,
-            encoder = encoder,
-            inPayloadManager = syncInManager,
-            outPayloadManager = syncOutManager,
-        ),
-    )
 
     private suspend fun readLocalDevice(): LocalDeviceInfoModel {
         return deviceInfoProvider.readDeviceInfo.first()
@@ -104,7 +82,7 @@ class BLEAdvertisementCallback private constructor(
             BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID if (serviceUuid == BLEConstants.DEVICE_INFO_SERVICE_ID) -> {
                 Logger.d(tag = TAG) { "READ REQUEST WITH CHARACTERISTIC : $characteristicUuid FROM DISCOVERY SERVICE" }
                 val device = readLocalDevice()
-                val result = delegate.handleDeviceReadRequest(currentDeviceInfo = device)
+                val result = deviceDataDelegate.handleDeviceReadRequest(currentDeviceInfo = device)
                 return result.getOrNull()
             }
 
@@ -113,7 +91,7 @@ class BLEAdvertisementCallback private constructor(
                 _advertiserEvents.tryEmit(AdvertiserSyncEvent.HandshakeStarted)
                 val device = readLocalDevice()
                 val result =
-                    delegate.handleProximityReadRequest(address = deviceAddress, currentDevice = device)
+                    peerDelegate.handleProximityReadRequest(address = deviceAddress, currentDevice = device)
 
                 return result.getOrNull()
             }
@@ -134,7 +112,7 @@ class BLEAdvertisementCallback private constructor(
         when (characteristicUuid) {
             BLEConstants.DEVICE_INFO_CHARACTERISTICS_ID if (serviceUuid == BLEConstants.DEVICE_INFO_SERVICE_ID) -> {
                 Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicUuid FROM DISCOVERY SERVICE" }
-                val result = delegate.handleDeviceWriteRequest(value = value)
+                val result = deviceDataDelegate.handleDeviceWriteRequest(value = value)
                 val peerDevice = result.getOrNull() ?: return GattWriteResponse.FAILED
                 _peerDevices.update { device -> (device + peerDevice).distinctBy { it.deviceId } }
                 return GattWriteResponse.SUCCESS
@@ -145,7 +123,7 @@ class BLEAdvertisementCallback private constructor(
 
                 val device = readLocalDevice()
 
-                val result = delegate.handleProximityWriteRequest(
+                val result = peerDelegate.handleProximityWriteRequest(
                     value = value,
                     address = address,
                     onNotify = { bytes ->
@@ -171,40 +149,17 @@ class BLEAdvertisementCallback private constructor(
             BLEConstants.SYNC_DATA_CHARACTERISTICS_ID if (serviceUuid == BLEConstants.SYNC_SERVICE_ID) -> {
                 Logger.d(tag = TAG) { "WRITE REQUEST WITH CHARACTERISTIC : $characteristicUuid FROM SYNC SERVICE" }
 
-                val result = delegate.handleSyncDataWriteRequest(
+                syncDelegate.handleSyncDataWriteRequest(
                     value = value,
                     onNotify = { bytes ->
                         _notifyCharacteristicsChanged?.invoke(address, characteristicUuid, bytes) ?: false
                     },
-                )
-
-                result.fold(
-                    onSuccess = { session ->
-                        val device = _activeSyncDeviceInfo[address]
-                        if (device != null) {
-                            val event = when (session) {
-                                is BLESyncSession.SyncSessionStart -> AdvertiserSyncEvent.SyncStarted(device)
-                                is BLESyncSession.SyncSessionSuccessful ->
-                                    AdvertiserSyncEvent.FullDuplexCompleted(device, session.sessionId)
-
-                                is BLESyncSession.SyncSessionFailed -> AdvertiserSyncEvent.SyncFailed(session.reason.name)
-                                is BLESyncSession.SyncPacketTransition -> {
-                                    val isHalfDone =
-                                        session.prevType == BLESyncDataType.CONTENT && session.newType == BLESyncDataType.METADATA
-                                    if (isHalfDone) AdvertiserSyncEvent.HalfDuplexCompleted(device) else null
-                                }
-
-                                else -> null
-                            }
-                            if (event != null) _advertiserEvents.tryEmit(event)
-                        }
-                        return GattWriteResponse.SUCCESS
-                    },
-                    onFailure = { error ->
-                        val event = AdvertiserSyncEvent.SyncFailed(error.message ?: "Unknown Error")
-                        _advertiserEvents.tryEmit(event)
-                    },
-                )
+                    onReadDevice = { _activeSyncDeviceInfo[address] },
+                    onEvent = { event -> _advertiserEvents.tryEmit(event) },
+                ).onFailure { error ->
+                    val event = AdvertiserSyncEvent.SyncFailed(error.message ?: "Unknown Error")
+                    _advertiserEvents.tryEmit(event)
+                }
             }
 
             else -> {}
@@ -225,7 +180,7 @@ class BLEAdvertisementCallback private constructor(
 
         when (characteristicUuid) {
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
-                val result = delegate.handleCCCReadRequest(
+                val result = peerDelegate.handleCCCReadRequest(
                     address = address,
                     isIndication = true,
                     characteristicsId = characteristicUuid,
@@ -257,7 +212,7 @@ class BLEAdvertisementCallback private constructor(
         when (characteristicUuid) {
             BLEConstants.PROXIMITY_SYNC_CHARACTERISTICS_ID, BLEConstants.SYNC_DATA_CHARACTERISTICS_ID -> {
 
-                val result = delegate.handleCCCWriteRequest(
+                val result = peerDelegate.handleCCCWriteRequest(
                     address = address,
                     characteristicsId = characteristicUuid,
                     descriptorUuid = descriptorUuid,
@@ -286,7 +241,8 @@ class BLEAdvertisementCallback private constructor(
     }
 
     fun cleanUp() {
-        delegate.cleanUp()
+        syncDelegate.cleanUp()
+        peerDelegate.cleanUp()
         _peerDevices.value = emptyList()
         _activeSyncDeviceInfo.clear()
         _notifyCharacteristicsChanged = null

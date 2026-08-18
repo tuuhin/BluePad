@@ -116,6 +116,7 @@ class SyncReceiverViewmodel(
                 }
 
                 AdvertiserSyncEvent.HandshakeStarted -> _syncPhase.update { SyncUIState.Started }
+                else -> {}
             }
         }.catch { err ->
             val message = err.message ?: "Unknown error with receiving data"

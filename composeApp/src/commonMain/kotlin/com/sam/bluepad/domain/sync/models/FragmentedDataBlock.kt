@@ -1,6 +1,6 @@
 package com.sam.bluepad.domain.sync.models
 
 data class FragmentedDataBlock(
-    val seqNumber: Int,
+    val seqNumber: UInt,
     val payload: String
 )
