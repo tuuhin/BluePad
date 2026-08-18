@@ -13,6 +13,7 @@ import com.sam.bluepad.data.crypto.files.CryptoFilePathProviderImpl
 import com.sam.bluepad.data.database.AppDBBuilder
 import com.sam.bluepad.data.interactions.CopySketchInteractionImpl
 import com.sam.bluepad.data.interactions.ShareSketchInteractionImpl
+import com.sam.bluepad.data.platform.PlatformInfoReaderImpl
 import com.sam.bluepad.data.utils.CommonAppFilesStore
 import com.sam.bluepad.data.utils.JVMPermissionController
 import com.sam.bluepad.data.utils.PlatformDispatcherProvider
@@ -28,6 +29,7 @@ import com.sam.bluepad.domain.crypto.KeyEncryptionManager
 import com.sam.bluepad.domain.crypto.files.CryptoFilePathProvider
 import com.sam.bluepad.domain.interactions.CopySketchInteraction
 import com.sam.bluepad.domain.interactions.ShareSketchInteraction
+import com.sam.bluepad.domain.platform.IPlatformInfoReader
 import com.sam.bluepad.presentation.commons.PlatformToastProvider
 import com.sam.bluepad.presentation.commons.ToastController
 import com.sam.bluepad.presentation.commons.ToastControllerImpl
@@ -76,4 +78,7 @@ actual fun createPlatformModule(): Module = module {
     // toast controller and toast manager
     single<ToastControllerImpl>() bind ToastController::class
     factory<PlatformToastProvider>()
+
+    // platform data
+    single<PlatformInfoReaderImpl>() bind IPlatformInfoReader::class
 }
