@@ -55,6 +55,38 @@ jobs:
                       }
                     }
 
+            -   name: Ensure UPX is Installed
+                shell: pwsh
+                run: |
+                    if (Get-Command upx -ErrorAction SilentlyContinue) {
+                      Write-Host "UPX is already installed."
+                      upx --version
+                    } else {
+                      Write-Host "UPX not found. Installing via winget..."
+                      winget install --id UPX.UPX -e --source winget `
+                        --accept-source-agreements --accept-package-agreements
+
+                      # winget installs land under WinGet's Links dir (already on PATH on
+                      # GitHub-hosted runners) or under Program Files\UPX; resolve either way.
+                      $upxCmd = Get-Command upx -ErrorAction SilentlyContinue
+                      if (-not $upxCmd) {
+                        $upxDir = Get-ChildItem "C:\Program Files" -Directory -ErrorAction SilentlyContinue |
+                          Where-Object { $_.Name -like "upx*" } |
+                          Select-Object -First 1
+
+                        if ($upxDir) {
+                          $env:Path += ";$($upxDir.FullName)"
+                        }
+                      }
+
+                      $upxCmd = Get-Command upx -ErrorAction SilentlyContinue
+                      if ($upxCmd) {
+                        upx --version
+                      } else {
+                        throw "UPX installation failed."
+                      }
+                    }
+
             -   name: Initialize MSVC Environment
                 uses: ilammy/msvc-dev-cmd@v1
 
@@ -80,4 +112,9 @@ jobs:
             -   name: Build & Package Desktop App
                 shell: pwsh
                 run: |
-                    .\gradlew.bat :desktopApp:assemble :desktopApp:packageDistributionForCurrentOS --stacktrace --no-parallel
+                    .\gradlew.bat :desktopApp:assemble :desktopApp:packageDistributionForCurrentOS --stacktrace
+
+            -   name: Build Release Desktop App Package
+                shell: pwsh
+                run: |
+                    .\gradlew.bat :desktopApp:packageReleaseDistributionForCurrentOS --stacktrace
