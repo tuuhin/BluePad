@@ -38,15 +38,15 @@ build-konfig = "0.22.0"
 kableCore = "0.44.3"
 kableExceptions = "0.34.0"
 turbine = "1.2.1"
-nucleusnativeaccess = "0.6.0"
+nucleusnativeaccess = "0.7.0"
 nucleus = "2.4.7"
 cryptographyCore = "0.6.0"
 lighthouse = "2.3.2"
 catelog-update = "1.1.1"
-wireRuntime = "7.0.0-alpha06"
+wireRuntime = "7.0.0-alpha07"
 koin-plugin = "1.1.0"
 google-fonts = "1.12.0"
-zstdVersion = "1.5.7-13"
+zstdVersion = "1.5.7-15"
 
 [libraries]
 #testing
@@ -175,6 +175,7 @@ catelog-update = { id = "nl.littlerobots.version-catalog-update", version.ref = 
 #custom plugins
 nucleus-nna-cmake-ext = { id = "com.sam.bluepad.nucleus.nna.cmakeExt", version = "unspecified" }
 nucleus-build-ext = { id = "com.sam.bluepad.nucleus.buildExt", version = "unspecified" }
+nucleus-compression-ext = { id = "com.sam.bluepad.nucleus.upxCompression", version = "unspecified" }
 
 
 [bundles]

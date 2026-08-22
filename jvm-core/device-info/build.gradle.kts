@@ -3,6 +3,7 @@ import org.gradle.internal.os.OperatingSystem
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.nucleus.nna)
+    alias(libs.plugins.nucleus.compression.ext)
 }
 
 kotlin {
@@ -57,6 +58,10 @@ kotlinNativeExport {
         .toBoolean()
 
     buildType = if (envTypeIsRelease || isPropertyTypeRelease) "debug" else "release"
+}
+
+ktUpxCompressor {
+    enabled = true
 }
 
 

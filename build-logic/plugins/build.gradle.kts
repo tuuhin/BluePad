@@ -3,6 +3,7 @@ plugins {
 }
 
 group = "com.sam.bluepad.plugins"
+version = "1.0.0"
 
 dependencies {
     compileOnly(libs.kotlin.gradlePlugin)
@@ -18,6 +19,10 @@ gradlePlugin {
         create("ktDistributableExt") {
             id = "com.sam.bluepad.nucleus.buildExt"
             implementationClass = "com.sam.bluepad.plugins.KTNucleusPackagingExtPlugin"
+        }
+        create("ktUPXCompression") {
+            id = "com.sam.bluepad.nucleus.upxCompression"
+            implementationClass = "com.sam.bluepad.plugins.KTUPXCompressionPlugin"
         }
     }
 }

@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.nucleus.nna)
     alias(libs.plugins.nucleus.nna.cmake.ext)
+    alias(libs.plugins.nucleus.compression.ext)
 }
 
 val cInterOpName = "btCommon"
@@ -76,4 +77,8 @@ kotlinNativeExportCmakeExt {
     val isRelease = envNativeBuildType.getOrElse("false").toBoolean()
         || propertiesBuildType.getOrElse("false").toBoolean()
     releaseBuildEnabled = isRelease
+}
+
+ktUpxCompressor {
+    enabled = true
 }

@@ -5,6 +5,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.file.DuplicatesStrategy
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.JavaExec
@@ -16,6 +17,8 @@ import org.gradle.kotlin.dsl.withType
 import org.gradle.process.ProcessForkOptions
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
+import org.jetbrains.kotlin.gradle.plugin.mpp.SharedLibrary
 import java.io.File
 
 class KTNucleusPackagingExtPlugin : Plugin<Project> {
@@ -69,7 +72,7 @@ class KTNucleusPackagingExtPlugin : Plugin<Project> {
 
     private fun Project.setupCopyAndDeleteTaskForDist() {
         val deleteLibs = tasks.register<Delete>("deleteNativeLibraryForPackaging") {
-            description = "delete the associated lib copy in desktop resources"
+            description = "Deletes the associated lib copy in desktop resources"
 
             val targetDir = layout.projectDirectory.dir("desktopResources/$osSimpleName/libs")
             delete(targetDir)
@@ -81,21 +84,44 @@ class KTNucleusPackagingExtPlugin : Plugin<Project> {
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
             dependsOn(deleteLibs)
 
-            for (subproject in rootProject.subprojects) {
-                subproject.evaluationDependsOn(subproject.path)
+            val isReleaseTask = gradle.startParameter.taskNames.any {
+                it.contains("release", ignoreCase = true)
+            }
+            val targetBuildType = if (isReleaseTask) NativeBuildType.RELEASE else NativeBuildType.DEBUG
 
-                val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>()
-                val target = kotlinExp?.targets?.findByName(nativeTargetName) as? KotlinNativeTarget
-                    ?: continue
+            rootProject.subprojects {
+                val subproject = this
+                subproject.pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
+                    val kotlinExp =
+                        subproject.extensions.findByType<KotlinMultiplatformExtension>() ?: return@withPlugin
 
-                for (binary in target.binaries) {
-                    from(binary.linkTaskProvider.map { it.destinationDirectory }) {
-                        include(libraryExt)
-                    }
-                    val copyTaskName = "copyTo${binary.name.replaceFirstChar(Char::uppercase)}"
-                    dependsOn(subproject.tasks.matching { it.name == copyTaskName })
+                    kotlinExp.targets.matching { it.name == nativeTargetName }.withType<KotlinNativeTarget>()
+                        .configureEach {
+                            binaries.withType<SharedLibrary>().matching { it.buildType == targetBuildType }
+                                .configureEach {
+                                    val sharedLib = this
+                                    val linkTask = sharedLib.linkTaskProvider
+
+                                    // Explicitly register dependency and pull directory from provider to fix implicit dependency warnings
+                                    dependsOn(linkTask)
+
+                                    // Kotlin/Native also registers a companion "copyTo<BinaryName>" task for each
+                                    // SharedLibrary binary (visible on mingwX64, where it stages the .dll alongside
+                                    // its .lib/.def files). That task, not linkTask, is what actually writes into
+                                    // destinationDirectory on those targets, so it needs its own explicit dependency
+                                    // or Gradle flags an implicit-dependency validation warning.
+                                    val copyToTaskName =
+                                        "copyTo${sharedLib.name.replaceFirstChar { it.uppercaseChar() }}"
+                                    dependsOn(subproject.tasks.matching { it.name == copyToTaskName })
+
+                                    from(linkTask.flatMap { it.destinationDirectory }) {
+                                        include(libraryExt)
+                                    }
+                                }
+                        }
                 }
             }
+
             val targetDir = layout.projectDirectory.dir("desktopResources/$osSimpleName/libs")
             into(targetDir)
         }
@@ -106,7 +132,7 @@ class KTNucleusPackagingExtPlugin : Plugin<Project> {
             }
         }
 
-        tasks.named("clean") {
+        tasks.matching { it.name == "clean" }.configureEach {
             mustRunAfter(deleteLibs)
         }
     }
@@ -114,30 +140,46 @@ class KTNucleusPackagingExtPlugin : Plugin<Project> {
     private fun Task.setUpProjectPathForRun(project: Project) {
         val forkOptions = this as? ProcessForkOptions ?: return
 
-        // Extract subproject output directory Providers safely during configuration phase
-        val binaryDirectories = project.rootProject.subprojects.mapNotNull { subproject ->
-            val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>() ?: return@mapNotNull null
-            kotlinExp.targets
-                .filterIsInstance<KotlinNativeTarget>()
-                .flatMap { it.binaries }
-                .onEach { binary ->
-                    this@setUpProjectPathForRun.dependsOn(binary.linkTaskProvider)
-                }
-                .map { binary -> binary.linkTaskProvider.map { it.destinationDirectory.get().asFile } }
-        }.flatten()
+        val binaryDirectories = mutableListOf<Pair<NativeBuildType, Provider<File>>>()
 
-        // Defer resolving path until execution phase without referencing `Project`
+        project.rootProject.subprojects {
+            val subproject = this
+            subproject.pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
+                val kotlinExp = subproject.extensions.findByType<KotlinMultiplatformExtension>() ?: return@withPlugin
+
+                kotlinExp.targets.withType<KotlinNativeTarget>().configureEach {
+                    binaries.withType<SharedLibrary>().configureEach {
+                        val sharedLib = this
+                        val linkTask = sharedLib.linkTaskProvider
+
+                        this@setUpProjectPathForRun.dependsOn(linkTask)
+
+                        val dirProvider = linkTask.map { it.destinationDirectory.get().asFile }
+                        binaryDirectories.add(sharedLib.buildType to dirProvider)
+                    }
+                }
+            }
+        }
+
         doFirst {
-            val binDirs = binaryDirectories.mapNotNull { provider ->
-                val dir = provider.orNull
-                if (dir != null && dir.exists()) dir.absolutePath else null
-            }.toSet()
+            val isReleaseMode = name.contains("release", ignoreCase = true) ||
+                project.gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
+
+            val targetBuildType = if (isReleaseMode) NativeBuildType.RELEASE else NativeBuildType.DEBUG
+
+            val binDirs = binaryDirectories
+                .filter { (buildType, _) -> buildType == targetBuildType }
+                .mapNotNull { (_, provider) ->
+                    val dir = provider.orNull
+                    if (dir != null && dir.exists()) dir.absolutePath else null
+                }.toSet()
+
             if (binDirs.isEmpty()) return@doFirst
 
             val pathSeparator = File.pathSeparator
             val existingPath = System.getenv("PATH") ?: ""
 
-            logger.debug("LIST OF LIBRARIES PATH LINKED :{}", binDirs)
+            logger.debug("LIST OF {} LIBRARIES PATH LINKED: {}", targetBuildType, binDirs)
 
             val mergedPath = (binDirs + existingPath.split(pathSeparator))
                 .filter { it.isNotBlank() }

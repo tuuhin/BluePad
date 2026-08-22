@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.nucleus.nna)
     alias(libs.plugins.nucleus.nna.cmake.ext)
+    alias(libs.plugins.nucleus.compression.ext)
 }
 
 group = "com.sam.ble_advertise"
@@ -79,4 +80,8 @@ kotlinNativeExportCmakeExt {
         || propertiesBuildType.getOrElse("false").toBoolean()
 
     releaseBuildEnabled = isRelease
+}
+
+ktUpxCompressor {
+    enabled = true
 }

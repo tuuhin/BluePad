@@ -3,18 +3,14 @@ import org.gradle.internal.os.OperatingSystem
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.nucleus.nna)
+    alias(libs.plugins.nucleus.compression.ext)
 }
-
-val currentOs: OperatingSystem = OperatingSystem.current()
-
-// env will get precedence over gradle property
-val envNativeBuildType = providers.environmentVariable("NATIVE_BUILD_TYPE_RELEASE")
-val propertiesBuildType = providers.gradleProperty("cmake.buildTypeRelease")
 
 kotlin {
 
     jvmToolchain(22)
 
+    val currentOs: OperatingSystem = OperatingSystem.current()
     when {
         currentOs.isWindows -> mingwX64 {
             compilations.getByName("main") {
@@ -44,6 +40,8 @@ kotlin {
                 }
             }
         }
+
+        else -> throw GradleException("Platform not supported")
     }
 
     jvm()
@@ -64,15 +62,20 @@ kotlinNativeExport {
     nativeLibName = "bluepadCrypto"
     nativePackage = "com.sam.bluepad.platform.native"
     // env will get precedence over gradle property
-    val envTypeIsRelease = envNativeBuildType.getOrElse("false")
-        .toBoolean()
+    val envNativeBuildType = providers.environmentVariable("NATIVE_BUILD_TYPE_RELEASE")
+    val propertiesBuildType = providers.gradleProperty("cmake.buildTypeRelease")
 
-    val isPropertyTypeRelease = propertiesBuildType.getOrElse("false")
-        .toBoolean()
-
-    buildType = if (envTypeIsRelease || isPropertyTypeRelease) "debug" else "release"
+    // Evaluate release mode
+    val envTypeIsRelease = envNativeBuildType.getOrElse("false").toBoolean()
+    val isPropertyTypeRelease = propertiesBuildType.getOrElse("false").toBoolean()
+    val isReleaseBuild = envTypeIsRelease || isPropertyTypeRelease
+    buildType = if (isReleaseBuild) "debug" else "release"
 }
 
+
+ktUpxCompressor {
+    enabled = true
+}
 
 fun pkgConfigFlags(flag: String, library: String): List<String> {
     return try {

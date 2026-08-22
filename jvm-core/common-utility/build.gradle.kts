@@ -1,13 +1,16 @@
+import org.gradle.internal.os.OperatingSystem
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.nucleus.nna)
+    alias(libs.plugins.nucleus.compression.ext)
 }
 
 kotlin {
 
     jvmToolchain(22)
 
-    val os = org.gradle.internal.os.OperatingSystem.current()
+    val os = OperatingSystem.current()
     when {
         os.isWindows -> mingwX64 {
             compilations.getByName("main") {
@@ -56,4 +59,8 @@ kotlinNativeExport {
     val isPropertyTypeRelease = propertiesBuildType.getOrElse("false").toBoolean()
 
     buildType = if (envTypeIsRelease || isPropertyTypeRelease) "debug" else "release"
+}
+
+ktUpxCompressor {
+    enabled = true
 }
